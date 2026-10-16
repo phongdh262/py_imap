@@ -1,150 +1,95 @@
 import argparse
-import random
+import csv
+import sys
 import time
+from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
+from src.core.models import AccountCredentials
+from src.core.service import MigrationService
 from src.telemetry.logger import setup_logging
-from src.telemetry.metrics import (
-    ACCOUNT_PROGRESS_PERCENT,
-    ACTIVE_WORKERS,
-    BYTES_TRANSFERRED_TOTAL,
-    FOLDER_MIGRATION_STATUS,
-    MESSAGE_PROCESS_SECONDS,
-    MESSAGES_FAILED_TOTAL,
-    MESSAGES_MIGRATED_TOTAL,
-    SOURCE_MAILBOX_MESSAGES_TOTAL,
-    SOURCE_MAILBOX_SIZE_BYTES,
-    start_metrics_server,
-)
+from src.telemetry.metrics import start_metrics_server
 
 console = Console()
 
 
-def run_simulation(logger):
-    """
-    Simulates real-world multi-account migration:
-    - Pre-flight quota/size inspection
-    - Folder discovery & mapping
-    - Streaming message migration with metrics
-    - Realistic error occurrences to test Grafana alerting & error drill-down
-    """
-    logger.info("Starting simulation mode for Prometheus & Grafana verification")
+def run_csv_batch(csv_path: str, service: MigrationService):
+    """Processes batch migration from a CSV file."""
+    path = Path(csv_path)
+    if not path.exists():
+        console.print(f"[bold red]Error: CSV file not found at {csv_path}[/bold red]")
+        sys.exit(1)
 
-    accounts = [
-        {"src": "ceo@source-company.com", "dst": "ceo@dest-corp.com", "size_mb": 4200, "msgs": 1500},
-        {"src": "sales@source-company.com", "dst": "sales@dest-corp.com", "size_mb": 8500, "msgs": 3200},
-        {"src": "tech@source-company.com", "dst": "tech@dest-corp.com", "size_mb": 12000, "msgs": 4800},
-    ]
+    with open(path, mode="r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        accounts = list(reader)
 
-    folders = ["INBOX", "Sent Items", "Archive", "Finance 2025"]
+    console.print(f"[bold green]Loaded {len(accounts)} account(s) for migration.[/bold green]")
 
-    for acc in accounts:
-        SOURCE_MAILBOX_SIZE_BYTES.labels(source_account=acc["src"]).set(acc["size_mb"] * 1024 * 1024)
-        SOURCE_MAILBOX_MESSAGES_TOTAL.labels(source_account=acc["src"]).set(acc["msgs"])
-        ACCOUNT_PROGRESS_PERCENT.labels(source_account=acc["src"], dest_account=acc["dst"]).set(0)
+    for idx, row in enumerate(accounts, 1):
+        console.print(f"\n[bold yellow]=== Processing Account [{idx}/{len(accounts)}] ===[/bold yellow]")
+        src_creds = AccountCredentials(
+            host=row["source_host"].strip(),
+            port=int(row.get("source_port", 993)),
+            ssl=str(row.get("source_ssl", "true")).lower() in ("true", "1"),
+            username=row["source_user"].strip(),
+            password=row["source_password"].strip(),
+        )
+        dst_creds = AccountCredentials(
+            host=row["dest_host"].strip(),
+            port=int(row.get("dest_port", 993)),
+            ssl=str(row.get("dest_ssl", "true")).lower() in ("true", "1"),
+            username=row["dest_user"].strip(),
+            password=row["dest_password"].strip(),
+        )
 
-    ACTIVE_WORKERS.set(len(accounts))
-
-    logger.info("Pre-flight scan completed", total_accounts=len(accounts))
-
-    # Migration simulation loop
-    completed_counts = {acc["src"]: 0 for acc in accounts}
-
-    while True:
-        for acc in accounts:
-            src = acc["src"]
-            dst = acc["dst"]
-            total_msgs = acc["msgs"]
-
-            if completed_counts[src] >= total_msgs:
-                continue
-
-            folder = random.choice(folders)
-            FOLDER_MIGRATION_STATUS.labels(source_account=src, folder=folder).set(1)  # In-Progress
-
-            # Simulate batch of 5-15 messages
-            batch_size = random.randint(5, 15)
-            for _ in range(batch_size):
-                if completed_counts[src] >= total_msgs:
-                    break
-
-                with MESSAGE_PROCESS_SECONDS.labels(source_account=src).time():
-                    time.sleep(random.uniform(0.01, 0.05))
-
-                # 97% success, 3% realistic failures
-                if random.random() < 0.97:
-                    msg_size = random.randint(15_000, 4_500_000)  # 15KB - 4.5MB
-                    MESSAGES_MIGRATED_TOTAL.labels(source_account=src, folder=folder).inc()
-                    BYTES_TRANSFERRED_TOTAL.labels(source_account=src).inc(msg_size)
-                    completed_counts[src] += 1
-                else:
-                    error_types = [
-                        ("ATTACHMENT_SIZE_EXCEEDED", "Payload exceeds 35MB host limit"),
-                        ("MIME_PARSING_FAILED", "Corrupted boundary header in RFC822"),
-                        ("IMAP_TIMEOUT", "Socket timed out after 30s during APPEND"),
-                    ]
-                    err_code, err_desc = random.choice(error_types)
-                    MESSAGES_FAILED_TOTAL.labels(
-                        source_account=src, folder=folder, error_type=err_code
-                    ).inc()
-
-                    logger.error(
-                        "Failed to migrate message",
-                        source_account=src,
-                        dest_account=dst,
-                        folder=folder,
-                        uid=random.randint(1000, 99999),
-                        error_code=err_code,
-                        error_detail=err_desc,
-                    )
-
-            # Update progress
-            progress = round((completed_counts[src] / total_msgs) * 100, 2)
-            ACCOUNT_PROGRESS_PERCENT.labels(source_account=src, dest_account=dst).set(progress)
-
-            if completed_counts[src] >= total_msgs:
-                FOLDER_MIGRATION_STATUS.labels(source_account=src, folder=folder).set(2)  # Completed
-                logger.info("Account migration completed", account=src, total_migrated=completed_counts[src])
-
-        # Check if all done
-        if all(completed_counts[acc["src"]] >= acc["msgs"] for acc in accounts):
-            ACTIVE_WORKERS.set(0)
-            logger.info("All accounts completed migration simulation!")
-            time.sleep(10)
-            # Reset counters for continuous dashboard demonstration
-            for acc in accounts:
-                completed_counts[acc["src"]] = 0
-            ACTIVE_WORKERS.set(len(accounts))
+        try:
+            service.migrate_account(src_creds, dst_creds)
+        except Exception as e:
+            console.print(f"[bold red]Failed migrating {src_creds.username}: {e}[/bold red]")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Python IMAP Email Migration Engine")
-    parser.add_argument("--simulate", action="store_true", default=True, help="Run simulation mode")
-    parser.add_argument("--port", type=int, default=8000, help="Prometheus metrics port")
+    parser = argparse.ArgumentParser(description="Py-IMAP Email Migration Engine & Monitoring")
+    parser.add_argument("--simulate", action="store_true", help="Run simulated migration to test Prometheus & Grafana")
+    parser.add_argument("--inspect-source", action="store_true", help="Inspect source mailbox size, quota, and folders")
+    parser.add_argument("--csv", type=str, help="Path to accounts.csv for batch migration")
+    parser.add_argument("--host", type=str, help="IMAP Source Host for single inspection/migration")
+    parser.add_argument("--user", type=str, help="IMAP Source Username")
+    parser.add_argument("--password", type=str, help="IMAP Source Password / App Password")
+    parser.add_argument("--port", type=int, default=8000, help="Prometheus metrics exporter port")
     args = parser.parse_args()
 
     logger = setup_logging()
 
-    console.print(
-        Panel.fit(
-            "[bold cyan]PY-IMAP EMAIL MIGRATION ENGINE[/bold cyan]\n"
-            f"[green]Prometheus Metrics Server listening on port :[/green][bold yellow]{args.port}[/bold yellow]\n"
-            "[magenta]Monitoring ready for Prometheus + Grafana + Loki[/magenta]",
-            border_style="cyan",
-        )
-    )
-
-    # Start Prometheus exporter HTTP server
+    # Always start Prometheus metrics exporter
     start_metrics_server(port=args.port)
     logger.info("Prometheus metrics server started", port=args.port)
 
-    if args.simulate:
-        run_simulation(logger)
-    else:
-        logger.info("Production mode selected. Ready for account workers.")
-        while True:
-            time.sleep(3600)
+    service = MigrationService()
+
+    if args.inspect_source:
+        if not (args.host and args.user and args.password):
+            console.print("[bold red]Error: --host, --user, and --password are required for --inspect-source[/bold red]")
+            sys.exit(1)
+
+        creds = AccountCredentials(
+            host=args.host,
+            port=993,
+            ssl=True,
+            username=args.user,
+            password=args.password,
+        )
+        service.inspect_source(creds)
+
+    elif args.csv:
+        run_csv_batch(args.csv, service)
+
+    elif args.simulate or len(sys.argv) == 1:
+        # Default behavior: run simulation for live Grafana demonstration
+        from src.main_simulation import run_simulation_loop
+        run_simulation_loop(logger)
 
 
 if __name__ == "__main__":
