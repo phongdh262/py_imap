@@ -75,6 +75,21 @@ VUI LÒNG CHỌN TÍNH NĂNG:
 - Lựa chọn **`[5]`** trên menu cho phép xem lại các phiên migrate cũ có email lỗi.
 - Chỉ kéo và đẩy đúng những UID bị lỗi mà không cần quét lại toàn bộ hộp thư, sau đó tự động cập nhật lại báo cáo HTML/CSV.
 
+### 4. Hệ Thống Bảo Mật Đa Tầng Doanh Nghiệp (Enterprise Security Hardening)
+- **Xác thực Web Admin & Chống Brute-Force**:
+  - Hỗ trợ HTTP Basic Auth bảo vệ toàn bộ dashboard Web Admin (`:8080`).
+  - So sánh mật khẩu an toàn theo thời gian hằng số (`secrets.compare_digest`) chống tấn công Timing Attacks.
+  - Tự động phát hiện và khóa IP (Lockout 5 phút) nếu nhập sai liên tiếp quá 5 lần (`HTTP 429 Too Many Requests`).
+  - Biến môi trường: `ENABLE_WEB_AUTH` (mặc định: `true`), `ADMIN_USERNAME` (mặc định: `admin`), `ADMIN_PASSWORD` (mặc định: `admin123`).
+- **OWASP Security Headers**:
+  - Tự động gắn các header bảo mật: `X-Frame-Options: SAMEORIGIN` (chống Clickjacking), `X-Content-Type-Options: nosniff` (chống MIME confusion), `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`.
+- **Chống Path Traversal (Lỗ hổng duyệt thư mục)**:
+  - Kiểm tra và cô lập đường dẫn tải file báo cáo `/reports/{filename}` với `PathSecurity.validate_safe_path()`, chặn tuyệt đối các chuỗi `../`, null-byte `\0` và ký tự độc hại.
+- **Che Dấu Mật Khẩu & Dữ Liệu Nhạy Cảm (Credential Masking)**:
+  - Tự động che mật khẩu dạng `sup***123` trong logs, telemetry và các thông báo lỗi socket/IMAP để không bao giờ lộ mật khẩu ra bên ngoài.
+- **Thắt Chặt Chuẩn Mã Hóa TLS 1.2+**:
+  - Bắt buộc giao thức TLS 1.2 / TLS 1.3, kích hoạt SNI và kiểm tra tính hợp lệ của chứng chỉ SSL (`CERT_REQUIRED`).
+
 ---
 
 ### 3. Truy cập các dịch vụ

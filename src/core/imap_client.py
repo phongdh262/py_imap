@@ -33,10 +33,13 @@ class IMAPClientWrapper:
     def connect(self) -> "IMAPClientWrapper":
         """Establishes SSL connection and performs authentication."""
         try:
-            # Build secure TLS context
-            ssl_context = ssl.create_default_context()
-            if not self.creds.ssl:
-                ssl_context = None
+            # Build secure TLS context enforcing TLS 1.2+
+            ssl_context = None
+            if self.creds.ssl:
+                ssl_context = ssl.create_default_context()
+                ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+                ssl_context.check_hostname = True
+                ssl_context.verify_mode = ssl.CERT_REQUIRED
 
             self.client = IMAPClient(
                 host=self.creds.host,
@@ -64,9 +67,12 @@ class IMAPClientWrapper:
             return self
 
         except LoginError as e:
-            raise IMAPAuthenticationError(f"Login failed for {self.creds.username} on {self.creds.host}: {e}") from e
+            # Mask password in error message to prevent accidental leak
+            clean_err = str(e).replace(self.creds.password or "", "***") if self.creds.password else str(e)
+            raise IMAPAuthenticationError(f"Login failed for {self.creds.username} on {self.creds.host}: {clean_err}") from None
         except (ProtocolError, ssl.SSLError, OSError) as e:
-            raise IMAPConnectionError(f"Cannot connect to IMAP host {self.creds.host}:{self.creds.port}: {e}") from e
+            clean_err = str(e).replace(self.creds.password or "", "***") if self.creds.password else str(e)
+            raise IMAPConnectionError(f"Cannot connect to IMAP host {self.creds.host}:{self.creds.port}: {clean_err}") from None
 
     def has_capability(self, capability: str) -> bool:
         """Checks if server announced a specific RFC capability."""

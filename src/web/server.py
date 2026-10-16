@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,13 +14,26 @@ from src.core.auth_checker import AuthChecker
 from src.core.models import AccountCredentials, MailboxSummary
 from src.core.service import MigrationService
 from src.reports.reporter import MigrationReporter
+from src.security.auth import verify_admin
+from src.security.headers import SecurityHeadersMiddleware
+from src.security.path_guard import PathSecurity
 from src.storage.state_db import StateDatabase
 
-app = FastAPI(title="Py-IMAP Control Center", version="1.0.0")
+app = FastAPI(
+    title="Py-IMAP Control Center",
+    version="1.0.0",
+    dependencies=[Depends(verify_admin)],
+)
 
+# OWASP Security Headers
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS Policy
+allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "*")
+allowed_origins = [o.strip() for o in allowed_origins_raw.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins if allowed_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -221,20 +234,20 @@ async def view_session_report(session_id: int):
 
 @app.get("/reports/{filename}")
 async def download_report_file(filename: str):
-    """Downloads report files."""
-    file_path = REPORTS_DIR / filename
-    if not file_path.exists():
+    """Downloads report files safely with path traversal protection."""
+    safe_path = PathSecurity.validate_safe_path(REPORTS_DIR, filename)
+    if not safe_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path=file_path, filename=filename)
+    return FileResponse(path=safe_path, filename=safe_path.name)
 
 
 @app.get("/config/accounts.example.csv")
 async def download_example_csv():
     """Serves the template accounts.example.csv for users."""
-    csv_file = Path("config/accounts.example.csv")
-    if not csv_file.exists():
+    safe_path = PathSecurity.validate_safe_path(Path("config"), "accounts.example.csv")
+    if not safe_path.exists():
         raise HTTPException(status_code=404, detail="accounts.example.csv not found")
-    return FileResponse(path=csv_file, filename="accounts.example.csv", media_type="text/csv")
+    return FileResponse(path=safe_path, filename="accounts.example.csv", media_type="text/csv")
 
 
 @app.post("/api/retry/{session_id}")
