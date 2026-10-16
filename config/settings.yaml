@@ -1,0 +1,15 @@
+app:
+  name: "py-email-migrator"
+  version: "1.0.0"
+  worker_concurrency: 5
+  batch_size: 100
+  socket_timeout_seconds: 30
+
+telemetry:
+  metrics_port: 8000
+  log_level: "INFO"
+  log_dir: "/var/log/email_migrator"
+
+retry:
+  max_attempts: 3
+  backoff_factor: 2.0

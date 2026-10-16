@@ -1,0 +1,23 @@
+# Canonical folder mapping rules
+# Matching based on RFC 6154 SPECIAL-USE attributes first, then regex/alias fallback
+canonical_mappings:
+  INBOX:
+    targets: ["INBOX"]
+  SENT:
+    targets: ["Sent", "Sent Items", "Sent Messages", "Thư đã gửi", "[Gmail]/Sent Mail", "INBOX.Sent"]
+  DRAFTS:
+    targets: ["Drafts", "Bản nháp", "[Gmail]/Drafts", "INBOX.Drafts"]
+  TRASH:
+    targets: ["Trash", "Deleted Items", "Thùng rác", "[Gmail]/Trash", "INBOX.Trash"]
+  JUNK:
+    targets: ["Junk", "Spam", "Thư rác", "[Gmail]/Spam", "INBOX.Spam"]
+  ARCHIVE:
+    targets: ["Archive", "Lưu trữ", "[Gmail]/All Mail"]
+
+# Folders to skip by default to save storage and avoid duplicates
+exclude_folders:
+  - "(?i).*spam.*"
+  - "(?i).*junk.*"
+  - "(?i).*trash.*"
+  - "(?i).*deleted.*"
+  - "(?i)\\[gmail\\]/all mail"  # Skip to avoid duplicating with INBOX + Sent
