@@ -34,15 +34,27 @@ sudo apt-get install -y docker.io docker-compose-v2
 sudo systemctl enable --now docker
 ```
 
-### 2. Khởi chạy toàn bộ hạ tầng (App + Prometheus + Grafana + Loki + Promtail)
-Chạy lệnh duy nhất tại thư mục dự án:
-```bash
-docker compose up -d --build
-```
+### 2. Khởi chạy Ứng Dụng với Giao Diện Menu Lựa Chọn (Interactive Menu)
 
-Kiểm tra trạng thái các container:
+Chỉ cần chạy:
 ```bash
-docker compose ps
+python3 -m src.main
+```
+Hệ thống sẽ hiển thị menu tương tác trực quan:
+```text
+╭────────────────────────────────────────────────────────╮
+│ PY-IMAP EMAIL MIGRATION TOOL (Ubuntu 24.04 LTS)        │
+│ Multi-provider support: Gmail, Yandex, Outlook, cPanel │
+│ Prometheus Metrics: http://0.0.0.0:8000/metrics        │
+╰────────────────────────────────────────────────────────╯
+
+VUI LÒNG CHỌN TÍNH NĂNG:
+[1]  🔍 Quét dung lượng & thư mục máy chủ nguồn (Pre-flight Inspection)
+[2]  🚀 Di chuyển 1 tài khoản trực tiếp (Migrate 1 Account)
+[3]  📂 Di chuyển hàng loạt nhiều tài khoản từ file CSV (Batch Migrate)
+[4]  ⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)
+[5]  📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)
+[0]  ❌ Thoát chương trình (Exit)
 ```
 
 ### 3. Truy cập các dịch vụ
