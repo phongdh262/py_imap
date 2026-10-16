@@ -1,46 +1,103 @@
 # Py-IMAP Email Migration Engine & Monitoring Stack
 
-Bộ công cụ di chuyển dữ liệu email đa nền tảng (Gmail, Yandex, Outlook / Office 365, cPanel/Dovecot) được thiết kế cho **Ubuntu 24.04 LTS**, tích hợp sẵn hệ thống quan sát thời gian thực bằng **Prometheus + Grafana + Loki**.
+Bộ công cụ di chuyển dữ liệu email doanh nghiệp đa nền tảng (**Gmail, Yandex, Outlook / Office 365, cPanel, Dovecot, Zimbra**) tối ưu hóa cho **Ubuntu 24.04 LTS**. Hệ thống tích hợp sẵn cơ chế chống trùng lặp dữ liệu, khôi phục khi đứt mạng, bảng điều khiển trực quan **Web Admin Control Panel**, bảo mật đa tầng, và hạ tầng quan sát thời gian thực bằng **Prometheus + Grafana + Loki**.
 
 ---
 
-## 🚀 Tính năng Hạ tầng Giám sát
+## 🌟 Điểm Nổi Bật & Tính Năng Cốt Lõi
 
-1. **Prometheus Metrics (Port 9090 / App 8000)**:
-   - Đo lường số lượng email thành công / thất bại theo từng account và folder (`email_migration_messages_migrated_total`, `email_migration_messages_failed_total`).
+### 1. 🗄️ Chống Trùng Lặp Thư & Resume Khi Rớt Mạng (Idempotency Engine)
+- **SQLite WAL State Database (`data/state.db`)**: Theo dõi trạng thái từng bức thư dựa trên `Message-ID`, `RFC822.SIZE` và `INTERNALDATE`.
+- **An toàn tuyệt đối khi rớt mạng**: Nếu tiến trình bị ngắt đột ngột, khi chạy lại hệ thống sẽ tự động bỏ qua các thư đã di chuyển thành công, tiếp tục di chuyển từ vị trí bị dừng mà không sinh ra thư rác/trùng lặp.
+
+### 2. 🇻🇳 Tự Động Xử Lý Tiếng Việt Có Dấu & Mojibake (Yandex / cPanel)
+- Tự động giải mã chuẩn **Modified UTF-7 (RFC 2152)** của giao thức IMAP.
+- **Tự động vá lỗi Mojibake**: Sửa các lỗi giải mã nhầm font tiếng Việt (ví dụ: `ThÆ° Ä‘Ã£ gá»­i` ➔ `Thư đã gửi`).
+- **Tùy chọn Khử Dấu Tiếng Việt**: Tự động chuyển đổi tên thư mục thành tiếng Việt không dấu (`Thư đã gửi` ➔ `Thu da gui`) để tương thích tối đa với các máy chủ cPanel/Dovecot đời cũ không hỗ trợ UTF-8 Maildir.
+
+### 3. 🛡️ Bảo Mật Đa Tầng Doanh Nghiệp (Enterprise Security Hardening)
+- **Xác thực Web Admin & Chống Brute-Force**:
+  - Bảo vệ Web Control Panel bằng HTTP Basic Auth.
+  - So sánh mật khẩu an toàn theo thời gian hằng số (`secrets.compare_digest`) chống **Timing Attacks**.
+  - **Tự động Lockout 5 phút**: Tự động khóa IP khi nhập sai liên tiếp quá 5 lần (`HTTP 429 Too Many Requests`).
+- **OWASP HTTP Security Headers**:
+  - `X-Frame-Options: SAMEORIGIN` (chống Clickjacking).
+  - `X-Content-Type-Options: nosniff` (chống MIME-confusion).
+  - `X-XSS-Protection: 1; mode=block`.
+  - `Referrer-Policy: strict-origin-when-cross-origin`.
+- **Chống Path Traversal (Lỗ hổng duyệt thư mục)**:
+  - Kiểm tra và cô lập đường dẫn tải file báo cáo `/reports/{filename}` với `PathSecurity.validate_safe_path()`, chặn tuyệt đối các ký tự `..`, null-byte `\0`.
+- **Che Dấu Mật Khẩu (Credential Masking)**:
+  - Tự động che mật khẩu dạng `sup***123` trong logs, telemetry và IMAP exception để không bao giờ lộ mật khẩu trên màn hình hay hệ thống giám sát.
+- **Thắt Chặt Chuẩn Mã Hóa TLS 1.2+**:
+  - Bắt buộc giao thức TLS 1.2 / TLS 1.3, kích hoạt SNI và kiểm tra tính hợp lệ của chứng chỉ SSL (`CERT_REQUIRED`).
+
+### 4. ⚡ Điều Tiết Băng Thông & Chống Block IP (Anti-ban Throttling)
+- Tùy chỉnh độ trễ giữa các batch (mặc định 50ms - 200ms) để không bị nhà mạng hay Google/Microsoft gắn cờ spam request.
+- **Tự động Exponential Backoff**: Khi gặp cảnh báo quá tải (`[ALERT] Too many simultaneous connections`, `Maximum bandwidth exceeded`, `[THROTTLED]`), hệ thống tự động nghỉ 5s, 10s, 20s và thử lại một cách êm dịu thay vì làm gián đoạn toàn bộ tiến trình.
+
+### 5. 🔁 Công Cụ Retry Thư Lỗi Riêng Biệt (Targeted Recovery)
+- Dành riêng cho các thư bị lỗi do sự cố mạng tức thời hoặc MIME vượt kích thước cho phép.
+- Chỉ đọc và kéo đúng những UID bị lỗi từ danh sách phiên cũ, di chuyển bù vào hộp thư đích và cập nhật lại trạng thái trong database mà không phải quét lại toàn bộ tài khoản.
+
+### 6. 📊 Tự Động Sinh Báo Cáo Kết Quả Sau Migrate
+- **Báo cáo HTML Tự Chứa (Self-contained Interactive HTML)**: Thiết kế hiện đại, responsive, tích hợp biểu đồ trực quan, bảng chi tiết từng thư mục và danh sách lỗi cụ thể.
+- **Báo cáo CSV Thư Lỗi**: Xuất file CSV chi tiết các bức thư thất bại kèm nguyên nhân để quản trị viên dễ dàng đối soát.
+
+---
+
+## 🖥️ Giao Diện Quản Trị Trực Quan (Web Admin Control Panel)
+
+Web Control Panel (`http://<SERVER_IP>:8080`) được xây dựng sẵn với các tính năng:
+- **Kéo - Thả File CSV**: Hỗ trợ nạp hàng loạt tài khoản từ file CSV mẫu.
+- **Nút Kiểm Tra Nhanh**: Quét song song mật khẩu ứng dụng và kiểm tra latency kết nối của toàn bộ danh sách email.
+- **Preset Nhà Cung Cấp**: 1-click điền thông số chuẩn cho Gmail, Yandex, Microsoft 365, cPanel.
+- **Tùy Biến Giao Diện (Theme Switcher)**: 3 giao diện cao cấp:
+  - 🌌 **Midnight Neon** (Mặc định)
+  - ⬛ **OLED Obsidian** (Tối sâu tiết kiệm pin)
+  - ☀️ **Clean Light** (Sáng sủa, hiện đại)
+- **Live SSE Progress**: Cập nhật tiến độ % và log dạng terminal drawer theo thời gian thực mà không cần tải lại trang.
+
+---
+
+## 📈 Hệ Thống Quan Sát & Giám Sát (Prometheus + Grafana + Loki)
+
+1. **Prometheus Metrics (Port 9090 / Exporter 8000)**:
+   - Số lượng email thành công / thất bại: `email_migration_messages_migrated_total`, `email_migration_messages_failed_total`.
    - Tốc độ di chuyển thời gian thực: Messages/giây và Băng thông mạng MB/giây.
-   - Dung lượng hộp thư nguồn trước khi migrate (`email_migration_source_mailbox_size_bytes`).
-   - Tiến độ % từng tài khoản (`email_migration_account_progress_percent`).
-   - Số lượng worker đang chạy đồng thời (`email_migration_active_workers`).
-
+   - Dung lượng hộp thư trước khi migrate: `email_migration_source_mailbox_size_bytes`.
+   - Tiến độ % từng tài khoản: `email_migration_account_progress_percent`.
 2. **Grafana Loki + Promtail (Port 3100 & 3000)**:
-   - Thu thập log có cấu trúc dạng JSON (`/var/log/email_migrator/*.log`).
+   - Thu thập JSON logs từ `/var/log/email_migrator/*.log`.
    - Bóc tách nhãn tự động: `level`, `source_account`, `folder`, `error_code`.
-   - Xem chi tiết từng bức thư bị lỗi: UID, Message-ID, nguyên nhân thất bại (vượt quá dung lượng, rớt socket, sai MIME).
-
+   - Panel xem chi tiết từng bức thư bị lỗi trực tiếp trên giao diện Grafana.
 3. **Grafana Dashboard Tự Động (Auto-Provisioned)**:
-   - Truy cập ngay không cần tạo thủ công: mở `http://localhost:3000` (hoặc IP máy chủ Ubuntu).
-   - Tự động nạp sẵn Dashboard **"Email Migration Control Center"**.
+   - Nạp sẵn Dashboard **"Email Migration Control Center"** ngay khi khởi động Docker Compose.
 
 ---
 
-## 🛠️ Hướng dẫn Khởi chạy trên Ubuntu 24.04
+## 🛠️ Hướng Dẫn Khởi Chạy
 
-### 1. Yêu cầu tiên quyết
-Cài đặt Docker và Docker Compose trên Ubuntu 24:
+### 1. Khởi chạy toàn bộ hạ tầng bằng Docker Compose (Khuyên dùng)
 ```bash
-sudo apt-get update
-sudo apt-get install -y docker.io docker-compose-v2
-sudo systemctl enable --now docker
+# Khởi động 5 containers: Web App, Prometheus, Grafana, Loki, Promtail
+docker compose up -d
+
+# Xem log hoạt động
+docker compose logs -f app
 ```
 
-### 2. Khởi chạy Ứng Dụng với Giao Diện Menu Lựa Chọn (Interactive Menu)
+### 2. Khởi chạy cục bộ (Local / Development)
+Cài đặt các thư viện cần thiết:
+```bash
+pip install -r requirements.txt
+```
 
-Chỉ cần chạy:
+**Khởi chạy CLI Menu Tương Tác:**
 ```bash
 python3 -m src.main
 ```
-Hệ thống sẽ hiển thị menu tương tác trực quan:
+Menu hiển thị:
 ```text
 ╭────────────────────────────────────────────────────────╮
 │ PY-IMAP EMAIL MIGRATION TOOL (Ubuntu 24.04 LTS)        │
@@ -59,81 +116,90 @@ VUI LÒNG CHỌN TÍNH NĂNG:
 [0]  ❌ Thoát chương trình (Exit)
 ```
 
----
-
-## 🛡️ Các Tính Năng Doanh Nghiệp Cốt Lõi
-
-### 1. Cơ Chế Xử Lý Thư Mục Tiếng Việt Có Dấu (Yandex / cPanel)
-- Tự động sửa lỗi mã hóa **Modified UTF-7 (RFC 2152)** và hiện tượng **Mojibake** (UTF-8 bị đọc nhầm thành Latin-1 như `ThÆ° Ä‘Ã£ gá»­i`).
-- **Tùy chọn Khử Dấu Tiếng Việt**: Tự động chuyển đổi tên thư mục thành không dấu (`Thư đã gửi` ➔ `Thu da gui`) khi di chuyển về các server cPanel/Dovecot đời cũ không hỗ trợ Unicode Maildir.
-
-### 2. Điều Tiết Băng Thông & Chống Block IP (Anti-ban Throttling)
-- Tùy chỉnh độ trễ giữa các batch (mặc định 50ms - 200ms) để không bị nhà mạng hay Google/Microsoft đánh dấu là spam request.
-- **Tự động Exponential Backoff**: Khi gặp cảnh báo quá tải (`[ALERT] Too many simultaneous connections`, `Maximum bandwidth exceeded`), hệ thống tự động dừng nghỉ 5s, 10s, 20s và thử lại một cách êm dịu thay vì làm gián đoạn toàn bộ tiến trình.
-
-### 3. Công Cụ Retry Thư Lỗi Riêng Biệt (Targeted Recovery)
-- Lựa chọn **`[5]`** trên menu cho phép xem lại các phiên migrate cũ có email lỗi.
-- Chỉ kéo và đẩy đúng những UID bị lỗi mà không cần quét lại toàn bộ hộp thư, sau đó tự động cập nhật lại báo cáo HTML/CSV.
-
-### 4. Hệ Thống Bảo Mật Đa Tầng Doanh Nghiệp (Enterprise Security Hardening)
-- **Xác thực Web Admin & Chống Brute-Force**:
-  - Hỗ trợ HTTP Basic Auth bảo vệ toàn bộ dashboard Web Admin (`:8080`).
-  - So sánh mật khẩu an toàn theo thời gian hằng số (`secrets.compare_digest`) chống tấn công Timing Attacks.
-  - Tự động phát hiện và khóa IP (Lockout 5 phút) nếu nhập sai liên tiếp quá 5 lần (`HTTP 429 Too Many Requests`).
-  - Biến môi trường: `ENABLE_WEB_AUTH` (mặc định: `true`), `ADMIN_USERNAME` (mặc định: `admin`), `ADMIN_PASSWORD` (mặc định: `admin123`).
-- **OWASP Security Headers**:
-  - Tự động gắn các header bảo mật: `X-Frame-Options: SAMEORIGIN` (chống Clickjacking), `X-Content-Type-Options: nosniff` (chống MIME confusion), `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`.
-- **Chống Path Traversal (Lỗ hổng duyệt thư mục)**:
-  - Kiểm tra và cô lập đường dẫn tải file báo cáo `/reports/{filename}` với `PathSecurity.validate_safe_path()`, chặn tuyệt đối các chuỗi `../`, null-byte `\0` và ký tự độc hại.
-- **Che Dấu Mật Khẩu & Dữ Liệu Nhạy Cảm (Credential Masking)**:
-  - Tự động che mật khẩu dạng `sup***123` trong logs, telemetry và các thông báo lỗi socket/IMAP để không bao giờ lộ mật khẩu ra bên ngoài.
-- **Thắt Chặt Chuẩn Mã Hóa TLS 1.2+**:
-  - Bắt buộc giao thức TLS 1.2 / TLS 1.3, kích hoạt SNI và kiểm tra tính hợp lệ của chứng chỉ SSL (`CERT_REQUIRED`).
+**Khởi chạy Web Admin Control Panel:**
+```bash
+python3 -m uvicorn src.web.server:app --host 0.0.0.0 --port 8080 --reload
+```
 
 ---
 
-### 3. Truy cập các dịch vụ
-| Dịch vụ | URL | Mô tả |
+## 🌐 Danh Mục Dịch Vụ & Cổng Kết Nối
+
+| Dịch vụ | URL | Tài khoản mặc định | Mô tả |
+| :--- | :--- | :--- | :--- |
+| **Web Admin Control Panel** | `http://<SERVER_IP>:8080` | `admin` / `admin123` | Giao diện điều khiển di chuyển, kéo thả CSV, cấu hình di chuyển |
+| **Grafana Dashboard** | `http://<SERVER_IP>:3000` | `admin` / `admin` (hoặc ẩn danh) | Dashboard giám sát tốc độ MB/s, tiến độ %, logs Loki |
+| **Prometheus UI** | `http://<SERVER_IP>:9090` | Không yêu cầu | Truy vấn thô metrics, biểu đồ hệ thống |
+| **App Metrics Exporter** | `http://<SERVER_IP>:8000/metrics` | Không yêu cầu | Endpoint scrape của Prometheus từ Python |
+
+---
+
+## ⚙️ Biến Môi Trường (Environment Variables)
+
+| Tên biến | Mặc định | Ý nghĩa |
 | :--- | :--- | :--- |
-| **Web Admin Control Panel** | `http://<SERVER_IP>:8080` | **Giao diện Web Quản Trị Trực Quan**: Kéo thả CSV, quét dung lượng, kiểm tra mật khẩu, di chuyển và tải báo cáo |
-| **Grafana Dashboard** | `http://<SERVER_IP>:3000` | Giao diện theo dõi real-time (Tốc độ MB/s, Tiến độ %, Bảng Kiểm tra Mật khẩu ứng dụng, Bảng Log lỗi Loki) |
-| **Prometheus UI** | `http://<SERVER_IP>:9090` | Xem và truy vấn thô các metric IMAP |
-| **App Metrics Exporter**| `http://<SERVER_IP>:8000/metrics` | Endpoint Prometheus scrape trực tiếp từ Python |
-
-### 4. Xem Logs thời gian thực
-- Xem log trên container App:
-  ```bash
-  docker compose logs -f app
-  ```
-- Hoặc vào Grafana -> Panel **"Real-time Migration Audit & Error Logs"** bên dưới cùng của Dashboard để lọc log theo tài khoản và mã lỗi.
+| `ENABLE_WEB_AUTH` | `true` | Bật/tắt chế độ đăng nhập bảo vệ Web Admin |
+| `ADMIN_USERNAME` | `admin` | Tài khoản đăng nhập Web Admin |
+| `ADMIN_PASSWORD` | `admin123` | Mật khẩu quản trị viên Web Admin |
+| `ALLOWED_ORIGINS` | `*` | Danh sách CORS domain được phép truy cập API (cách nhau bởi dấu phẩy) |
+| `LOG_FORMAT` | `json` | Định dạng log ghi ra file (`json` cho Loki hoặc `console`) |
 
 ---
 
-## ⚙️ Cấu trúc thư mục
+## 🧪 Kiểm Thử Tự Động (Unit Tests)
+
+Chạy bộ kiểm thử tự động cho hệ thống bảo mật và các module cốt lõi:
+```bash
+python3 -m unittest discover tests
+```
+
+---
+
+## 📁 Cấu Trúc Mã Nguồn
 
 ```text
 PY_IMAP/
 ├── docker-compose.yml              # Quản lý 5 services: app, prometheus, loki, promtail, grafana
 ├── Dockerfile                      # Image Python 3.12 tối ưu
-├── requirements.txt                # Thư viện: prometheus_client, structlog, rich, imapclient
+├── requirements.txt                # Danh sách thư viện Python
 ├── config/
 │   ├── settings.yaml               # Cấu hình worker, batch size, timeout
 │   ├── mapping_rules.yaml          # Quy tắc map & exclude folder (RFC 6154)
-│   └── accounts.example.csv        # Mẫu danh sách tài khoản nguồn & đích
+│   └── accounts.example.csv        # File CSV mẫu tài khoản nguồn & đích
 ├── monitoring/
-│   ├── prometheus/
-│   │   └── prometheus.yml          # Scrape config
-│   ├── loki/
-│   │   └── loki-config.yml         # Log storage config
-│   ├── promtail/
-│   │   └── promtail-config.yml     # Tail json log & extract labels
-│   └── grafana/
-│       ├── provisioning/           # Tự động nạp datasources & dashboards
-│       └── dashboards/
-│           └── email_migration_overview.json # Giao diện Grafana thiết kế sẵn
+│   ├── prometheus/prometheus.yml   # Cấu hình Prometheus scrape
+│   ├── loki/loki-config.yml        # Cấu hình lưu trữ log Loki
+│   ├── promtail/promtail-config.yml# Promtail tailing log & gán nhãn
+│   └── grafana/                    # Auto-provisioning datasource & dashboard
+├── tests/
+│   └── test_security.py            # Unit test xác thực, brute-force, path guard, masking
 └── src/
-    ├── telemetry/
-    │   ├── metrics.py              # Định nghĩa Prometheus Metrics
-    │   └── logger.py               # Structlog dual console + json file
-    └── main.py                     # Entry point & Migration simulation
+    ├── core/                       # Core Migration Engine
+    │   ├── imap_client.py          # IMAP Client TLS 1.2+ & mask mật khẩu
+    │   ├── folder_mapper.py        # Mapping folder, mUTF-7 & khử dấu tiếng Việt
+    │   ├── inspector.py            # Quét dung lượng hộp thư (RFC 8438 / STATUS=SIZE)
+    │   ├── migrator.py             # Di chuyển batch, kiểm tra trùng lặp
+    │   ├── throttler.py            # Rate limiting & Exponential backoff
+    │   ├── auth_checker.py         # Kiểm tra mật khẩu ứng dụng song song
+    │   ├── retry_engine.py         # Công cụ retry riêng các thư bị lỗi
+    │   └── service.py              # Orchestrator điều phối
+    ├── security/                   # Enterprise Security Hardening
+    │   ├── auth.py                 # HTTP Basic Auth & Lockout chống Brute-Force
+    │   ├── crypto.py               # Masking credential & lọc dữ liệu nhạy cảm
+    │   ├── headers.py              # OWASP HTTP Security Headers Middleware
+    │   └── path_guard.py           # Path Traversal Guard cho file download
+    ├── storage/
+    │   └── state_db.py             # SQLite WAL lưu trạng thái để resume & chống trùng
+    ├── reports/
+    │   └── reporter.py             # Xuất báo cáo HTML tương tác & CSV thư lỗi
+    ├── web/                        # Web Admin Control Panel
+    │   ├── server.py               # FastAPI backend & SSE stream
+    │   ├── templates/index.html    # Giao diện Web Admin
+    │   └── static/                 # CSS/JS, Dark/Light Themes
+    ├── telemetry/                  # Giám sát & Logs
+    │   ├── metrics.py              # Prometheus metrics collector
+    │   └── logger.py               # Structlog dual console + json Loki
+    ├── cli/
+    │   └── menu.py                 # Giao diện dòng lệnh tương tác rich CLI
+    └── main.py                     # Entry point khởi chạy
 ```
