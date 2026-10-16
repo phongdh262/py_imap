@@ -228,6 +228,61 @@ async def download_report_file(filename: str):
     return FileResponse(path=file_path, filename=filename)
 
 
+@app.get("/config/accounts.example.csv")
+async def download_example_csv():
+    """Serves the template accounts.example.csv for users."""
+    csv_file = Path("config/accounts.example.csv")
+    if not csv_file.exists():
+        raise HTTPException(status_code=404, detail="accounts.example.csv not found")
+    return FileResponse(path=csv_file, filename="accounts.example.csv", media_type="text/csv")
+
+
+@app.post("/api/retry/{session_id}")
+async def retry_session_failed_items(session_id: int):
+    """Triggers retry for failed messages in a session."""
+    import csv
+    from src.core.retry_engine import RetryEngine
+
+    retry_engine = RetryEngine(state_db)
+    summary = state_db.get_migration_summary(session_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    src_creds = None
+    dst_creds = None
+    for candidate in [Path("config/accounts.csv"), Path("config/accounts.example.csv")]:
+        if candidate.exists():
+            with open(candidate, mode="r", encoding="utf-8") as f:
+                for row in csv.DictReader(f):
+                    if row.get("source_user", "").strip() == summary["source_account"]:
+                        src_creds = AccountCredentials(
+                            host=row["source_host"].strip(),
+                            port=int(row.get("source_port", 993)),
+                            ssl=str(row.get("source_ssl", "true")).lower() in ("true", "1"),
+                            username=row["source_user"].strip(),
+                            password=row["source_password"].strip(),
+                        )
+                        dst_creds = AccountCredentials(
+                            host=row["dest_host"].strip(),
+                            port=int(row.get("dest_port", 993)),
+                            ssl=str(row.get("dest_ssl", "true")).lower() in ("true", "1"),
+                            username=row["dest_user"].strip(),
+                            password=row["dest_password"].strip(),
+                        )
+                        break
+        if src_creds:
+            break
+
+    if not src_creds:
+        return {
+            "recovered": 0,
+            "still_failed": summary.get("failed_messages", 0),
+            "note": "Cần lưu tài khoản vào config/accounts.csv để tự động retry trên web",
+        }
+
+    return retry_engine.retry_session(session_id, src_creds, dst_creds)
+
+
 def start_web_server(host: str = "0.0.0.0", port: int = 8080):
     """Launches the Uvicorn web server."""
     import uvicorn

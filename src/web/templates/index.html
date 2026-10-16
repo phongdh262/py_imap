@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-theme="midnight">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Py-IMAP Control Center | Email Migration Web Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -20,6 +20,13 @@
             </div>
         </div>
         <div class="top-actions">
+            <!-- Theme Switcher -->
+            <div class="theme-switcher">
+                <button class="theme-btn active" data-theme="midnight" title="Midnight Cyber (Mặc định)">🌙</button>
+                <button class="theme-btn" data-theme="obsidian" title="OLED Obsidian (Siêu tối)">🌑</button>
+                <button class="theme-btn" data-theme="light" title="Clean Light (Sáng văn phòng)">☀️</button>
+            </div>
+
             <div class="status-indicator">
                 <span class="pulse-dot"></span>
                 <span>Prometheus Active</span>
@@ -83,7 +90,18 @@
                             <span class="badge badge-source">MÁY CHỦ NGUỒN (SOURCE)</span>
                             <h3>Hộp Thư Gốc Cần Chuyển Đi</h3>
                         </div>
-                        <div class="form-grid">
+
+                        <!-- Provider Presets Chips -->
+                        <div class="preset-label">Chọn nhanh nhà cung cấp nguồn:</div>
+                        <div class="provider-chips">
+                            <button type="button" class="provider-chip active" data-target="src" data-provider="gmail">🔴 Gmail</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="outlook">🔵 Outlook / M365</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="yandex">🟡 Yandex</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="cpanel">🟠 cPanel</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="custom">⚪ Custom</button>
+                        </div>
+
+                        <div class="form-grid" style="margin-top: 14px;">
                             <div class="form-group col-span-2">
                                 <label>Host IMAP Nguồn</label>
                                 <input type="text" id="srcHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com, imap.yandex.com">
@@ -106,6 +124,7 @@
                             <div class="form-group col-span-2">
                                 <label>Mật Khẩu Ứng Dụng (App Password)</label>
                                 <input type="password" id="srcPass" placeholder="Nhập App Password của Gmail/Yandex/Outlook">
+                                <small id="srcHintText" class="helper-text" style="color: #60a5fa;"></small>
                             </div>
                         </div>
                         <div class="card-footer">
@@ -120,7 +139,18 @@
                             <span class="badge badge-dest">MÁY CHỦ ĐÍCH (DESTINATION)</span>
                             <h3>Hộp Thư Nhận Dữ Liệu</h3>
                         </div>
-                        <div class="form-grid">
+
+                        <!-- Provider Presets Chips -->
+                        <div class="preset-label">Chọn nhanh nhà cung cấp đích:</div>
+                        <div class="provider-chips">
+                            <button type="button" class="provider-chip active" data-target="dst" data-provider="cpanel">🟠 cPanel</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="outlook">🔵 Outlook / M365</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="gmail">🔴 Gmail</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="yandex">🟡 Yandex</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="custom">⚪ Custom</button>
+                        </div>
+
+                        <div class="form-grid" style="margin-top: 14px;">
                             <div class="form-group col-span-2">
                                 <label>Host IMAP Đích</label>
                                 <input type="text" id="dstHost" value="mail.cpanel-domain.com" placeholder="Ví dụ: mail.cpanel.com, outlook.office365.com">
@@ -158,7 +188,32 @@
                         <h3>Kết Quả Quét Hộp Thư Nguồn (Pre-flight Inspection)</h3>
                         <div id="inspectionSummaryBadges" class="badges-row"></div>
                     </div>
-                    <div class="table-responsive">
+
+                    <!-- Visual Chart & Quota Bar -->
+                    <div class="chart-and-quota-row">
+                        <div class="chart-box">
+                            <div class="chart-container">
+                                <svg id="storageDonutSvg" viewBox="0 0 160 160" width="160" height="160"></svg>
+                                <div class="donut-center-text">
+                                    <span id="donutCenterSize">0 MB</span>
+                                    <small>Tổng Size</small>
+                                </div>
+                            </div>
+                            <div id="chartLegend" class="chart-legend"></div>
+                        </div>
+                        <div class="quota-box">
+                            <div class="quota-header">
+                                <span>Hạn Mức Sử Dụng Quota Máy Chủ</span>
+                                <strong id="quotaPercentText">0%</strong>
+                            </div>
+                            <div class="quota-progress-track">
+                                <div id="quotaProgressFill" class="quota-progress-fill" style="width: 0%;"></div>
+                            </div>
+                            <div id="quotaDetailText" class="quota-detail-text">Chưa quét quota</div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="margin-top: 20px;">
                         <table class="data-table" id="foldersTable">
                             <thead>
                                 <tr>
@@ -329,6 +384,24 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- Live Terminal Log Drawer at the Bottom -->
+    <div id="logDrawer" class="log-drawer collapsed">
+        <div class="drawer-header" id="drawerHeader">
+            <div class="drawer-title">
+                <span class="terminal-icon">🖥️</span>
+                <span>Live Migration Logs & Console Output</span>
+                <span id="drawerLogCount" class="badge badge-primary">0 logs</span>
+            </div>
+            <div class="drawer-actions">
+                <button type="button" class="btn btn-sm btn-secondary" id="btnClearLogs">Xóa log</button>
+                <button type="button" class="drawer-toggle-btn" id="btnToggleDrawer">▲ Mở rộng Console</button>
+            </div>
+        </div>
+        <div class="drawer-body" id="drawerConsoleBody">
+            <div class="log-line text-muted">[Ready] Hệ thống đã sẵn sàng ghi nhận log di chuyển...</div>
+        </div>
     </div>
 
     <script src="/static/app.js"></script>
