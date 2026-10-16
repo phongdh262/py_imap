@@ -17,6 +17,8 @@ from src.telemetry.metrics import (
     MESSAGES_MIGRATED_TOTAL,
 )
 
+from src.core.throttler import ProviderThrottler
+
 logger = setup_logging()
 header_parser = email.parser.BytesHeaderParser(policy=policy.default)
 
@@ -29,12 +31,20 @@ class EmailMigrator:
     - Streams in configurable batches (avoids RAM spikes)
     - Integrates Prometheus metrics & structured Loki logging for error tracking
     - Idempotency & Resume: deduplicates via Message-ID & content hash to prevent duplicates
+    - Anti-ban: respects provider throttling with adaptive rate-limiting
     """
 
-    def __init__(self, batch_size: int = 50, max_message_size_bytes: int = 50 * 1024 * 1024, state_db: Optional[StateDatabase] = None):
+    def __init__(
+        self,
+        batch_size: int = 50,
+        max_message_size_bytes: int = 50 * 1024 * 1024,
+        state_db: Optional[StateDatabase] = None,
+        throttler: Optional[ProviderThrottler] = None,
+    ):
         self.batch_size = batch_size
         self.max_message_size = max_message_size_bytes
         self.state_db = state_db
+        self.throttler = throttler or ProviderThrottler(batch_delay_seconds=0.05)
 
     def migrate_folder(
         self,
@@ -79,6 +89,7 @@ class EmailMigrator:
         # 3. Process in batches
         for i in range(0, total_messages, self.batch_size):
             chunk_uids = uids[i:i + self.batch_size]
+            self.throttler.throttle_batch()
 
             try:
                 # Fetch message body, flags, and internal date

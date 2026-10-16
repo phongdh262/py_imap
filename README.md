@@ -53,19 +53,27 @@ VUI LÒNG CHỌN TÍNH NĂNG:
 [2]  🔑 Kiểm tra Mật khẩu ứng dụng 1 hoặc nhiều tài khoản (App Password Checker)
 [3]  🚀 Di chuyển 1 tài khoản trực tiếp (Migrate 1 Account)
 [4]  📂 Di chuyển hàng loạt nhiều tài khoản từ file CSV (Batch Migrate)
-[5]  ⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)
-[6]  📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)
+[5]  🔁 Thử lại các email bị lỗi từ phiên trước (Retry Failed Messages)
+[6]  ⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)
+[7]  📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)
 [0]  ❌ Thoát chương trình (Exit)
 ```
 
 ---
 
-## 🔑 Tính năng Kiểm Tra Mật Khẩu Ứng Dụng (App Password Verification)
+## 🛡️ Các Tính Năng Doanh Nghiệp Cốt Lõi
 
-Tính năng này cho phép bạn kiểm thử trước độ chính xác của tài khoản và Mật khẩu ứng dụng (App Password) mà không cần chờ tới lúc migrate:
-1. **Kiểm tra 1 tài khoản**: Nhập Host, Username, App Password -> Kiểm tra SSL handshake, xác thực và báo lỗi cụ thể (ví dụ: Gmail yêu cầu App Password, Yandex yêu cầu bật App Password, Microsoft 365 chặn Basic Auth).
-2. **Kiểm tra hàng loạt (Batch CSV)**: Quét song song nhiều luồng từ file CSV (`config/accounts.csv`), in bảng tổng hợp xanh/đỏ và tính toán tỷ lệ thành công (%).
-3. **Đẩy Metrics lên Grafana**: Tự động tăng `email_auth_checks_total` và cập nhật bảng `email_account_auth_status` trên Grafana Dashboard theo thời gian thực.
+### 1. Cơ Chế Xử Lý Thư Mục Tiếng Việt Có Dấu (Yandex / cPanel)
+- Tự động sửa lỗi mã hóa **Modified UTF-7 (RFC 2152)** và hiện tượng **Mojibake** (UTF-8 bị đọc nhầm thành Latin-1 như `ThÆ° Ä‘Ã£ gá»­i`).
+- **Tùy chọn Khử Dấu Tiếng Việt**: Tự động chuyển đổi tên thư mục thành không dấu (`Thư đã gửi` ➔ `Thu da gui`) khi di chuyển về các server cPanel/Dovecot đời cũ không hỗ trợ Unicode Maildir.
+
+### 2. Điều Tiết Băng Thông & Chống Block IP (Anti-ban Throttling)
+- Tùy chỉnh độ trễ giữa các batch (mặc định 50ms - 200ms) để không bị nhà mạng hay Google/Microsoft đánh dấu là spam request.
+- **Tự động Exponential Backoff**: Khi gặp cảnh báo quá tải (`[ALERT] Too many simultaneous connections`, `Maximum bandwidth exceeded`), hệ thống tự động dừng nghỉ 5s, 10s, 20s và thử lại một cách êm dịu thay vì làm gián đoạn toàn bộ tiến trình.
+
+### 3. Công Cụ Retry Thư Lỗi Riêng Biệt (Targeted Recovery)
+- Lựa chọn **`[5]`** trên menu cho phép xem lại các phiên migrate cũ có email lỗi.
+- Chỉ kéo và đẩy đúng những UID bị lỗi mà không cần quét lại toàn bộ hộp thư, sau đó tự động cập nhật lại báo cáo HTML/CSV.
 
 ---
 

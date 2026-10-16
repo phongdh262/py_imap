@@ -24,21 +24,30 @@ logger = setup_logging()
 console = Console()
 
 
+from src.core.throttler import ProviderThrottler
+
+
 class MigrationService:
     """
     High-level Orchestrator for Email Migration:
     - Pre-flight inspection & Quota/Size terminal rendering
-    - Automatic cross-server folder mapping
+    - Automatic cross-server folder mapping & Vietnamese accent handling
     - Idempotency & Resume via SQLite State DB
-    - Telemetry & Automated HTML/CSV Audit Reporting
+    - Anti-ban Throttling & Automated HTML/CSV Audit Reporting
     """
 
-    def __init__(self, mapping_config: Optional[dict] = None):
+    def __init__(
+        self,
+        mapping_config: Optional[dict] = None,
+        sanitize_accents: bool = False,
+        batch_delay_seconds: float = 0.05,
+    ):
         self.state_db = StateDatabase()
         self.reporter = MigrationReporter(self.state_db)
-        self.mapper = FolderMapper()
+        self.throttler = ProviderThrottler(batch_delay_seconds=batch_delay_seconds)
+        self.mapper = FolderMapper(sanitize_accents=sanitize_accents)
         self.inspector = MailboxInspector(mapper=self.mapper)
-        self.migrator = EmailMigrator(state_db=self.state_db)
+        self.migrator = EmailMigrator(state_db=self.state_db, throttler=self.throttler)
 
     def inspect_source(self, src_creds: AccountCredentials) -> MailboxSummary:
         """Inspects source account and outputs formatted terminal summary."""

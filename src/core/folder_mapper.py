@@ -1,5 +1,6 @@
 import re
-from typing import Dict, List, Optional, Set
+import unicodedata
+from typing import Any, Dict, List, Optional
 from imapclient import imap_utf7
 
 from src.core.models import FolderInfo, FolderRole
@@ -19,46 +20,81 @@ CANONICAL_ALIASES: Dict[FolderRole, List[str]] = {
     FolderRole.INBOX: ["inbox"],
     FolderRole.SENT: [
         "sent", "sent items", "sent messages", "thư đã gửi", "[gmail]/sent mail",
-        "inbox.sent", "inbox/sent"
+        "inbox.sent", "inbox/sent", "отправленные"
     ],
     FolderRole.DRAFTS: [
-        "drafts", "bản nháp", "[gmail]/drafts", "inbox.drafts", "inbox/drafts"
+        "drafts", "bản nháp", "[gmail]/drafts", "inbox.drafts", "inbox/drafts", "черновики"
     ],
     FolderRole.TRASH: [
-        "trash", "deleted items", "thùng rác", "[gmail]/trash", "inbox.trash", "inbox/trash"
+        "trash", "deleted items", "thùng rác", "[gmail]/trash", "inbox.trash", "inbox/trash", "удаленные"
     ],
     FolderRole.JUNK: [
-        "junk", "spam", "thư rác", "[gmail]/spam", "inbox.spam", "inbox/junk"
+        "junk", "spam", "thư rác", "[gmail]/spam", "inbox.spam", "inbox/junk", "спам"
     ],
     FolderRole.ARCHIVE: [
-        "archive", "lưu trữ", "[gmail]/all mail"
+        "archive", "lưu trữ", "[gmail]/all mail", "архив"
     ],
 }
 
 
 class FolderMapper:
     """
-    Handles folder identification, exclusion rules, and cross-server hierarchy mapping:
-    - Identifies canonical roles via RFC 6154 SPECIAL-USE attributes & regex fallbacks
-    - Converts delimiters between source and target hosts (e.g., '/' <-> '.')
-    - Handles UTF-7 encoded folder names (Vietnamese / Unicode)
+    Handles folder identification, exclusion rules, cross-server hierarchy mapping,
+    and advanced Vietnamese / Yandex encoding normalization:
+    - Automatically heals Modified UTF-7 (mUTF-7) and Mojibake (UTF-8 masquerading as Latin-1)
+    - Supports optional Vietnamese accent stripping ('Thư đã gửi' -> 'Thu da gui') for legacy servers
+    - Delimiter conversion ('/' <-> '.')
     """
 
-    def __init__(self, exclude_patterns: Optional[List[str]] = None, custom_mappings: Optional[Dict[str, str]] = None):
+    def __init__(
+        self,
+        exclude_patterns: Optional[List[str]] = None,
+        custom_mappings: Optional[Dict[str, str]] = None,
+        sanitize_accents: bool = False,
+    ):
         self.exclude_patterns = [
             re.compile(p, re.IGNORECASE) for p in (exclude_patterns or [
                 r".*spam.*", r".*junk.*", r".*trash.*", r".*deleted.*", r"\[gmail\]/all mail"
             ])
         ]
         self.custom_mappings = custom_mappings or {}
+        self.sanitize_accents = sanitize_accents
 
     @staticmethod
-    def decode_folder_name(raw_name: str) -> str:
-        """Decodes modified UTF-7 IMAP folder names to readable Unicode."""
+    def decode_folder_name(raw_name: Any) -> str:
+        """
+        Robust multi-layer decoder resolving Yandex & cPanel Vietnamese encoding issues:
+        1. Handles raw bytes vs string
+        2. Resolves Modified UTF-7 (&...-) used in IMAP RFC 2152
+        3. Detects and heals Mojibake (UTF-8 decoded as Latin-1)
+        """
+        if isinstance(raw_name, bytes):
+            try:
+                s = raw_name.decode("utf-8")
+            except UnicodeDecodeError:
+                s = raw_name.decode("latin-1")
+        else:
+            s = str(raw_name)
+
+        # 1. Resolve Modified UTF-7 (e.g., 'Th&AbA- &ARE-&AOM g&Hu0-i')
+        if "&" in s and "-" in s:
+            try:
+                decoded = imap_utf7.decode(s.encode("latin-1"))
+                if decoded:
+                    return decoded
+            except Exception:
+                pass
+
+        # 2. Resolve Mojibake: UTF-8 erroneously decoded as Latin-1 (e.g., 'ThÆ° Ä\x91Ã£')
         try:
-            return imap_utf7.decode(raw_name.encode("latin-1"))
+            fixed = s.encode("latin-1").decode("utf-8")
+            # If successfully decoded into valid UTF-8 and shortened, it was mojibake
+            if fixed != s and len(fixed) < len(s):
+                return fixed
         except Exception:
-            return raw_name
+            pass
+
+        return s
 
     @staticmethod
     def encode_folder_name(unicode_name: str) -> str:
@@ -67,6 +103,19 @@ class FolderMapper:
             return imap_utf7.encode(unicode_name).decode("latin-1")
         except Exception:
             return unicode_name
+
+    @staticmethod
+    def remove_vietnamese_accents(text: str) -> str:
+        """
+        Converts Vietnamese accented string into clean ASCII:
+        'Thư đã gửi' -> 'Thu da gui', 'Hợp đồng 2026' -> 'Hop dong 2026'.
+        Prevents corrupted names on legacy Dovecot / Exchange servers that do not support Unicode maildirs.
+        """
+        # Handle 'đ' and 'Đ' which are not decomposed by NFD
+        text = re.sub(r"[đ]", "d", text)
+        text = re.sub(r"[Đ]", "D", text)
+        normalized = unicodedata.normalize("NFD", text)
+        return "".join(c for c in normalized if unicodedata.category(c) != "Mn")
 
     def identify_role(self, folder_name: str, raw_flags: List) -> FolderRole:
         """Determines the canonical role using flags first, then names."""
@@ -110,23 +159,26 @@ class FolderMapper:
     ) -> str:
         """
         Calculates destination folder name:
-        1. If source folder is mapped to a canonical role (e.g., SENT) and destination has a known role folder, map directly.
-        2. Otherwise, adapt hierarchy delimiter (e.g. Projects/2025 -> Projects.2025)
+        1. If source folder is mapped to a canonical role (e.g., SENT), map to destination's known role folder.
+        2. Adapt hierarchy delimiter (e.g. Projects/2025 -> Projects.2025).
+        3. Apply Vietnamese accent stripping if sanitize_accents=True.
         """
         # User custom override
         if source_folder in self.custom_mappings:
-            return self.custom_mappings[source_folder]
-
-        # Match by canonical role if available on destination
-        if source_role in dest_canonical_map:
+            target = self.custom_mappings[source_folder]
+        elif source_role in dest_canonical_map:
+            # Match by canonical role if available on destination
             return dest_canonical_map[source_role]
-
-        # If it's INBOX itself
-        if source_role == FolderRole.INBOX:
+        elif source_role == FolderRole.INBOX:
             return "INBOX"
+        else:
+            # General hierarchical folder: translate delimiter
+            target = source_folder
+            if source_delim != dest_delim:
+                target = source_folder.replace(source_delim, dest_delim)
 
-        # General hierarchical folder: translate delimiter
-        if source_delim != dest_delim:
-            return source_folder.replace(source_delim, dest_delim)
+        # Sanitize accents if requested
+        if self.sanitize_accents:
+            target = self.remove_vietnamese_accents(target)
 
-        return source_folder
+        return target

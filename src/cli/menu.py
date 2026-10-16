@@ -66,11 +66,22 @@ def handle_migrate_single(service: MigrationService):
     console.print("\n[bold magenta]>>> Bước 2: Nhập tài khoản ĐÍCH (Destination)[/bold magenta]")
     dst_creds = prompt_account_credentials("Hộp thư Đích (Destination)", default_host="mail.cpanel-domain.com")
 
+    console.print("\n[bold yellow]>>> Tùy chọn nâng cao:[/bold yellow]")
+    sanitize_accents = Confirm.ask(
+        "Chuyển tên thư mục tiếng Việt thành không dấu (để chống lỗi ký tự lạ trên cPanel/Yandex)?",
+        default=False
+    )
+    delay_ms = IntPrompt.ask("Độ trễ chống block IP giữa các batch (milliseconds)", default=50)
+
     console.print("\n" + "=" * 60)
     console.print(f"[bold]Xác nhận di chuyển:[/bold] [cyan]{src_creds.username}[/cyan] ➔ [green]{dst_creds.username}[/green]")
     if not Confirm.ask("Bắt đầu di chuyển ngay bây giờ?", default=True):
         console.print("[yellow]Đã hủy thao tác.[/yellow]")
         return
+
+    # Update service options
+    service.mapper.sanitize_accents = sanitize_accents
+    service.throttler.batch_delay = delay_ms / 1000.0
 
     try:
         service.migrate_account(src_creds, dst_creds)
@@ -171,6 +182,46 @@ def handle_test_connection():
         console.print(f"[bold red]✗ Kết nối THẤT BẠI:[/bold red] {e}")
 
 
+from src.core.retry_engine import RetryEngine
+
+
+def handle_retry_failed_messages(service: MigrationService):
+    """Retry failed messages from past migration sessions."""
+    retry_engine = RetryEngine(service.state_db, service.throttler)
+    sessions = retry_engine.list_failed_sessions()
+
+    if not sessions:
+        console.print("[bold green]Tuyệt vời! Không tìm thấy phiên di chuyển nào có thư bị lỗi.[/bold green]")
+        return
+
+    table = Table(title="Danh Sách Phiên Di Chuyển Có Thư Bị Lỗi", show_header=True, header_style="bold yellow")
+    table.add_column("Mã Phiên (ID)", justify="center", style="bold cyan")
+    table.add_column("Nguồn ➔ Đích", style="white")
+    table.add_column("Số Thư Lỗi", justify="right", style="bold red")
+    table.add_column("Thời Gian", style="dim")
+
+    for s in sessions:
+        table.add_row(
+            str(s["id"]),
+            f"{s['source_account']} ➔ {s['dest_account']}",
+            str(s["failed_messages"]),
+            str(s.get("started_at", ""))[:19]
+        )
+    console.print(table)
+
+    session_id = IntPrompt.ask("Nhập Mã Phiên (ID) bạn muốn thử lại (Retry)")
+    selected = next((s for s in sessions if s["id"] == session_id), None)
+    if not selected:
+        console.print(f"[bold red]Không tìm thấy phiên ID #{session_id}[/bold red]")
+        return
+
+    console.print(f"\n[bold yellow]Cung cấp mật khẩu xác thực cho phiên #{session_id}:[/bold yellow]")
+    src_creds = prompt_account_credentials(f"Nguồn: {selected['source_account']}")
+    dst_creds = prompt_account_credentials(f"Đích: {selected['dest_account']}")
+
+    retry_engine.retry_session(session_id, src_creds, dst_creds)
+
+
 def run_interactive_menu(service: MigrationService, logger):
     """Main interactive menu loop."""
     while True:
@@ -183,12 +234,13 @@ def run_interactive_menu(service: MigrationService, logger):
         table.add_row("[2]", "🔑 Kiểm tra Mật khẩu ứng dụng 1 hoặc nhiều tài khoản (App Password Checker)")
         table.add_row("[3]", "🚀 Di chuyển 1 tài khoản trực tiếp (Migrate 1 Account)")
         table.add_row("[4]", "📂 Di chuyển hàng loạt nhiều tài khoản từ file CSV (Batch Migrate)")
-        table.add_row("[5]", "⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)")
-        table.add_row("[6]", "📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)")
+        table.add_row("[5]", "🔁 Thử lại các email bị lỗi từ phiên trước (Retry Failed Messages)")
+        table.add_row("[6]", "⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)")
+        table.add_row("[7]", "📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)")
         table.add_row("[0]", "❌ Thoát chương trình (Exit)")
 
         console.print(table)
-        choice = Prompt.ask("[bold yellow]Nhập lựa chọn của bạn[/bold yellow]", choices=["1", "2", "3", "4", "5", "6", "0"], default="1")
+        choice = Prompt.ask("[bold yellow]Nhập lựa chọn của bạn[/bold yellow]", choices=["1", "2", "3", "4", "5", "6", "7", "0"], default="1")
 
         if choice == "1":
             handle_inspect_mailbox(service)
@@ -199,8 +251,10 @@ def run_interactive_menu(service: MigrationService, logger):
         elif choice == "4":
             handle_migrate_csv(service)
         elif choice == "5":
-            handle_test_connection()
+            handle_retry_failed_messages(service)
         elif choice == "6":
+            handle_test_connection()
+        elif choice == "7":
             from src.main_simulation import run_simulation_loop
             console.print("[green]Đang khởi chạy luồng mô phỏng. Mở Grafana tại http://localhost:3000 để xem dữ liệu...[/green]")
             run_simulation_loop(logger)
