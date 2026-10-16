@@ -237,10 +237,11 @@ def run_interactive_menu(service: MigrationService, logger):
         table.add_row("[5]", "🔁 Thử lại các email bị lỗi từ phiên trước (Retry Failed Messages)")
         table.add_row("[6]", "⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)")
         table.add_row("[7]", "📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)")
+        table.add_row("[8]", "🌐 Khởi chạy Giao diện Web Admin Control Panel (http://localhost:8080)")
         table.add_row("[0]", "❌ Thoát chương trình (Exit)")
 
         console.print(table)
-        choice = Prompt.ask("[bold yellow]Nhập lựa chọn của bạn[/bold yellow]", choices=["1", "2", "3", "4", "5", "6", "7", "0"], default="1")
+        choice = Prompt.ask("[bold yellow]Nhập lựa chọn của bạn[/bold yellow]", choices=["1", "2", "3", "4", "5", "6", "7", "8", "0"], default="1")
 
         if choice == "1":
             handle_inspect_mailbox(service)
@@ -258,6 +259,10 @@ def run_interactive_menu(service: MigrationService, logger):
             from src.main_simulation import run_simulation_loop
             console.print("[green]Đang khởi chạy luồng mô phỏng. Mở Grafana tại http://localhost:3000 để xem dữ liệu...[/green]")
             run_simulation_loop(logger)
+        elif choice == "8":
+            from src.web.server import start_web_server
+            console.print("[bold green]🚀 Đang khởi chạy Web Admin Panel tại http://0.0.0.0:8080 (Bấm Ctrl+C để dừng)...[/bold green]")
+            start_web_server(port=8080)
         elif choice == "0":
             console.print("[bold yellow]Cảm ơn bạn đã sử dụng Py-IMAP Migrator. Hẹn gặp lại![/bold yellow]")
             sys.exit(0)

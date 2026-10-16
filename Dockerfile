@@ -24,6 +24,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY config/ ./config/
 
-EXPOSE 8000
+EXPOSE 8000 8080
 
-CMD ["python", "-m", "src.main", "--simulate", "--port", "8000"]
+CMD ["python", "-m", "src.main", "--web", "--port", "8000", "--web-port", "8080"]

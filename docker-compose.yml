@@ -7,11 +7,14 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+      - "8080:8080"
     environment:
       - LOG_FORMAT=json
     volumes:
       - migrator_logs:/var/log/email_migrator
       - ./config:/app/config:ro
+      - ./reports:/app/reports
+      - ./data:/app/data
     networks:
       - migration_net
 

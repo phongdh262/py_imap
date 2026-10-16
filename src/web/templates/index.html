@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Py-IMAP Control Center | Email Migration Web Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+        <div class="brand">
+            <div class="logo-icon">✉️</div>
+            <div>
+                <div class="brand-title">Py-IMAP Control Center</div>
+                <div class="brand-sub">Multi-Provider Email Migration Engine (Ubuntu 24.04 LTS)</div>
+            </div>
+        </div>
+        <div class="top-actions">
+            <div class="status-indicator">
+                <span class="pulse-dot"></span>
+                <span>Prometheus Active</span>
+            </div>
+            <a href="http://localhost:3000" target="_blank" class="btn btn-secondary btn-sm" id="grafanaBtn">
+                📊 Mở Grafana Dashboard ↗
+            </a>
+        </div>
+    </header>
+
+    <div class="layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="singleTab">
+                    <span class="nav-icon">🎯</span>
+                    <span>Di Chuyển 1 Tài Khoản</span>
+                </button>
+                <button class="nav-item" data-tab="batchTab">
+                    <span class="nav-icon">📂</span>
+                    <span>Di Chuyển Hàng Loạt (CSV)</span>
+                </button>
+                <button class="nav-item" data-tab="sessionsTab">
+                    <span class="nav-icon">📑</span>
+                    <span>Lịch Sử & Báo Cáo Audit</span>
+                </button>
+                <button class="nav-item" data-tab="settingsTab">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Cấu Hình & Anti-Ban</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="system-stat">
+                    <span>Engine Runtime:</span>
+                    <strong style="color: #60a5fa;">Python 3.12</strong>
+                </div>
+                <div class="system-stat">
+                    <span>Database:</span>
+                    <strong style="color: #34d399;">SQLite WAL Mode</strong>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Toast notification container -->
+            <div id="toastContainer" class="toast-container"></div>
+
+            <!-- TAB 1: Single Account Migration -->
+            <section id="singleTab" class="tab-pane active">
+                <div class="pane-header">
+                    <h2>Di Chuyển Trực Tiếp 1 Tài Khoản</h2>
+                    <p>Hỗ trợ quét dung lượng trước khi chuyển, kiểm tra mật khẩu ứng dụng, và tự động map thư mục RFC 6154.</p>
+                </div>
+
+                <div class="grid-2-cols">
+                    <!-- Source Account Card -->
+                    <div class="card glass-card">
+                        <div class="card-header border-source">
+                            <span class="badge badge-source">MÁY CHỦ NGUỒN (SOURCE)</span>
+                            <h3>Hộp Thư Gốc Cần Chuyển Đi</h3>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group col-span-2">
+                                <label>Host IMAP Nguồn</label>
+                                <input type="text" id="srcHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com, imap.yandex.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Port</label>
+                                <input type="number" id="srcPort" value="993">
+                            </div>
+                            <div class="form-group">
+                                <label>SSL / TLS</label>
+                                <select id="srcSsl">
+                                    <option value="true" selected>SSL / TLS (Khuyên dùng)</option>
+                                    <option value="false">STARTTLS / Plain</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Email / Username Nguồn</label>
+                                <input type="email" id="srcUser" placeholder="ceo@source-company.com">
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Mật Khẩu Ứng Dụng (App Password)</label>
+                                <input type="password" id="srcPass" placeholder="Nhập App Password của Gmail/Yandex/Outlook">
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-secondary" id="btnTestSrcPass">🔑 Kiểm Tra Mật Khẩu</button>
+                            <button type="button" class="btn btn-primary" id="btnInspectSrc">🔍 Quét Dung Lượng & Cây Thư Mục</button>
+                        </div>
+                    </div>
+
+                    <!-- Destination Account Card -->
+                    <div class="card glass-card">
+                        <div class="card-header border-dest">
+                            <span class="badge badge-dest">MÁY CHỦ ĐÍCH (DESTINATION)</span>
+                            <h3>Hộp Thư Nhận Dữ Liệu</h3>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group col-span-2">
+                                <label>Host IMAP Đích</label>
+                                <input type="text" id="dstHost" value="mail.cpanel-domain.com" placeholder="Ví dụ: mail.cpanel.com, outlook.office365.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Port</label>
+                                <input type="number" id="dstPort" value="993">
+                            </div>
+                            <div class="form-group">
+                                <label>SSL / TLS</label>
+                                <select id="dstSsl">
+                                    <option value="true" selected>SSL / TLS (Khuyên dùng)</option>
+                                    <option value="false">STARTTLS / Plain</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Email / Username Đích</label>
+                                <input type="email" id="dstUser" placeholder="ceo@dest-corp.com">
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Mật Khẩu Máy Chủ Đích</label>
+                                <input type="password" id="dstPass" placeholder="Nhập mật khẩu hộp thư đích">
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="button" class="btn btn-secondary" id="btnTestDstPass">🔑 Kiểm Tra Đăng Nhập Đích</button>
+                            <button type="button" class="btn btn-success" id="btnStartSingleMigrate">🚀 BẮT ĐẦU DI CHUYỂN NGAY</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pre-flight Inspection Results Container -->
+                <div id="inspectionResultContainer" class="inspection-results card glass-card" style="display: none; margin-top: 24px;">
+                    <div class="card-header">
+                        <h3>Kết Quả Quét Hộp Thư Nguồn (Pre-flight Inspection)</h3>
+                        <div id="inspectionSummaryBadges" class="badges-row"></div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table" id="foldersTable">
+                            <thead>
+                                <tr>
+                                    <th>Tên Thư Mục</th>
+                                    <th>Vai Trò (RFC 6154)</th>
+                                    <th style="text-align: right;">Số Lượng Thư</th>
+                                    <th style="text-align: right;">Dung Lượng</th>
+                                    <th style="text-align: center;">Trạng Thái Map</th>
+                                </tr>
+                            </thead>
+                            <tbody id="foldersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Live Migration Progress Box -->
+                <div id="singleProgressContainer" class="card glass-card progress-card" style="display: none; margin-top: 24px;">
+                    <div class="card-header">
+                        <div class="progress-title-row">
+                            <span class="live-pulse"></span>
+                            <h3>Tiến Trình Di Chuyển Thời Gian Thực (Live Streaming)</h3>
+                        </div>
+                        <span id="progressPercentBadge" class="badge badge-primary">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div id="progressBarFill" class="progress-bar-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-mini">
+                            <span class="stat-mini-label">ĐÃ CHUYỂN</span>
+                            <span id="statSuccessCount" class="stat-mini-value text-success">0</span>
+                        </div>
+                        <div class="stat-mini">
+                            <span class="stat-mini-label">BỎ QUA (RESUME)</span>
+                            <span id="statSkippedCount" class="stat-mini-value text-primary">0</span>
+                        </div>
+                        <div class="stat-mini">
+                            <span class="stat-mini-label">LỖI (FAILED)</span>
+                            <span id="statFailedCount" class="stat-mini-value text-danger">0</span>
+                        </div>
+                        <div class="stat-mini">
+                            <span class="stat-mini-label">THƯ MỤC HIỆN TẠI</span>
+                            <span id="statCurrentFolder" class="stat-mini-value" style="font-size: 14px;">-</span>
+                        </div>
+                    </div>
+                    <div id="reportLinksContainer" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);"></div>
+                </div>
+            </section>
+
+            <!-- TAB 2: Drag & Drop CSV Batch Migration -->
+            <section id="batchTab" class="tab-pane">
+                <div class="pane-header">
+                    <h2>Di Chuyển Hàng Loạt Từ File CSV</h2>
+                    <p>Kéo thả file CSV danh sách tài khoản, kiểm tra mật khẩu đồng thời và chạy tự động theo hàng đợi.</p>
+                </div>
+
+                <!-- Drag & Drop Zone -->
+                <div id="dropZone" class="drop-zone">
+                    <div class="drop-zone-icon">📁</div>
+                    <h3>Kéo thả file accounts.csv vào đây</h3>
+                    <p>hoặc bấm để duyệt file từ máy tính của bạn</p>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">Chọn file từ máy</button>
+                    <a href="/config/accounts.example.csv" download class="example-link">Tải file mẫu (accounts.example.csv)</a>
+                </div>
+
+                <!-- CSV Preview & Action Bar -->
+                <div id="csvPreviewSection" style="display: none; margin-top: 24px;">
+                    <div class="action-bar-row">
+                        <div class="action-info">
+                            Đã nạp <strong id="csvTotalCount" style="color: #60a5fa;">0</strong> tài khoản từ file CSV
+                        </div>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-secondary" id="btnCheckAllPasswords">🔑 Kiểm Tra Toàn Bộ Mật Khẩu (Parallel)</button>
+                            <button type="button" class="btn btn-success" id="btnStartBatchMigrate">🚀 BẮT ĐẦU MIGRATE TOÀN BỘ CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="card glass-card" style="margin-top: 16px;">
+                        <div class="table-responsive">
+                            <table class="data-table" id="csvTable">
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Tài Khoản Nguồn</th>
+                                        <th>Host Nguồn</th>
+                                        <th>Tài Khoản Đích</th>
+                                        <th>Host Đích</th>
+                                        <th style="text-align: center;">Mật Khẩu Nguồn</th>
+                                        <th style="text-align: center;">Trạng Thái Migrate</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="csvTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: Sessions & Reports Archive -->
+            <section id="sessionsTab" class="tab-pane">
+                <div class="pane-header">
+                    <h2>Lịch Sử & Báo Cáo Audit</h2>
+                    <p>Quản lý các phiên di chuyển đã thực hiện, tải báo cáo HTML/CSV và thử lại (Retry) các email bị lỗi.</p>
+                </div>
+
+                <div class="card glass-card">
+                    <div class="card-header">
+                        <h3>Danh Sách Các Phiên Di Chuyển</h3>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshSessions">🔄 Làm mới</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table" id="sessionsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tài Khoản Nguồn ➔ Đích</th>
+                                    <th style="text-align: center;">Trạng Thái</th>
+                                    <th style="text-align: right;">Thành Công</th>
+                                    <th style="text-align: right;">Bỏ Qua</th>
+                                    <th style="text-align: right;">Lỗi</th>
+                                    <th>Thời Gian Bắt Đầu</th>
+                                    <th style="text-align: center;">Hành Động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessionsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: Settings & Anti-Ban -->
+            <section id="settingsTab" class="tab-pane">
+                <div class="pane-header">
+                    <h2>Cấu Hình Hệ Thống & Anti-Ban</h2>
+                    <p>Tinh chỉnh các cơ chế bảo vệ máy chủ, chống tràn RAM và loại trừ thư mục.</p>
+                </div>
+
+                <div class="card glass-card" style="max-width: 800px;">
+                    <div class="form-grid">
+                        <div class="form-group col-span-2">
+                            <label>Khử Dấu Tiếng Việt Tên Thư Mục (Yandex / cPanel Fix)</label>
+                            <label class="switch-container">
+                                <input type="checkbox" id="settingSanitizeAccents">
+                                <span class="slider"></span>
+                                <span style="margin-left: 10px; font-size: 14px; color: var(--text-muted);">
+                                    Tự động chuyển 'Thư đã gửi' ➔ 'Thu da gui' để tránh lỗi ký tự lạ trên server cũ
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="form-group col-span-2">
+                            <label>Độ Trễ Giữa Các Batch (Anti-Ban Rate Limiting)</label>
+                            <input type="number" id="settingBatchDelay" value="50" min="0" max="5000">
+                            <small class="helper-text">Khuyên dùng 50ms - 200ms để tránh bị Google Workspace và Microsoft 365 chặn kết nối.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Kích Thước Batch (Messages / Batch)</label>
+                            <input type="number" id="settingBatchSize" value="50" min="10" max="500">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Giới Hạn Dung Lượng 1 Email (MB)</label>
+                            <input type="number" id="settingMaxMsgSize" value="50" min="10" max="150">
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

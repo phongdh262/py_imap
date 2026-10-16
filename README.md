@@ -80,6 +80,7 @@ VUI LÒNG CHỌN TÍNH NĂNG:
 ### 3. Truy cập các dịch vụ
 | Dịch vụ | URL | Mô tả |
 | :--- | :--- | :--- |
+| **Web Admin Control Panel** | `http://<SERVER_IP>:8080` | **Giao diện Web Quản Trị Trực Quan**: Kéo thả CSV, quét dung lượng, kiểm tra mật khẩu, di chuyển và tải báo cáo |
 | **Grafana Dashboard** | `http://<SERVER_IP>:3000` | Giao diện theo dõi real-time (Tốc độ MB/s, Tiến độ %, Bảng Kiểm tra Mật khẩu ứng dụng, Bảng Log lỗi Loki) |
 | **Prometheus UI** | `http://<SERVER_IP>:9090` | Xem và truy vấn thô các metric IMAP |
 | **App Metrics Exporter**| `http://<SERVER_IP>:8000/metrics` | Endpoint Prometheus scrape trực tiếp từ Python |

@@ -22,6 +22,8 @@ def main():
     parser.add_argument("--password", type=str, help="IMAP Source Password / App Password")
     parser.add_argument("--check-password", action="store_true", help="Quickly check app password for single account")
     parser.add_argument("--check-csv", type=str, help="Check app passwords in batch from CSV")
+    parser.add_argument("--web", action="store_true", help="Launch Web Admin Control Panel (FastAPI)")
+    parser.add_argument("--web-port", type=int, default=8080, help="Web Admin Control Panel port")
     parser.add_argument("--port", type=int, default=8000, help="Prometheus metrics exporter port")
     args = parser.parse_args()
 
@@ -36,8 +38,14 @@ def main():
 
     service = MigrationService()
 
+    # 0. Web Admin Control Panel
+    if args.web:
+        from src.web.server import start_web_server
+        console.print(f"[bold green]🚀 Khởi chạy Py-IMAP Web Admin Panel tại: http://0.0.0.0:{args.web_port}[/bold green]")
+        start_web_server(host="0.0.0.0", port=args.web_port)
+
     # 1. Non-interactive CLI flag: Check single password
-    if args.check_password:
+    elif args.check_password:
         if not (args.host and args.user and args.password):
             console.print("[bold red]Lỗi: Cần cung cấp đầy đủ --host, --user và --password cho --check-password[/bold red]")
             sys.exit(1)
