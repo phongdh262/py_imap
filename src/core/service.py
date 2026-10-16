@@ -10,6 +10,8 @@ from src.core.imap_client import IMAPClientWrapper
 from src.core.inspector import MailboxInspector
 from src.core.migrator import EmailMigrator
 from src.core.models import AccountCredentials, FolderRole, MailboxSummary
+from src.reports.reporter import MigrationReporter
+from src.storage.state_db import StateDatabase
 from src.telemetry.logger import setup_logging
 from src.telemetry.metrics import (
     ACCOUNT_PROGRESS_PERCENT,
@@ -27,14 +29,16 @@ class MigrationService:
     High-level Orchestrator for Email Migration:
     - Pre-flight inspection & Quota/Size terminal rendering
     - Automatic cross-server folder mapping
-    - Sequential and concurrent multi-account execution
-    - Telemetry & failure reporting
+    - Idempotency & Resume via SQLite State DB
+    - Telemetry & Automated HTML/CSV Audit Reporting
     """
 
     def __init__(self, mapping_config: Optional[dict] = None):
+        self.state_db = StateDatabase()
+        self.reporter = MigrationReporter(self.state_db)
         self.mapper = FolderMapper()
         self.inspector = MailboxInspector(mapper=self.mapper)
-        self.migrator = EmailMigrator()
+        self.migrator = EmailMigrator(state_db=self.state_db)
 
     def inspect_source(self, src_creds: AccountCredentials) -> MailboxSummary:
         """Inspects source account and outputs formatted terminal summary."""
@@ -57,7 +61,7 @@ class MigrationService:
         dst_creds: AccountCredentials,
         custom_folder_mapping: Optional[Dict[str, str]] = None,
     ) -> dict:
-        """Executes full migration for a single account pair."""
+        """Executes full migration for a single account pair with resume & reporting."""
         console.print(
             Panel.fit(
                 f"[bold green]Starting Migration[/bold green]\n"
@@ -68,9 +72,9 @@ class MigrationService:
         )
 
         ACTIVE_WORKERS.inc()
-        start_time = time_now = 0
         total_success = 0
         total_failed = 0
+        total_skipped = 0
 
         try:
             with IMAPClientWrapper(src_creds) as src_client, IMAPClientWrapper(dst_creds) as dst_client:
@@ -79,7 +83,12 @@ class MigrationService:
                 SOURCE_MAILBOX_SIZE_BYTES.labels(source_account=src_creds.username).set(summary.total_size_bytes)
                 SOURCE_MAILBOX_MESSAGES_TOTAL.labels(source_account=src_creds.username).set(summary.total_messages)
 
-                # 2. Inspect destination folder hierarchy for role mapping
+                # 2. Start session in State DB for idempotency & auditing
+                migration_id = self.state_db.start_migration(
+                    src_creds.username, dst_creds.username, summary.total_messages
+                )
+
+                # 3. Inspect destination folder hierarchy for role mapping
                 dst_folders = dst_client.client.list_folders()
                 dst_canonical_map: Dict[FolderRole, str] = {}
                 dest_delim = "/"
@@ -91,7 +100,7 @@ class MigrationService:
                     if role != FolderRole.CUSTOM and role not in dst_canonical_map:
                         dst_canonical_map[role] = folder_name
 
-                # 3. Migrate each non-excluded selectable folder
+                # 4. Migrate each non-excluded selectable folder
                 migrated_msgs_counter = 0
                 total_target_msgs = summary.total_messages or 1
 
@@ -117,34 +126,57 @@ class MigrationService:
                             source_account=src_creds.username, dest_account=dst_creds.username
                         ).set(min(progress, 100.0))
 
-                    s_count, f_count = self.migrator.migrate_folder(
+                    s_count, f_count, skip_count = self.migrator.migrate_folder(
                         src_client=src_client.client,
                         dst_client=dst_client.client,
                         src_account=src_creds.username,
                         dst_account=dst_creds.username,
                         src_folder=folder.name,
                         dst_folder=target_name,
+                        migration_id=migration_id,
                         on_progress=on_progress,
                     )
                     total_success += s_count
                     total_failed += f_count
-                    migrated_msgs_counter += (s_count + f_count)
+                    total_skipped += skip_count
+                    migrated_msgs_counter += (s_count + f_count + skip_count)
 
                 ACCOUNT_PROGRESS_PERCENT.labels(
                     source_account=src_creds.username, dest_account=dst_creds.username
                 ).set(100.0)
 
+                # 5. Mark completion in State DB
+                final_status = "COMPLETED" if total_failed == 0 else "PARTIAL"
+                self.state_db.complete_migration(migration_id, status=final_status)
+
+                # 6. Generate HTML and CSV audit reports
+                html_report, csv_report = self.reporter.generate_reports(migration_id)
+
+                # 7. Print summary panel
+                report_info = f"[bold cyan]HTML Report:[/bold cyan] {html_report.resolve()}"
+                if csv_report:
+                    report_info += f"\n[bold red]Failures CSV:[/bold red] {csv_report.resolve()}"
+
                 console.print(
                     Panel.fit(
-                        f"[bold green]✓ Migration Completed[/bold green]\n"
-                        f"Account: [cyan]{src_creds.username}[/cyan]\n"
-                        f"Total Success: [bold green]{total_success}[/bold green] messages\n"
-                        f"Total Failed: [bold red]{total_failed}[/bold red] messages",
+                        f"[bold green]✓ Migration Completed ({final_status})[/bold green]\n"
+                        f"Account: [cyan]{src_creds.username}[/cyan] ➔ [magenta]{dst_creds.username}[/magenta]\n"
+                        f"Thành công: [bold green]{total_success}[/bold green] messages\n"
+                        f"Bỏ qua (Đã tồn tại / Resume): [bold blue]{total_skipped}[/bold blue] messages\n"
+                        f"Thất bại: [bold red]{total_failed}[/bold red] messages\n\n"
+                        f"{report_info}",
                         border_style="green",
                     )
                 )
 
-                return {"success": total_success, "failed": total_failed}
+                return {
+                    "migration_id": migration_id,
+                    "success": total_success,
+                    "failed": total_failed,
+                    "skipped": total_skipped,
+                    "html_report": str(html_report),
+                    "csv_report": str(csv_report) if csv_report else None,
+                }
 
         finally:
             ACTIVE_WORKERS.dec()

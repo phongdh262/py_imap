@@ -1,3 +1,5 @@
+import email
+from email import policy
 import time
 from typing import Callable, List, Optional
 from imapclient import IMAPClient
@@ -6,6 +8,7 @@ from imapclient.exceptions import IMAPClientError
 from src.core.folder_mapper import FolderMapper
 from src.core.imap_client import IMAPClientWrapper
 from src.core.models import FolderInfo, FolderRole
+from src.storage.state_db import StateDatabase
 from src.telemetry.logger import setup_logging
 from src.telemetry.metrics import (
     ACCOUNT_PROGRESS_PERCENT,
@@ -15,6 +18,7 @@ from src.telemetry.metrics import (
 )
 
 logger = setup_logging()
+header_parser = email.parser.BytesHeaderParser(policy=policy.default)
 
 
 class EmailMigrator:
@@ -24,11 +28,13 @@ class EmailMigrator:
     - Preserves RFC 822 original message body, FLAGS (\Seen, \Flagged), and INTERNALDATE
     - Streams in configurable batches (avoids RAM spikes)
     - Integrates Prometheus metrics & structured Loki logging for error tracking
+    - Idempotency & Resume: deduplicates via Message-ID & content hash to prevent duplicates
     """
 
-    def __init__(self, batch_size: int = 50, max_message_size_bytes: int = 50 * 1024 * 1024):
+    def __init__(self, batch_size: int = 50, max_message_size_bytes: int = 50 * 1024 * 1024, state_db: Optional[StateDatabase] = None):
         self.batch_size = batch_size
         self.max_message_size = max_message_size_bytes
+        self.state_db = state_db
 
     def migrate_folder(
         self,
@@ -38,14 +44,16 @@ class EmailMigrator:
         dst_account: str,
         src_folder: str,
         dst_folder: str,
+        migration_id: Optional[int] = None,
         on_progress: Optional[Callable[[int, int], None]] = None,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         """
         Migrates all messages from src_folder to dst_folder.
-        Returns: (success_count, failed_count)
+        Returns: (success_count, failed_count, skipped_count)
         """
         success_count = 0
         failed_count = 0
+        skipped_count = 0
 
         # 1. Ensure destination folder exists
         self._ensure_dest_folder(dst_client, dst_folder)
@@ -57,7 +65,7 @@ class EmailMigrator:
 
         if total_messages == 0:
             logger.info("Folder is empty, skipping", account=src_account, folder=src_folder)
-            return 0, 0
+            return 0, 0, 0
 
         logger.info(
             "Starting folder migration",
@@ -101,7 +109,7 @@ class EmailMigrator:
                 internal_date = msg_data.get(b"INTERNALDATE")
                 size = msg_data.get(b"RFC822.SIZE", len(raw_body) if raw_body else 0)
 
-                # Validation checks
+                # Validation: empty body
                 if not raw_body:
                     failed_count += 1
                     err_code = "EMPTY_BODY"
@@ -109,17 +117,32 @@ class EmailMigrator:
                     MESSAGES_FAILED_TOTAL.labels(
                         source_account=src_account, folder=src_folder, error_type=err_code
                     ).inc()
-                    logger.error(
-                        "Message migration failed",
-                        source_account=src_account,
-                        dest_account=dst_account,
-                        folder=src_folder,
-                        uid=uid,
-                        error_code=err_code,
-                        error_detail=err_detail,
-                    )
+                    if self.state_db and migration_id:
+                        self.state_db.record_failure(
+                            migration_id, src_account, src_folder, uid, f"empty_{uid}", None, None, None, None, size, err_code, err_detail
+                        )
                     continue
 
+                # Parse header metadata for deduplication and reporting
+                try:
+                    headers = header_parser.parsebytes(raw_body, headersonly=True)
+                    message_id = headers.get("Message-ID")
+                    subject = headers.get("Subject", "")
+                    sender = headers.get("From", "")
+                    date_str = headers.get("Date", "")
+                except Exception:
+                    message_id, subject, sender, date_str = None, "", "", ""
+
+                msg_hash = StateDatabase.compute_message_hash(message_id, date_str, subject, size)
+
+                # Deduplication check: Has this message already been migrated?
+                if self.state_db and self.state_db.is_message_migrated(src_account, src_folder, msg_hash):
+                    skipped_count += 1
+                    if migration_id:
+                        self.state_db.record_skipped(migration_id)
+                    continue
+
+                # Validation: size limit exceeded
                 if size > self.max_message_size:
                     failed_count += 1
                     err_code = "SIZE_LIMIT_EXCEEDED"
@@ -127,26 +150,25 @@ class EmailMigrator:
                     MESSAGES_FAILED_TOTAL.labels(
                         source_account=src_account, folder=src_folder, error_type=err_code
                     ).inc()
-                    logger.error(
-                        "Message migration failed",
-                        source_account=src_account,
-                        dest_account=dst_account,
-                        folder=src_folder,
-                        uid=uid,
-                        error_code=err_code,
-                        error_detail=err_detail,
-                    )
+                    if self.state_db and migration_id:
+                        self.state_db.record_failure(
+                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, err_code, err_detail
+                        )
                     continue
 
                 # Append to destination
                 try:
-                    # Clean flags: filter out system internal flags that cannot be set on APPEND
                     append_flags = [f for f in flags if f.lower() not in (b"\\recent",)]
                     dst_client.append(dst_folder, raw_body, flags=append_flags, msg_time=internal_date)
 
                     success_count += 1
                     MESSAGES_MIGRATED_TOTAL.labels(source_account=src_account, folder=src_folder).inc()
                     BYTES_TRANSFERRED_TOTAL.labels(source_account=src_account).inc(size)
+
+                    if self.state_db and migration_id:
+                        self.state_db.record_success(
+                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size
+                        )
 
                 except Exception as e:
                     failed_count += 1
@@ -155,21 +177,15 @@ class EmailMigrator:
                     MESSAGES_FAILED_TOTAL.labels(
                         source_account=src_account, folder=src_folder, error_type=err_code
                     ).inc()
-                    logger.error(
-                        "Message append failed",
-                        source_account=src_account,
-                        dest_account=dst_account,
-                        folder=src_folder,
-                        dest_folder=dst_folder,
-                        uid=uid,
-                        error_code=err_code,
-                        error_detail=err_detail,
-                    )
+                    if self.state_db and migration_id:
+                        self.state_db.record_failure(
+                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, err_code, err_detail
+                        )
 
             if on_progress:
-                on_progress(success_count + failed_count, total_messages)
+                on_progress(success_count + failed_count + skipped_count, total_messages)
 
-        return success_count, failed_count
+        return success_count, failed_count, skipped_count
 
     def _ensure_dest_folder(self, dst_client: IMAPClient, folder_name: str):
         """Creates the destination folder if it does not exist yet."""
@@ -177,11 +193,9 @@ class EmailMigrator:
             return
 
         try:
-            # Check if exists
             exists = dst_client.folder_exists(folder_name)
             if not exists:
                 dst_client.create_folder(folder_name)
                 logger.info("Created missing destination folder", folder=folder_name)
         except Exception as e:
-            # Some servers raise error if folder already exists
             logger.debug("Folder existence check/creation note", folder=folder_name, error=str(e))
