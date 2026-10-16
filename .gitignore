@@ -41,8 +41,9 @@ venv.bak/
 *.sqlite3
 *.db
 
-# Docker volume data
+# Docker volume data & generated reports
 data/
+reports/
 prometheus_data/
 grafana_data/
 loki_data/

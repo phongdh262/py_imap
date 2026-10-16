@@ -5,20 +5,29 @@ from pathlib import Path
 import structlog
 
 
-def setup_logging(log_dir: str = "/var/log/email_migrator", log_filename: str = "app.json.log"):
+def setup_logging(log_dir: str = None, log_filename: str = "app.json.log"):
     """
     Sets up dual-target logging:
     1. Rich colored human-readable log to stderr / console.
     2. Structured JSON line logs to a file for Promtail/Loki ingestion.
     """
-    # Ensure log directory exists
+    if log_dir is None:
+        log_dir = os.environ.get("LOG_DIR", "/var/log/email_migrator")
+
     log_path = Path(log_dir)
+    file_logging_available = False
     try:
         log_path.mkdir(parents=True, exist_ok=True)
         file_logging_available = True
-    except Exception as e:
-        sys.stderr.write(f"Warning: Cannot create log directory {log_dir}: {e}. Fallback to stdout only.\n")
-        file_logging_available = False
+    except (PermissionError, OSError):
+        # Graceful fallback to local ./data/logs when running outside Docker container
+        fallback_path = Path("data/logs")
+        try:
+            fallback_path.mkdir(parents=True, exist_ok=True)
+            log_path = fallback_path
+            file_logging_available = True
+        except Exception as e:
+            sys.stderr.write(f"Warning: Cannot create log directory {fallback_path}: {e}. Fallback to stdout only.\n")
 
     # Standard logging configuration
     root_logger = logging.getLogger()
