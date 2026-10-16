@@ -20,6 +20,8 @@ def main():
     parser.add_argument("--host", type=str, help="IMAP Source Host for single inspection/migration")
     parser.add_argument("--user", type=str, help="IMAP Source Username")
     parser.add_argument("--password", type=str, help="IMAP Source Password / App Password")
+    parser.add_argument("--check-password", action="store_true", help="Quickly check app password for single account")
+    parser.add_argument("--check-csv", type=str, help="Check app passwords in batch from CSV")
     parser.add_argument("--port", type=int, default=8000, help="Prometheus metrics exporter port")
     args = parser.parse_args()
 
@@ -34,8 +36,25 @@ def main():
 
     service = MigrationService()
 
-    # 1. Non-interactive CLI flag: Inspect Source
-    if args.inspect_source:
+    # 1. Non-interactive CLI flag: Check single password
+    if args.check_password:
+        if not (args.host and args.user and args.password):
+            console.print("[bold red]Lỗi: Cần cung cấp đầy đủ --host, --user và --password cho --check-password[/bold red]")
+            sys.exit(1)
+        from src.core.auth_checker import AuthChecker
+        checker = AuthChecker()
+        creds = AccountCredentials(host=args.host, port=993, ssl=True, username=args.user, password=args.password)
+        res = checker.check_single(creds)
+        checker.render_results_table([res])
+
+    # 2. Non-interactive CLI flag: Check batch CSV
+    elif args.check_csv:
+        from src.core.auth_checker import AuthChecker
+        checker = AuthChecker()
+        checker.check_from_csv(args.check_csv)
+
+    # 3. Non-interactive CLI flag: Inspect Source
+    elif args.inspect_source:
         if not (args.host and args.user and args.password):
             console.print("[bold red]Lỗi: Cần cung cấp đầy đủ --host, --user và --password cho --inspect-source[/bold red]")
             sys.exit(1)

@@ -50,17 +50,29 @@ Hệ thống sẽ hiển thị menu tương tác trực quan:
 
 VUI LÒNG CHỌN TÍNH NĂNG:
 [1]  🔍 Quét dung lượng & thư mục máy chủ nguồn (Pre-flight Inspection)
-[2]  🚀 Di chuyển 1 tài khoản trực tiếp (Migrate 1 Account)
-[3]  📂 Di chuyển hàng loạt nhiều tài khoản từ file CSV (Batch Migrate)
-[4]  ⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)
-[5]  📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)
+[2]  🔑 Kiểm tra Mật khẩu ứng dụng 1 hoặc nhiều tài khoản (App Password Checker)
+[3]  🚀 Di chuyển 1 tài khoản trực tiếp (Migrate 1 Account)
+[4]  📂 Di chuyển hàng loạt nhiều tài khoản từ file CSV (Batch Migrate)
+[5]  ⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)
+[6]  📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)
 [0]  ❌ Thoát chương trình (Exit)
 ```
+
+---
+
+## 🔑 Tính năng Kiểm Tra Mật Khẩu Ứng Dụng (App Password Verification)
+
+Tính năng này cho phép bạn kiểm thử trước độ chính xác của tài khoản và Mật khẩu ứng dụng (App Password) mà không cần chờ tới lúc migrate:
+1. **Kiểm tra 1 tài khoản**: Nhập Host, Username, App Password -> Kiểm tra SSL handshake, xác thực và báo lỗi cụ thể (ví dụ: Gmail yêu cầu App Password, Yandex yêu cầu bật App Password, Microsoft 365 chặn Basic Auth).
+2. **Kiểm tra hàng loạt (Batch CSV)**: Quét song song nhiều luồng từ file CSV (`config/accounts.csv`), in bảng tổng hợp xanh/đỏ và tính toán tỷ lệ thành công (%).
+3. **Đẩy Metrics lên Grafana**: Tự động tăng `email_auth_checks_total` và cập nhật bảng `email_account_auth_status` trên Grafana Dashboard theo thời gian thực.
+
+---
 
 ### 3. Truy cập các dịch vụ
 | Dịch vụ | URL | Mô tả |
 | :--- | :--- | :--- |
-| **Grafana Dashboard** | `http://<SERVER_IP>:3000` | Giao diện theo dõi real-time (User: `admin` / Pass: `admin` hoặc Auto-login) |
+| **Grafana Dashboard** | `http://<SERVER_IP>:3000` | Giao diện theo dõi real-time (Tốc độ MB/s, Tiến độ %, Bảng Kiểm tra Mật khẩu ứng dụng, Bảng Log lỗi Loki) |
 | **Prometheus UI** | `http://<SERVER_IP>:9090` | Xem và truy vấn thô các metric IMAP |
 | **App Metrics Exporter**| `http://<SERVER_IP>:8000/metrics` | Endpoint Prometheus scrape trực tiếp từ Python |
 

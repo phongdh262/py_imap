@@ -119,8 +119,35 @@ def handle_migrate_csv(service: MigrationService):
             console.print(f"[bold red]Lỗi khi di chuyển {src_creds.username}:[/bold red] {e}")
 
 
+from src.core.auth_checker import AuthChecker
+
+
+def handle_check_app_passwords():
+    """Check App Passwords for 1 or multiple accounts."""
+    console.print("\n[bold cyan]KIỂM TRA MẬT KHẨU ỨNG DỤNG / IMAP:[/bold cyan]")
+    console.print("  [1] Kiểm tra 1 tài khoản đơn lẻ")
+    console.print("  [2] Kiểm tra hàng loạt từ file CSV")
+    sub_choice = Prompt.ask("Chọn chế độ kiểm tra", choices=["1", "2"], default="1")
+
+    checker = AuthChecker()
+
+    if sub_choice == "1":
+        creds = prompt_account_credentials("Nhập thông tin tài khoản cần kiểm tra mật khẩu ứng dụng")
+        with console.status("[bold green]Đang kiểm tra mật khẩu ứng dụng...[/bold green]"):
+            res = checker.check_single(creds)
+        checker.render_results_table([res])
+    else:
+        default_csv = "config/accounts.example.csv" if not Path("config/accounts.csv").exists() else "config/accounts.csv"
+        csv_file = Prompt.ask("Đường dẫn file CSV", default=default_csv)
+        target = Prompt.ask("Kiểm tra cột nào trong CSV? (source=Nguồn, dest=Đích, both=Cả hai)", choices=["both", "source", "dest"], default="both")
+        try:
+            checker.check_from_csv(csv_file, check_target=target)
+        except Exception as e:
+            console.print(f"[bold red]Lỗi khi đọc file CSV:[/bold red] {e}")
+
+
 def handle_test_connection():
-    """Option 4: Quick IMAP & SSL connection check."""
+    """Quick IMAP & SSL connection check."""
     creds = prompt_account_credentials("Kiểm tra kết nối IMAP")
     start_time = time.time()
     try:
@@ -153,24 +180,27 @@ def run_interactive_menu(service: MigrationService, logger):
         table.add_column("Description", style="white")
 
         table.add_row("[1]", "🔍 Quét dung lượng & thư mục máy chủ nguồn (Pre-flight Inspection)")
-        table.add_row("[2]", "🚀 Di chuyển 1 tài khoản trực tiếp (Migrate 1 Account)")
-        table.add_row("[3]", "📂 Di chuyển hàng loạt nhiều tài khoản từ file CSV (Batch Migrate)")
-        table.add_row("[4]", "⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)")
-        table.add_row("[5]", "📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)")
+        table.add_row("[2]", "🔑 Kiểm tra Mật khẩu ứng dụng 1 hoặc nhiều tài khoản (App Password Checker)")
+        table.add_row("[3]", "🚀 Di chuyển 1 tài khoản trực tiếp (Migrate 1 Account)")
+        table.add_row("[4]", "📂 Di chuyển hàng loạt nhiều tài khoản từ file CSV (Batch Migrate)")
+        table.add_row("[5]", "⚡ Kiểm tra kết nối IMAP & SSL (Connection Health Check)")
+        table.add_row("[6]", "📈 Chạy chế độ Mô phỏng để kiểm tra Grafana Dashboard (Live Simulation)")
         table.add_row("[0]", "❌ Thoát chương trình (Exit)")
 
         console.print(table)
-        choice = Prompt.ask("[bold yellow]Nhập lựa chọn của bạn[/bold yellow]", choices=["1", "2", "3", "4", "5", "0"], default="1")
+        choice = Prompt.ask("[bold yellow]Nhập lựa chọn của bạn[/bold yellow]", choices=["1", "2", "3", "4", "5", "6", "0"], default="1")
 
         if choice == "1":
             handle_inspect_mailbox(service)
         elif choice == "2":
-            handle_migrate_single(service)
+            handle_check_app_passwords()
         elif choice == "3":
-            handle_migrate_csv(service)
+            handle_migrate_single(service)
         elif choice == "4":
-            handle_test_connection()
+            handle_migrate_csv(service)
         elif choice == "5":
+            handle_test_connection()
+        elif choice == "6":
             from src.main_simulation import run_simulation_loop
             console.print("[green]Đang khởi chạy luồng mô phỏng. Mở Grafana tại http://localhost:3000 để xem dữ liệu...[/green]")
             run_simulation_loop(logger)

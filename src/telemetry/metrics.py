@@ -23,7 +23,19 @@ BYTES_TRANSFERRED_TOTAL = Counter(
     ["source_account"],
 )
 
+AUTH_CHECKS_TOTAL = Counter(
+    "email_auth_checks_total",
+    "Total credential/app-password check attempts",
+    ["account", "host", "status"],
+)
+
 # Gauges
+ACCOUNT_AUTH_STATUS = Gauge(
+    "email_account_auth_status",
+    "Authentication status of account: 1=Valid, 0=Failed",
+    ["account", "host", "error_reason"],
+)
+
 ACTIVE_WORKERS = Gauge(
     "email_migration_active_workers",
     "Number of active migration workers currently running",

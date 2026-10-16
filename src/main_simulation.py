@@ -32,10 +32,22 @@ def run_simulation_loop(logger):
 
     folders = ["INBOX", "Sent Items", "Archive", "Finance 2025"]
 
+    from src.telemetry.metrics import ACCOUNT_AUTH_STATUS, AUTH_CHECKS_TOTAL
+
     for acc in accounts:
         SOURCE_MAILBOX_SIZE_BYTES.labels(source_account=acc["src"]).set(acc["size_mb"] * 1024 * 1024)
         SOURCE_MAILBOX_MESSAGES_TOTAL.labels(source_account=acc["src"]).set(acc["msgs"])
         ACCOUNT_PROGRESS_PERCENT.labels(source_account=acc["src"], dest_account=acc["dst"]).set(0)
+        AUTH_CHECKS_TOTAL.labels(account=acc["src"], host="imap.provider.com", status="success").inc()
+        ACCOUNT_AUTH_STATUS.labels(account=acc["src"], host="imap.provider.com", error_reason="none").set(1)
+
+    # Simulate one account with bad app password for testing
+    AUTH_CHECKS_TOTAL.labels(account="finance@source-company.com", host="imap.gmail.com", status="failed").inc()
+    ACCOUNT_AUTH_STATUS.labels(
+        account="finance@source-company.com",
+        host="imap.gmail.com",
+        error_reason="Cần tạo 'Mật khẩu ứng dụng' (App Password)",
+    ).set(0)
 
     ACTIVE_WORKERS.set(len(accounts))
     logger.info("Pre-flight scan completed", total_accounts=len(accounts))
