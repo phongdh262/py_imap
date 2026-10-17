@@ -341,12 +341,12 @@ function renderInspectionResults(summary) {
         const sizeMb = (f.size_bytes / 1048576).toFixed(2);
         let statusBadge = `<span class="badge badge-success">Sẵn sàng (Ready)</span>`;
         if (f.is_excluded) statusBadge = `<span class="badge badge-danger">Loại trừ (Skip)</span>`;
-        else if (!f.is_selectable) statusBadge = `<span class="badge" style="background:#334155;">Thư mục cha</span>`;
+        else if (!f.is_selectable) statusBadge = `<span class="badge badge-neutral">Thư mục cha</span>`;
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td><strong>${f.name}</strong></td>
-            <td><code style="color: #60a5fa;">${f.role}</code></td>
+            <td><code class="code-primary">${f.role}</code></td>
             <td style="text-align: right;">${f.messages_count.toLocaleString()}</td>
             <td style="text-align: right;">${sizeMb} MB</td>
             <td style="text-align: center;">${statusBadge}</td>
@@ -369,8 +369,8 @@ function renderStorageDonutChart(summary) {
         .sort((a, b) => b.size_bytes - a.size_bytes);
 
     if (activeFolders.length === 0 || summary.total_size_bytes === 0) {
-        svg.innerHTML = `<circle cx="80" cy="80" r="60" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="20"/>`;
-        legend.innerHTML = `<div class="legend-item"><span class="legend-color" style="background:#64748b;"></span><span>Hộp thư trống</span></div>`;
+        svg.innerHTML = `<circle cx="80" cy="80" r="60" fill="none" stroke="var(--border)" stroke-width="20"/>`;
+        legend.innerHTML = `<div class="legend-item"><span class="legend-color" style="background:var(--text-dim);"></span><span>Hộp thư trống</span></div>`;
         return;
     }
 
@@ -425,12 +425,12 @@ function renderQuotaBar(summary) {
         pctText.textContent = `${pct}%`;
         detail.textContent = `Đã sử dụng ${usedMb} MB trong tổng hạn mức ${limitMb} MB`;
 
-        if (pct >= 85) fill.style.background = "#ef4444";
-        else if (pct >= 70) fill.style.background = "#f59e0b";
-        else fill.style.background = "#34d399";
+        if (pct >= 85) fill.style.background = "var(--danger)";
+        else if (pct >= 70) fill.style.background = "var(--warning)";
+        else fill.style.background = "var(--success)";
     } else {
         fill.style.width = "100%";
-        fill.style.background = "#3b82f6";
+        fill.style.background = "var(--primary)";
         pctText.textContent = "Không giới hạn";
         detail.textContent = "Máy chủ không thiết lập giới hạn Quota hoặc là gói Unlimited";
     }
@@ -471,7 +471,7 @@ function listenToEventStream() {
             links.innerHTML = `
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <a href="${d.html_report}" target="_blank" class="btn btn-primary btn-sm">📄 Xem Báo Cáo HTML Audit</a>
-                    ${d.csv_report ? `<a href="${d.csv_report}" download class="btn btn-secondary btn-sm" style="color: #f87171;">📊 Tải CSV Danh Sách Thư Lỗi</a>` : ''}
+                    ${d.csv_report ? `<a href="${d.csv_report}" download class="btn btn-secondary btn-sm text-danger">📊 Tải CSV Danh Sách Thư Lỗi</a>` : ''}
                 </div>
             `;
         }
@@ -608,11 +608,11 @@ function renderCsvPreview() {
         tr.innerHTML = `
             <td>${idx + 1}</td>
             <td><strong>${row.source_user || ''}</strong></td>
-            <td><code style="color:#60a5fa;">${row.source_host || ''}</code></td>
+            <td><code class="code-source">${row.source_host || ''}</code></td>
             <td><strong>${row.dest_user || ''}</strong></td>
-            <td><code style="color:#f472b6;">${row.dest_host || ''}</code></td>
-            <td id="csvAuthCell_${idx}" style="text-align: center;"><span class="badge" style="background:#334155;">Chưa test</span></td>
-            <td id="csvMigrateCell_${idx}" style="text-align: center;"><span class="badge" style="background:#334155;">Chờ</span></td>
+            <td><code class="code-dest">${row.dest_host || ''}</code></td>
+            <td id="csvAuthCell_${idx}" style="text-align: center;"><span class="badge badge-neutral">Chưa test</span></td>
+            <td id="csvMigrateCell_${idx}" style="text-align: center;"><span class="badge badge-neutral">Chờ</span></td>
         `;
         tbody.appendChild(tr);
     });
@@ -641,13 +641,13 @@ async function loadSessions() {
                 <td><strong>#${s.id}</strong></td>
                 <td>${s.source_account} ➔ ${s.dest_account}</td>
                 <td style="text-align: center;"><span class="badge ${badgeClass}">${s.status}</span></td>
-                <td style="text-align: right; color: #34d399;">${s.migrated_messages}</td>
-                <td style="text-align: right; color: #60a5fa;">${s.skipped_messages}</td>
-                <td style="text-align: right; color: #f87171;">${s.failed_messages}</td>
+                <td style="text-align: right;" class="text-success">${s.migrated_messages}</td>
+                <td style="text-align: right;" class="text-primary">${s.skipped_messages}</td>
+                <td style="text-align: right;" class="text-danger">${s.failed_messages}</td>
                 <td style="font-size: 12px; color: var(--text-muted);">${s.started_at ? s.started_at.substring(0, 19) : '-'}</td>
                 <td style="text-align: center;">
                     <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">📄 Báo cáo</button>
-                    ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm" style="color: #f59e0b;" onclick="retrySessionPrompt(${s.id})">🔁 Thử lại</button>` : ''}
+                    ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-warning" onclick="retrySessionPrompt(${s.id})">🔁 Thử lại</button>` : ''}
                 </td>
             `;
             tbody.appendChild(tr);
@@ -730,14 +730,15 @@ function appendTerminalLog(message, type = "info") {
     countBadge.textContent = `${logCounter} logs`;
 
     const now = new Date().toTimeString().split(" ")[0];
-    let color = "#94a3b8";
-    if (type === "success") color = "#34d399";
-    if (type === "error") color = "#f87171";
-    if (type === "warning") color = "#f59e0b";
+    let typeClass = "log-msg";
+    if (type === "success") typeClass = "log-success";
+    else if (type === "error") typeClass = "log-error";
+    else if (type === "warning") typeClass = "log-warning";
+    else if (type === "info") typeClass = "log-info";
 
     const line = document.createElement("div");
     line.className = "log-line";
-    line.innerHTML = `<span style="color: #64748b;">[${now}]</span> <span style="color: ${color};">${message}</span>`;
+    line.innerHTML = `<span class="log-time">[${now}]</span> <span class="${typeClass}">${message}</span>`;
     body.appendChild(line);
 
     // Auto-scroll to bottom
