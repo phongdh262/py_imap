@@ -1,38 +1,56 @@
 <!DOCTYPE html>
-<html lang="vi" data-theme="midnight">
+<html lang="vi" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Py-IMAP Control Center | Email Migration Web Admin</title>
+    <title>Py-IMAP Control Center | Email Migration</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <!-- Top Navigation Bar -->
     <header class="top-nav">
         <div class="brand">
-            <div class="logo-icon">✉️</div>
+            <div class="logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="20" height="16" x="2" y="4" rx="2"/>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                </svg>
+            </div>
             <div>
                 <div class="brand-title">Py-IMAP Control Center</div>
-                <div class="brand-sub">Multi-Provider Email Migration Engine (Ubuntu 24.04 LTS)</div>
+                <div class="brand-sub">Hệ thống di chuyển Email doanh nghiệp</div>
             </div>
         </div>
         <div class="top-actions">
-            <!-- Theme Switcher -->
+            <!-- Minimalist Theme Switcher -->
             <div class="theme-switcher">
-                <button class="theme-btn active" data-theme="midnight" title="Midnight Cyber (Mặc định)">🌙</button>
-                <button class="theme-btn" data-theme="obsidian" title="OLED Obsidian (Siêu tối)">🌑</button>
-                <button class="theme-btn" data-theme="light" title="Clean Light (Sáng văn phòng)">☀️</button>
+                <button class="theme-btn active" data-theme="dark" title="Giao diện tối (Dark)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                    </svg>
+                    <span>Tối</span>
+                </button>
+                <button class="theme-btn" data-theme="light" title="Giao diện sáng (Light)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="4"/>
+                        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                    </svg>
+                    <span>Sáng</span>
+                </button>
             </div>
 
             <div class="status-indicator">
-                <span class="pulse-dot"></span>
-                <span>Prometheus Active</span>
+                <span class="status-dot"></span>
+                <span>Prometheus</span>
             </div>
             <a href="http://localhost:3000" target="_blank" class="btn btn-secondary btn-sm" id="grafanaBtn">
-                📊 Mở Grafana Dashboard ↗
+                <span>Grafana Dashboard</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
+                </svg>
             </a>
         </div>
     </header>
@@ -42,31 +60,54 @@
         <aside class="sidebar">
             <nav class="nav-menu">
                 <button class="nav-item active" data-tab="singleTab">
-                    <span class="nav-icon">🎯</span>
-                    <span>Di Chuyển 1 Tài Khoản</span>
+                    <span class="nav-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="20" height="16" x="2" y="4" rx="2"/>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                    </span>
+                    <span>Di Chuyển 1 Hộp Thư</span>
                 </button>
                 <button class="nav-item" data-tab="batchTab">
-                    <span class="nav-icon">📂</span>
+                    <span class="nav-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" x2="8" y1="13" y2="13"/>
+                            <line x1="16" x2="8" y1="17" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                    </span>
                     <span>Di Chuyển Hàng Loạt (CSV)</span>
                 </button>
                 <button class="nav-item" data-tab="sessionsTab">
-                    <span class="nav-icon">📑</span>
-                    <span>Lịch Sử & Báo Cáo Audit</span>
+                    <span class="nav-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </span>
+                    <span>Lịch Sử & Báo Cáo</span>
                 </button>
                 <button class="nav-item" data-tab="settingsTab">
-                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </span>
                     <span>Cấu Hình & Anti-Ban</span>
                 </button>
             </nav>
 
             <div class="sidebar-footer">
                 <div class="system-stat">
-                    <span>Engine Runtime:</span>
-                    <strong class="text-primary">Python 3.12</strong>
+                    <span>Runtime:</span>
+                    <strong>Python 3.12</strong>
                 </div>
                 <div class="system-stat">
                     <span>Database:</span>
-                    <strong class="text-success">SQLite WAL Mode</strong>
+                    <strong>SQLite WAL</strong>
                 </div>
             </div>
         </aside>
@@ -79,32 +120,32 @@
             <!-- TAB 1: Single Account Migration -->
             <section id="singleTab" class="tab-pane active">
                 <div class="pane-header">
-                    <h2>Di Chuyển Trực Tiếp 1 Tài Khoản</h2>
-                    <p>Hỗ trợ quét dung lượng trước khi chuyển, kiểm tra mật khẩu ứng dụng, và tự động map thư mục RFC 6154.</p>
+                    <h2>Di Chuyển Trực Tiếp 1 Hộp Thư</h2>
+                    <p>Quét dung lượng trước khi chuyển, kiểm tra mật khẩu ứng dụng và tự động map thư mục RFC 6154.</p>
                 </div>
 
                 <div class="grid-2-cols">
                     <!-- Source Account Card -->
-                    <div class="card glass-card">
-                        <div class="card-header border-source">
-                            <span class="badge badge-source">MÁY CHỦ NGUỒN (SOURCE)</span>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-neutral">NGUỒN (SOURCE)</span>
                             <h3>Hộp Thư Gốc Cần Chuyển Đi</h3>
                         </div>
 
                         <!-- Provider Presets Chips -->
-                        <div class="preset-label">Chọn nhanh nhà cung cấp nguồn:</div>
+                        <div class="preset-label">Nhà cung cấp nguồn:</div>
                         <div class="provider-chips">
-                            <button type="button" class="provider-chip active" data-target="src" data-provider="gmail">🔴 Gmail</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="outlook">🔵 Outlook / M365</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="yandex">🟡 Yandex</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="cpanel">🟠 cPanel</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="custom">⚪ Custom</button>
+                            <button type="button" class="provider-chip active" data-target="src" data-provider="gmail">Gmail</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="outlook">Outlook / M365</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="yandex">Yandex</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="cpanel">cPanel</button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="custom">Tùy biến</button>
                         </div>
 
                         <div class="form-grid" style="margin-top: 14px;">
                             <div class="form-group col-span-2">
                                 <label>Host IMAP Nguồn</label>
-                                <input type="text" id="srcHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com, imap.yandex.com">
+                                <input type="text" id="srcHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com">
                             </div>
                             <div class="form-group">
                                 <label>Port</label>
@@ -113,47 +154,47 @@
                             <div class="form-group">
                                 <label>SSL / TLS</label>
                                 <select id="srcSsl">
-                                    <option value="true" selected>SSL / TLS (Khuyên dùng)</option>
+                                    <option value="true" selected>SSL / TLS (Bắt buộc)</option>
                                     <option value="false">STARTTLS / Plain</option>
                                 </select>
                             </div>
                             <div class="form-group col-span-2">
-                                <label>Email / Username Nguồn</label>
-                                <input type="email" id="srcUser" placeholder="ceo@source-company.com">
+                                <label>Email Nguồn</label>
+                                <input type="email" id="srcUser" placeholder="source@domain.com">
                             </div>
                             <div class="form-group col-span-2">
                                 <label>Mật Khẩu Ứng Dụng (App Password)</label>
                                 <input type="password" id="srcPass" placeholder="Nhập App Password của Gmail/Yandex/Outlook">
-                                <small id="srcHintText" class="helper-text text-primary"></small>
+                                <small id="srcHintText" class="helper-text"></small>
                             </div>
                         </div>
                         <div class="card-footer">
-                            <button type="button" class="btn btn-secondary" id="btnTestSrcPass">🔑 Kiểm Tra Mật Khẩu</button>
-                            <button type="button" class="btn btn-primary" id="btnInspectSrc">🔍 Quét Dung Lượng & Cây Thư Mục</button>
+                            <button type="button" class="btn btn-secondary" id="btnTestSrcPass">Kiểm Tra Mật Khẩu</button>
+                            <button type="button" class="btn btn-secondary" id="btnInspectSrc">Quét Dung Lượng & Cây Thư Mục</button>
                         </div>
                     </div>
 
                     <!-- Destination Account Card -->
-                    <div class="card glass-card">
-                        <div class="card-header border-dest">
-                            <span class="badge badge-dest">MÁY CHỦ ĐÍCH (DESTINATION)</span>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-neutral">ĐÍCH (DESTINATION)</span>
                             <h3>Hộp Thư Nhận Dữ Liệu</h3>
                         </div>
 
                         <!-- Provider Presets Chips -->
-                        <div class="preset-label">Chọn nhanh nhà cung cấp đích:</div>
+                        <div class="preset-label">Nhà cung cấp đích:</div>
                         <div class="provider-chips">
-                            <button type="button" class="provider-chip active" data-target="dst" data-provider="cpanel">🟠 cPanel</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="outlook">🔵 Outlook / M365</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="gmail">🔴 Gmail</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="yandex">🟡 Yandex</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="custom">⚪ Custom</button>
+                            <button type="button" class="provider-chip active" data-target="dst" data-provider="cpanel">cPanel</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="outlook">Outlook / M365</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="gmail">Gmail</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="yandex">Yandex</button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="custom">Tùy biến</button>
                         </div>
 
                         <div class="form-grid" style="margin-top: 14px;">
                             <div class="form-group col-span-2">
                                 <label>Host IMAP Đích</label>
-                                <input type="text" id="dstHost" value="mail.cpanel-domain.com" placeholder="Ví dụ: mail.cpanel.com, outlook.office365.com">
+                                <input type="text" id="dstHost" value="mail.cpanel-domain.com" placeholder="Ví dụ: mail.domain.com">
                             </div>
                             <div class="form-group">
                                 <label>Port</label>
@@ -162,28 +203,28 @@
                             <div class="form-group">
                                 <label>SSL / TLS</label>
                                 <select id="dstSsl">
-                                    <option value="true" selected>SSL / TLS (Khuyên dùng)</option>
+                                    <option value="true" selected>SSL / TLS (Bắt buộc)</option>
                                     <option value="false">STARTTLS / Plain</option>
                                 </select>
                             </div>
                             <div class="form-group col-span-2">
-                                <label>Email / Username Đích</label>
-                                <input type="email" id="dstUser" placeholder="ceo@dest-corp.com">
+                                <label>Email Đích</label>
+                                <input type="email" id="dstUser" placeholder="dest@domain.com">
                             </div>
                             <div class="form-group col-span-2">
-                                <label>Mật Khẩu Máy Chủ Đích</label>
+                                <label>Mật Khẩu Hộp Thư Đích</label>
                                 <input type="password" id="dstPass" placeholder="Nhập mật khẩu hộp thư đích">
                             </div>
                         </div>
                         <div class="card-footer">
-                            <button type="button" class="btn btn-secondary" id="btnTestDstPass">🔑 Kiểm Tra Đăng Nhập Đích</button>
-                            <button type="button" class="btn btn-success" id="btnStartSingleMigrate">🚀 BẮT ĐẦU DI CHUYỂN NGAY</button>
+                            <button type="button" class="btn btn-secondary" id="btnTestDstPass">Kiểm Tra Đăng Nhập Đích</button>
+                            <button type="button" class="btn btn-primary" id="btnStartSingleMigrate">Bắt Đầu Di Chuyển</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Pre-flight Inspection Results Container -->
-                <div id="inspectionResultContainer" class="inspection-results card glass-card" style="display: none; margin-top: 24px;">
+                <div id="inspectionResultContainer" class="inspection-results card" style="display: none; margin-top: 24px;">
                     <div class="card-header">
                         <h3>Kết Quả Quét Hộp Thư Nguồn (Pre-flight Inspection)</h3>
                         <div id="inspectionSummaryBadges" class="badges-row"></div>
@@ -203,7 +244,7 @@
                         </div>
                         <div class="quota-box">
                             <div class="quota-header">
-                                <span>Hạn Mức Sử Dụng Quota Máy Chủ</span>
+                                <span>Hạn Mức Sử Dụng Quota</span>
                                 <strong id="quotaPercentText">0%</strong>
                             </div>
                             <div class="quota-progress-track">
@@ -230,13 +271,13 @@
                 </div>
 
                 <!-- Live Migration Progress Box -->
-                <div id="singleProgressContainer" class="card glass-card progress-card" style="display: none; margin-top: 24px;">
+                <div id="singleProgressContainer" class="card progress-card" style="display: none; margin-top: 24px;">
                     <div class="card-header">
                         <div class="progress-title-row">
-                            <span class="live-pulse"></span>
-                            <h3>Tiến Trình Di Chuyển Thời Gian Thực (Live Streaming)</h3>
+                            <span class="status-dot"></span>
+                            <h3>Tiến Trình Di Chuyển Thời Gian Thực</h3>
                         </div>
-                        <span id="progressPercentBadge" class="badge badge-primary">0%</span>
+                        <span id="progressPercentBadge" class="badge badge-neutral">0%</span>
                     </div>
                     <div class="progress-bar-container">
                         <div id="progressBarFill" class="progress-bar-fill" style="width: 0%;"></div>
@@ -244,15 +285,15 @@
                     <div class="stats-grid">
                         <div class="stat-mini">
                             <span class="stat-mini-label">ĐÃ CHUYỂN</span>
-                            <span id="statSuccessCount" class="stat-mini-value text-success">0</span>
+                            <span id="statSuccessCount" class="stat-mini-value">0</span>
                         </div>
                         <div class="stat-mini">
                             <span class="stat-mini-label">BỎ QUA (RESUME)</span>
-                            <span id="statSkippedCount" class="stat-mini-value text-primary">0</span>
+                            <span id="statSkippedCount" class="stat-mini-value">0</span>
                         </div>
                         <div class="stat-mini">
                             <span class="stat-mini-label">LỖI (FAILED)</span>
-                            <span id="statFailedCount" class="stat-mini-value text-danger">0</span>
+                            <span id="statFailedCount" class="stat-mini-value">0</span>
                         </div>
                         <div class="stat-mini">
                             <span class="stat-mini-label">THƯ MỤC HIỆN TẠI</span>
@@ -272,27 +313,33 @@
 
                 <!-- Drag & Drop Zone -->
                 <div id="dropZone" class="drop-zone">
-                    <div class="drop-zone-icon">📁</div>
+                    <div class="drop-zone-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" x2="12" y1="3" y2="15"/>
+                        </svg>
+                    </div>
                     <h3>Kéo thả file accounts.csv vào đây</h3>
-                    <p>hoặc bấm để duyệt file từ máy tính của bạn</p>
+                    <p>hoặc nhấn nút bên dưới để chọn file từ máy</p>
                     <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">Chọn file từ máy</button>
-                    <a href="/config/accounts.example.csv" download class="example-link">Tải file mẫu (accounts.example.csv)</a>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">Chọn file CSV</button>
+                    <a href="/config/accounts.example.csv" download class="example-link">Tải file mẫu accounts.example.csv</a>
                 </div>
 
                 <!-- CSV Preview & Action Bar -->
                 <div id="csvPreviewSection" style="display: none; margin-top: 24px;">
                     <div class="action-bar-row">
                         <div class="action-info">
-                            Đã nạp <strong id="csvTotalCount" class="text-primary">0</strong> tài khoản từ file CSV
+                            Đã nạp <strong id="csvTotalCount">0</strong> tài khoản từ file CSV
                         </div>
                         <div class="action-buttons">
-                            <button type="button" class="btn btn-secondary" id="btnCheckAllPasswords">🔑 Kiểm Tra Toàn Bộ Mật Khẩu (Parallel)</button>
-                            <button type="button" class="btn btn-success" id="btnStartBatchMigrate">🚀 BẮT ĐẦU MIGRATE TOÀN BỘ CSV</button>
+                            <button type="button" class="btn btn-secondary" id="btnCheckAllPasswords">Kiểm Tra Toàn Bộ Mật Khẩu</button>
+                            <button type="button" class="btn btn-primary" id="btnStartBatchMigrate">Bắt Đầu Di Chuyển CSV</button>
                         </div>
                     </div>
 
-                    <div class="card glass-card" style="margin-top: 16px;">
+                    <div class="card" style="margin-top: 16px;">
                         <div class="table-responsive">
                             <table class="data-table" id="csvTable">
                                 <thead>
@@ -317,13 +364,13 @@
             <section id="sessionsTab" class="tab-pane">
                 <div class="pane-header">
                     <h2>Lịch Sử & Báo Cáo Audit</h2>
-                    <p>Quản lý các phiên di chuyển đã thực hiện, tải báo cáo HTML/CSV và thử lại (Retry) các email bị lỗi.</p>
+                    <p>Quản lý các phiên di chuyển đã thực hiện, xem báo cáo HTML/CSV và thử lại các email bị lỗi.</p>
                 </div>
 
-                <div class="card glass-card">
+                <div class="card">
                     <div class="card-header">
                         <h3>Danh Sách Các Phiên Di Chuyển</h3>
-                        <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshSessions">🔄 Làm mới</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshSessions">Làm mới</button>
                     </div>
                     <div class="table-responsive">
                         <table class="data-table" id="sessionsTable">
@@ -352,7 +399,7 @@
                     <p>Tinh chỉnh các cơ chế bảo vệ máy chủ, chống tràn RAM và loại trừ thư mục.</p>
                 </div>
 
-                <div class="card glass-card" style="max-width: 800px;">
+                <div class="card" style="max-width: 800px;">
                     <div class="form-grid">
                         <div class="form-group col-span-2">
                             <label>Khử Dấu Tiếng Việt Tên Thư Mục (Yandex / cPanel Fix)</label>
@@ -390,13 +437,18 @@
     <div id="logDrawer" class="log-drawer collapsed">
         <div class="drawer-header" id="drawerHeader">
             <div class="drawer-title">
-                <span class="terminal-icon">🖥️</span>
-                <span>Live Migration Logs & Console Output</span>
-                <span id="drawerLogCount" class="badge badge-primary">0 logs</span>
+                <span class="terminal-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="4 17 10 11 4 5"/>
+                        <line x1="12" x2="20" y1="19" y2="19"/>
+                    </svg>
+                </span>
+                <span>Console Logs & Output</span>
+                <span id="drawerLogCount" class="badge badge-neutral">0 logs</span>
             </div>
             <div class="drawer-actions">
                 <button type="button" class="btn btn-sm btn-secondary" id="btnClearLogs">Xóa log</button>
-                <button type="button" class="drawer-toggle-btn" id="btnToggleDrawer">▲ Mở rộng Console</button>
+                <button type="button" class="drawer-toggle-btn" id="btnToggleDrawer">Mở rộng Console ▲</button>
             </div>
         </div>
         <div class="drawer-body" id="drawerConsoleBody">

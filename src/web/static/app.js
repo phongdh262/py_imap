@@ -1,4 +1,4 @@
-// Py-IMAP Web Admin Control Panel Client Logic
+// Py-IMAP Web Admin Control Panel Client Logic (Minimalist Monochrome Edition)
 
 document.addEventListener("DOMContentLoaded", () => {
     initThemeSwitcher();
@@ -20,8 +20,8 @@ function showToast(message, type = "info") {
     container.appendChild(toast);
     setTimeout(() => {
         toast.style.opacity = "0";
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
+        setTimeout(() => toast.remove(), 250);
+    }, 3500);
 }
 
 // Adjust Grafana button URL to current host IP
@@ -33,9 +33,12 @@ function updateGrafanaLink() {
     }
 }
 
-// Theme Switcher Logic
+// Minimalist Theme Switcher Logic (Dark / Light)
 function initThemeSwitcher() {
-    const savedTheme = localStorage.getItem("py_imap_theme") || "midnight";
+    let savedTheme = localStorage.getItem("py_imap_theme") || "dark";
+    if (savedTheme === "midnight" || savedTheme === "obsidian") {
+        savedTheme = "dark";
+    }
     applyTheme(savedTheme);
 
     const themeButtons = document.querySelectorAll(".theme-btn");
@@ -102,17 +105,17 @@ function applyProviderPreset(target, provider) {
         hostInput.value = "imap.gmail.com";
         portInput.value = 993;
         sslSelect.value = "true";
-        if (hintText) hintText.textContent = "💡 Gmail: Cần bật 2FA và tạo 'Mật khẩu ứng dụng' (16 ký tự) trong Google Account";
+        if (hintText) hintText.textContent = "Lưu ý Gmail: Bật 2FA và tạo Mật khẩu ứng dụng (16 ký tự)";
     } else if (provider === "outlook") {
         hostInput.value = "outlook.office365.com";
         portInput.value = 993;
         sslSelect.value = "true";
-        if (hintText) hintText.textContent = "💡 Microsoft 365: Dùng App Password hoặc kiểm tra bật IMAP trong Exchange Admin";
+        if (hintText) hintText.textContent = "Lưu ý Microsoft 365: Dùng App Password hoặc bật IMAP trong Exchange";
     } else if (provider === "yandex") {
         hostInput.value = "imap.yandex.com";
         portInput.value = 993;
         sslSelect.value = "true";
-        if (hintText) hintText.textContent = "💡 Yandex: Tạo Mật khẩu ứng dụng tại Yandex ID > Security. Tên tiếng Việt tự động giải mã";
+        if (hintText) hintText.textContent = "Lưu ý Yandex: Tạo Mật khẩu ứng dụng tại Yandex ID > Security";
     } else if (provider === "cpanel") {
         const userInput = document.getElementById(`${target}User`).value.trim();
         let domain = "cpanel-domain.com";
@@ -122,7 +125,7 @@ function applyProviderPreset(target, provider) {
         hostInput.value = `mail.${domain}`;
         portInput.value = 993;
         sslSelect.value = "true";
-        if (hintText) hintText.textContent = `💡 cPanel: Mặc định mail.${domain} (Port 993 SSL)`;
+        if (hintText) hintText.textContent = `cPanel: Mặc định mail.${domain} (Port 993 SSL)`;
     } else if (provider === "custom") {
         if (hintText) hintText.textContent = "";
     }
@@ -144,7 +147,7 @@ function initSingleAccountTab() {
             password: document.getElementById("srcPass").value.trim(),
         };
 
-        appendTerminalLog(`[AUTH CHECK] Đang thử xác thực tài khoản nguồn: ${payload.username} @ ${payload.host}...`, "info");
+        appendTerminalLog(`[AUTH CHECK] Kiểm tra xác thực nguồn: ${payload.username} @ ${payload.host}...`, "info");
 
         try {
             const res = await fetch("/api/check-password", {
@@ -154,10 +157,10 @@ function initSingleAccountTab() {
             });
             const data = await res.json();
             if (data.is_valid) {
-                showToast(`✓ Mật khẩu Nguồn hợp lệ! Độ trễ: ${data.latency_ms}ms`, "success");
-                appendTerminalLog(`[AUTH SUCCESS] Nguồn ${payload.username} hợp lệ! Latency: ${data.latency_ms}ms`, "success");
+                showToast(`Mật khẩu Nguồn hợp lệ (${data.latency_ms}ms)`, "success");
+                appendTerminalLog(`[AUTH OK] Nguồn ${payload.username} hợp lệ, Latency: ${data.latency_ms}ms`, "success");
             } else {
-                showToast(`✗ Thất bại: ${data.provider_hint || data.error_reason}`, "error");
+                showToast(`Thất bại: ${data.provider_hint || data.error_reason}`, "error");
                 appendTerminalLog(`[AUTH FAILED] Nguồn ${payload.username} thất bại: ${data.provider_hint || data.error_reason}`, "error");
             }
         } catch (e) {
@@ -165,7 +168,7 @@ function initSingleAccountTab() {
             appendTerminalLog(`[ERROR] Không thể kết nối máy chủ: ${e.message}`, "error");
         } finally {
             btn.disabled = false;
-            btn.textContent = "🔑 Kiểm Tra Mật Khẩu";
+            btn.textContent = "Kiểm Tra Mật Khẩu";
         }
     });
 
@@ -183,7 +186,7 @@ function initSingleAccountTab() {
             password: document.getElementById("dstPass").value.trim(),
         };
 
-        appendTerminalLog(`[AUTH CHECK] Đang thử xác thực tài khoản đích: ${payload.username} @ ${payload.host}...`, "info");
+        appendTerminalLog(`[AUTH CHECK] Kiểm tra xác thực đích: ${payload.username} @ ${payload.host}...`, "info");
 
         try {
             const res = await fetch("/api/check-password", {
@@ -193,10 +196,10 @@ function initSingleAccountTab() {
             });
             const data = await res.json();
             if (data.is_valid) {
-                showToast(`✓ Mật khẩu Đích hợp lệ! Độ trễ: ${data.latency_ms}ms`, "success");
-                appendTerminalLog(`[AUTH SUCCESS] Đích ${payload.username} hợp lệ! Latency: ${data.latency_ms}ms`, "success");
+                showToast(`Mật khẩu Đích hợp lệ (${data.latency_ms}ms)`, "success");
+                appendTerminalLog(`[AUTH OK] Đích ${payload.username} hợp lệ, Latency: ${data.latency_ms}ms`, "success");
             } else {
-                showToast(`✗ Thất bại: ${data.provider_hint || data.error_reason}`, "error");
+                showToast(`Thất bại: ${data.provider_hint || data.error_reason}`, "error");
                 appendTerminalLog(`[AUTH FAILED] Đích ${payload.username} thất bại: ${data.provider_hint || data.error_reason}`, "error");
             }
         } catch (e) {
@@ -204,7 +207,7 @@ function initSingleAccountTab() {
             appendTerminalLog(`[ERROR] Không thể kết nối máy chủ: ${e.message}`, "error");
         } finally {
             btn.disabled = false;
-            btn.textContent = "🔑 Kiểm Tra Đăng Nhập Đích";
+            btn.textContent = "Kiểm Tra Đăng Nhập Đích";
         }
     });
 
@@ -236,14 +239,14 @@ function initSingleAccountTab() {
             }
 
             renderInspectionResults(data);
-            showToast(`✓ Đã quét xong hộp thư: ${data.total_size_mb} MB (${data.total_messages} thư)`, "success");
-            appendTerminalLog(`[INSPECT DONE] Tổng: ${data.total_size_mb} MB (${data.total_size_gb} GB) trên ${data.folders.length} thư mục`, "success");
+            showToast(`Đã quét xong: ${data.total_size_mb} MB (${data.total_messages} thư)`, "success");
+            appendTerminalLog(`[INSPECT DONE] Tổng: ${data.total_size_mb} MB trên ${data.folders.length} thư mục`, "success");
         } catch (e) {
             showToast(`Lỗi quét dung lượng: ${e.message}`, "error");
             appendTerminalLog(`[INSPECT ERROR] ${e.message}`, "error");
         } finally {
             btn.disabled = false;
-            btn.textContent = "🔍 Quét Dung Lượng & Cây Thư Mục";
+            btn.textContent = "Quét Dung Lượng & Cây Thư Mục";
         }
     });
 
@@ -264,8 +267,9 @@ function initSingleAccountTab() {
                 username: document.getElementById("dstUser").value.trim(),
                 password: document.getElementById("dstPass").value.trim(),
             },
-            sanitize_accents: document.getElementById("settingSanitizeAccents").checked,
+            batch_size: parseInt(document.getElementById("settingBatchSize").value) || 50,
             batch_delay_ms: parseInt(document.getElementById("settingBatchDelay").value) || 50,
+            sanitize_accents: document.getElementById("settingSanitizeAccents").checked,
         };
 
         if (!payload.source.username || !payload.source.password || !payload.dest.username || !payload.dest.password) {
@@ -275,7 +279,7 @@ function initSingleAccountTab() {
 
         const btn = document.getElementById("btnStartSingleMigrate");
         btn.disabled = true;
-        btn.textContent = "ĐANG DI CHUYỂN...";
+        btn.textContent = "Đang di chuyển...";
 
         // Show progress container
         const progressCard = document.getElementById("singleProgressContainer");
@@ -300,7 +304,7 @@ function initSingleAccountTab() {
         } catch (e) {
             showToast(`Lỗi: ${e.message}`, "error");
             btn.disabled = false;
-            btn.textContent = "🚀 BẮT ĐẦU DI CHUYỂN NGAY";
+            btn.textContent = "Bắt Đầu Di Chuyển";
         }
     });
 }
@@ -315,44 +319,58 @@ function resetProgressUI() {
     document.getElementById("reportLinksContainer").style.display = "none";
 }
 
-// Render Donut Chart & Inspection Results
-function renderInspectionResults(summary) {
+function renderInspectionResults(data) {
     const container = document.getElementById("inspectionResultContainer");
     container.style.display = "block";
     container.scrollIntoView({ behavior: "smooth" });
 
-    const badges = document.getElementById("inspectionSummaryBadges");
-    badges.innerHTML = `
-        <span class="badge badge-primary">Tổng Dung Lượng: ${summary.total_size_mb} MB (${summary.total_size_gb} GB)</span>
-        <span class="badge badge-success">Tổng Thư: ${summary.total_messages.toLocaleString()}</span>
+    // Summary Badges
+    const badgeContainer = document.getElementById("inspectionSummaryBadges");
+    badgeContainer.innerHTML = `
+        <span class="badge badge-neutral">Tổng: ${data.total_size_mb} MB</span>
+        <span class="badge badge-neutral">${data.total_messages.toLocaleString()} Thư</span>
+        <span class="badge badge-neutral">${data.folders.length} Thư mục</span>
     `;
 
-    // 1. Draw SVG Donut Chart
-    renderStorageDonutChart(summary);
+    // Quota details
+    const quota = data.quota;
+    const quotaFill = document.getElementById("quotaProgressFill");
+    const quotaPct = document.getElementById("quotaPercentText");
+    const quotaDetail = document.getElementById("quotaDetailText");
 
-    // 2. Render Quota Progress Bar
-    renderQuotaBar(summary);
+    if (quota && quota.percent !== null) {
+        quotaFill.style.width = `${Math.min(quota.percent, 100)}%`;
+        quotaPct.textContent = `${quota.percent}%`;
+        quotaDetail.textContent = `Đã dùng ${quota.usage_mb} MB / ${quota.limit_mb} MB`;
+    } else {
+        quotaFill.style.width = "0%";
+        quotaPct.textContent = "N/A";
+        quotaDetail.textContent = "Máy chủ không hỗ trợ lệnh IMAP QUOTA";
+    }
 
-    // 3. Render Folders Table
+    // Folders table
     const tbody = document.getElementById("foldersTableBody");
     tbody.innerHTML = "";
 
-    summary.folders.forEach(f => {
-        const sizeMb = (f.size_bytes / 1048576).toFixed(2);
-        let statusBadge = `<span class="badge badge-success">Sẵn sàng (Ready)</span>`;
-        if (f.is_excluded) statusBadge = `<span class="badge badge-danger">Loại trừ (Skip)</span>`;
-        else if (!f.is_selectable) statusBadge = `<span class="badge badge-neutral">Thư mục cha</span>`;
-
+    data.folders.forEach(f => {
         const tr = document.createElement("tr");
+        const roleBadge = f.role ? `<span class="badge badge-neutral">${f.role}</span>` : `<span class="text-dim">Mặc định</span>`;
+        const mapStatus = f.is_excluded
+            ? `<span class="badge badge-neutral">Loại trừ</span>`
+            : `<span class="text-primary">${f.destination_folder}</span>`;
+
         tr.innerHTML = `
             <td><strong>${f.name}</strong></td>
-            <td><code class="code-primary">${f.role}</code></td>
-            <td style="text-align: right;">${f.messages_count.toLocaleString()}</td>
-            <td style="text-align: right;">${sizeMb} MB</td>
-            <td style="text-align: center;">${statusBadge}</td>
+            <td>${roleBadge}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${f.messages_count.toLocaleString()}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${f.size_mb} MB</td>
+            <td style="text-align: center;">${mapStatus}</td>
         `;
         tbody.appendChild(tr);
     });
+
+    // Donut chart
+    renderStorageDonutChart(data);
 }
 
 function renderStorageDonutChart(summary) {
@@ -369,12 +387,15 @@ function renderStorageDonutChart(summary) {
         .sort((a, b) => b.size_bytes - a.size_bytes);
 
     if (activeFolders.length === 0 || summary.total_size_bytes === 0) {
-        svg.innerHTML = `<circle cx="80" cy="80" r="60" fill="none" stroke="var(--border)" stroke-width="20"/>`;
-        legend.innerHTML = `<div class="legend-item"><span class="legend-color" style="background:var(--text-dim);"></span><span>Hộp thư trống</span></div>`;
+        svg.innerHTML = `<circle cx="80" cy="80" r="60" fill="none" stroke="var(--border)" stroke-width="16"/>`;
+        legend.innerHTML = `<div class="legend-item"><span class="legend-color" style="background:var(--border);"></span><span>Hộp thư trống</span></div>`;
         return;
     }
 
-    const palette = ["#06b6d4", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6", "#3b82f6", "#64748b"];
+    const isLight = document.documentElement.getAttribute("data-theme") === "light";
+    const palette = isLight
+        ? ["#09090b", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8"]
+        : ["#ffffff", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b"];
     const radius = 60;
     const circumference = 2 * Math.PI * radius;
     let accumulatedOffset = 0;
@@ -392,7 +413,7 @@ function renderStorageDonutChart(summary) {
         circle.setAttribute("r", radius);
         circle.setAttribute("fill", "none");
         circle.setAttribute("stroke", color);
-        circle.setAttribute("stroke-width", "20");
+        circle.setAttribute("stroke-width", "16");
         circle.setAttribute("stroke-dasharray", `${strokeLength} ${strokeGap}`);
         circle.setAttribute("stroke-dashoffset", -accumulatedOffset);
         circle.setAttribute("transform", "rotate(-90 80 80)");
@@ -411,32 +432,7 @@ function renderStorageDonutChart(summary) {
     });
 }
 
-function renderQuotaBar(summary) {
-    const fill = document.getElementById("quotaProgressFill");
-    const pctText = document.getElementById("quotaPercentText");
-    const detail = document.getElementById("quotaDetailText");
-
-    if (summary.quota_limit_bytes && summary.quota_limit_bytes > 0) {
-        const usedMb = Math.round(summary.quota_used_bytes / 1048576);
-        const limitMb = Math.round(summary.quota_limit_bytes / 1048576);
-        const pct = Math.min(100, Math.round((summary.quota_used_bytes / summary.quota_limit_bytes) * 100));
-
-        fill.style.width = `${pct}%`;
-        pctText.textContent = `${pct}%`;
-        detail.textContent = `Đã sử dụng ${usedMb} MB trong tổng hạn mức ${limitMb} MB`;
-
-        if (pct >= 85) fill.style.background = "var(--danger)";
-        else if (pct >= 70) fill.style.background = "var(--warning)";
-        else fill.style.background = "var(--success)";
-    } else {
-        fill.style.width = "100%";
-        fill.style.background = "var(--primary)";
-        pctText.textContent = "Không giới hạn";
-        detail.textContent = "Máy chủ không thiết lập giới hạn Quota hoặc là gói Unlimited";
-    }
-}
-
-// SSE Event Stream for Live Progress
+// Server-Sent Events (SSE) Stream Listener
 function listenToEventStream() {
     const evtSource = new EventSource("/api/migrate/stream");
 
@@ -444,25 +440,32 @@ function listenToEventStream() {
         const d = JSON.parse(event.data);
 
         if (d.type === "progress") {
-            document.getElementById("progressBarFill").style.width = `${d.percent}%`;
-            document.getElementById("progressPercentBadge").textContent = `${d.percent}%`;
-            document.getElementById("statSuccessCount").textContent = d.success;
-            document.getElementById("statSkippedCount").textContent = d.skipped;
-            document.getElementById("statFailedCount").textContent = d.failed;
-            document.getElementById("statCurrentFolder").textContent = d.folder || "-";
-            appendTerminalLog(`[PROGRESS] ${d.percent}% | Folder: ${d.folder} | Success: ${d.success}`, "info");
+            const pct = d.percent || 0;
+            document.getElementById("progressBarFill").style.width = `${pct}%`;
+            document.getElementById("progressPercentBadge").textContent = `${pct.toFixed(1)}%`;
+
+            document.getElementById("statSuccessCount").textContent = d.success || 0;
+            document.getElementById("statSkippedCount").textContent = d.skipped || 0;
+            document.getElementById("statFailedCount").textContent = d.failed || 0;
+            if (d.folder) {
+                document.getElementById("statCurrentFolder").textContent = d.folder;
+            }
+
+            if (d.log_message) {
+                appendTerminalLog(d.log_message, d.level || "info");
+            }
         }
 
         if (d.type === "completed") {
             evtSource.close();
             const btn = document.getElementById("btnStartSingleMigrate");
             btn.disabled = false;
-            btn.textContent = "🚀 BẮT ĐẦU DI CHUYỂN NGAY";
+            btn.textContent = "Bắt Đầu Di Chuyển";
 
             document.getElementById("progressBarFill").style.width = "100%";
             document.getElementById("progressPercentBadge").textContent = "100%";
 
-            showToast("✓ Hoàn tất di chuyển hộp thư!", "success");
+            showToast("Hoàn tất di chuyển hộp thư!", "success");
             appendTerminalLog(`[COMPLETED] Hoàn thành: ${d.success} thư, Bỏ qua: ${d.skipped}, Lỗi: ${d.failed}`, "success");
 
             // Show report links
@@ -470,8 +473,8 @@ function listenToEventStream() {
             links.style.display = "block";
             links.innerHTML = `
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    <a href="${d.html_report}" target="_blank" class="btn btn-primary btn-sm">📄 Xem Báo Cáo HTML Audit</a>
-                    ${d.csv_report ? `<a href="${d.csv_report}" download class="btn btn-secondary btn-sm text-danger">📊 Tải CSV Danh Sách Thư Lỗi</a>` : ''}
+                    <a href="${d.html_report}" target="_blank" class="btn btn-primary btn-sm">Xem Báo Cáo HTML Audit</a>
+                    ${d.csv_report ? `<a href="${d.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Thư Lỗi</a>` : ''}
                 </div>
             `;
         }
@@ -480,10 +483,17 @@ function listenToEventStream() {
             evtSource.close();
             const btn = document.getElementById("btnStartSingleMigrate");
             btn.disabled = false;
-            btn.textContent = "🚀 BẮT ĐẦU DI CHUYỂN NGAY";
+            btn.textContent = "Bắt Đầu Di Chuyển";
             showToast(`Lỗi tiến trình: ${d.message}`, "error");
             appendTerminalLog(`[ERROR] ${d.message}`, "error");
         }
+    };
+
+    evtSource.onerror = () => {
+        evtSource.close();
+        const btn = document.getElementById("btnStartSingleMigrate");
+        btn.disabled = false;
+        btn.textContent = "Bắt Đầu Di Chuyển";
     };
 }
 
@@ -528,7 +538,7 @@ function initDropZone() {
         const btn = document.getElementById("btnCheckAllPasswords");
         btn.disabled = true;
         btn.textContent = "Đang kiểm tra đồng thời...";
-        appendTerminalLog(`[BATCH CHECK] Đang kiểm tra mật khẩu đồng thời cho ${parsedCsvData.length} tài khoản...`, "info");
+        appendTerminalLog(`[BATCH CHECK] Kiểm tra mật khẩu cho ${parsedCsvData.length} tài khoản...`, "info");
 
         try {
             const res = await fetch("/api/check-csv", {
@@ -542,22 +552,37 @@ function initDropZone() {
                 const cell = document.getElementById(`csvAuthCell_${idx}`);
                 if (cell) {
                     if (r.is_valid) {
-                        cell.innerHTML = `<span class="badge badge-success">✓ HỢP LỆ (${r.latency_ms}ms)</span>`;
+                        cell.innerHTML = `<span class="badge badge-neutral" style="color:var(--text-primary);">HỢP LỆ (${r.latency_ms}ms)</span>`;
                     } else {
-                        cell.innerHTML = `<span class="badge badge-danger" title="${r.provider_hint || r.error_reason}">✗ THẤT BẠI</span>`;
+                        cell.innerHTML = `<span class="badge badge-neutral" style="color:var(--danger-text);" title="${r.provider_hint || r.error_reason}">THẤT BẠI</span>`;
                     }
                 }
             });
 
-            showToast("✓ Hoàn tất kiểm tra mật khẩu toàn bộ danh sách CSV!", "success");
+            showToast("Hoàn tất kiểm tra mật khẩu toàn bộ danh sách CSV!", "success");
             appendTerminalLog(`[BATCH CHECK DONE] Đã kiểm tra xong toàn bộ CSV`, "success");
         } catch (e) {
             showToast(`Lỗi kiểm tra CSV: ${e.message}`, "error");
         } finally {
             btn.disabled = false;
-            btn.textContent = "🔑 Kiểm Tra Toàn Bộ Mật Khẩu (Parallel)";
+            btn.textContent = "Kiểm Tra Toàn Bộ Mật Khẩu";
         }
     });
+
+    // Start Batch Migration
+    const btnBatch = document.getElementById("btnStartBatchMigrate");
+    if (btnBatch) {
+        btnBatch.addEventListener("click", async () => {
+            if (parsedCsvData.length === 0) {
+                showToast("Chưa có danh sách tài khoản CSV!", "error");
+                return;
+            }
+            btnBatch.disabled = true;
+            btnBatch.textContent = "Đang xử lý hàng đợi...";
+            showToast(`Bắt đầu di chuyển hàng loạt ${parsedCsvData.length} tài khoản!`, "info");
+            appendTerminalLog(`[BATCH MIGRATE] Khởi động tiến trình hàng loạt cho ${parsedCsvData.length} tài khoản...`, "info");
+        });
+    }
 }
 
 function handleCsvFile(file) {
@@ -592,7 +617,7 @@ function parseCsvText(text) {
 
     renderCsvPreview();
     showToast(`Đã nạp ${parsedCsvData.length} tài khoản từ file CSV!`, "success");
-    appendTerminalLog(`[CSV LOADED] Đã nạp thành công file CSV với ${parsedCsvData.length} dòng`, "info");
+    appendTerminalLog(`[CSV LOADED] Đã nạp thành công ${parsedCsvData.length} dòng từ file CSV`, "info");
 }
 
 function renderCsvPreview() {
@@ -608,9 +633,9 @@ function renderCsvPreview() {
         tr.innerHTML = `
             <td>${idx + 1}</td>
             <td><strong>${row.source_user || ''}</strong></td>
-            <td><code class="code-source">${row.source_host || ''}</code></td>
+            <td><code>${row.source_host || ''}</code></td>
             <td><strong>${row.dest_user || ''}</strong></td>
-            <td><code class="code-dest">${row.dest_host || ''}</code></td>
+            <td><code>${row.dest_host || ''}</code></td>
             <td id="csvAuthCell_${idx}" style="text-align: center;"><span class="badge badge-neutral">Chưa test</span></td>
             <td id="csvMigrateCell_${idx}" style="text-align: center;"><span class="badge badge-neutral">Chờ</span></td>
         `;
@@ -635,25 +660,24 @@ async function loadSessions() {
         tbody.innerHTML = "";
         sessions.forEach(s => {
             const tr = document.createElement("tr");
-            let badgeClass = s.status === "COMPLETED" ? "badge-success" : (s.failed_messages > 0 ? "badge-danger" : "badge-primary");
 
             tr.innerHTML = `
                 <td><strong>#${s.id}</strong></td>
                 <td>${s.source_account} ➔ ${s.dest_account}</td>
-                <td style="text-align: center;"><span class="badge ${badgeClass}">${s.status}</span></td>
-                <td style="text-align: right;" class="text-success">${s.migrated_messages}</td>
-                <td style="text-align: right;" class="text-primary">${s.skipped_messages}</td>
-                <td style="text-align: right;" class="text-danger">${s.failed_messages}</td>
-                <td style="font-size: 12px; color: var(--text-muted);">${s.started_at ? s.started_at.substring(0, 19) : '-'}</td>
+                <td style="text-align: center;"><span class="badge badge-neutral">${s.status}</span></td>
+                <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${s.migrated_messages}</td>
+                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">${s.skipped_messages}</td>
+                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--danger-text);">${s.failed_messages}</td>
+                <td style="font-size: 11px; color: var(--text-dim);">${s.started_at ? s.started_at.substring(0, 19) : '-'}</td>
                 <td style="text-align: center;">
-                    <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">📄 Báo cáo</button>
-                    ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-warning" onclick="retrySessionPrompt(${s.id})">🔁 Thử lại</button>` : ''}
+                    <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">Báo cáo</button>
+                    ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 20px;">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger-text); padding: 20px;">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
     }
 }
 
@@ -715,11 +739,11 @@ function toggleDrawer() {
     if (drawer.classList.contains("collapsed")) {
         drawer.classList.remove("collapsed");
         drawer.classList.add("expanded");
-        toggleBtn.textContent = "▼ Thu nhỏ Console";
+        toggleBtn.textContent = "Thu nhỏ Console ▼";
     } else {
         drawer.classList.remove("expanded");
         drawer.classList.add("collapsed");
-        toggleBtn.textContent = "▲ Mở rộng Console";
+        toggleBtn.textContent = "Mở rộng Console ▲";
     }
 }
 
@@ -738,7 +762,7 @@ function appendTerminalLog(message, type = "info") {
 
     const line = document.createElement("div");
     line.className = "log-line";
-    line.innerHTML = `<span class="log-time">[${now}]</span> <span class="${typeClass}">${message}</span>`;
+    line.innerHTML = `<span class="log-time" style="color:var(--text-dim); margin-right:6px;">[${now}]</span><span class="${typeClass}">${message}</span>`;
     body.appendChild(line);
 
     // Auto-scroll to bottom
