@@ -186,7 +186,8 @@ class EmailMigrator:
                     if migration_id:
                         self.state_db.record_skipped(migration_id)
                     logger.info(
-                        f"- [{src_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> SKIPPED (Already exists on destination)",
+                        f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
+                        event=f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
                         action="SKIP",
                         status="SKIPPED",
                         source_account=src_account,
@@ -210,7 +211,8 @@ class EmailMigrator:
                         if migration_id:
                             self.state_db.record_skipped(migration_id)
                         logger.info(
-                            f"- [{src_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> SKIPPED (Recorded in migration state DB)",
+                            f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2 cache) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
+                            event=f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2 cache) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
                             action="SKIP",
                             status="SKIPPED",
                             source_account=src_account,
@@ -229,7 +231,7 @@ class EmailMigrator:
                 # Validation: size limit exceeded
                 if size > self.max_message_size:
                     failed_count += 1
-                    err_code = "SIZE_LIMIT_EXCEEDED"
+                    err_code = "OVERQUOTA" if "quota" in str(self.max_message_size).lower() else "SIZE_LIMIT_EXCEEDED"
                     err_detail = f"Message size {round(size / (1024*1024), 2)}MB exceeds limit of {round(self.max_message_size / (1024*1024), 2)}MB"
                     MESSAGES_FAILED_TOTAL.labels(
                         source_account=src_account, folder=src_folder, error_type=err_code
@@ -239,7 +241,8 @@ class EmailMigrator:
                             migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, err_code, err_detail
                         )
                     logger.error(
-                        f"! [{src_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> FAILED ({err_code})",
+                        f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_code}: {err_detail})",
+                        event=f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_code}: {err_detail})",
                         action="FAIL",
                         status="FAILED",
                         source_account=src_account,
@@ -284,7 +287,8 @@ class EmailMigrator:
                         )
 
                     logger.info(
-                        f"+ [{src_folder} -> {dst_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | From: {safe_sender} | Subj: {safe_subject} -> OK",
+                        f"msg {src_folder}/{uid} {{{size}}} copied to {dst_folder} | MsgID: {safe_msg_id} | Subj: {safe_subject}",
+                        event=f"msg {src_folder}/{uid} {{{size}}} copied to {dst_folder} | MsgID: {safe_msg_id} | Subj: {safe_subject}",
                         action="TRANSFER",
                         status="SUCCESS",
                         source_account=src_account,
@@ -301,17 +305,18 @@ class EmailMigrator:
 
                 except Exception as e:
                     failed_count += 1
-                    err_code = "APPEND_FAILED"
+                    err_code = "could not append"
                     err_detail = str(e)
                     MESSAGES_FAILED_TOTAL.labels(
-                        source_account=src_account, folder=src_folder, error_type=err_code
+                        source_account=src_account, folder=src_folder, error_type="APPEND_FAILED"
                     ).inc()
                     if self.state_db and migration_id:
                         self.state_db.record_failure(
-                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, err_code, err_detail
+                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, "APPEND_FAILED", err_detail
                         )
                     logger.error(
-                        f"! [{src_folder} -> {dst_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> FAILED ({err_detail})",
+                        f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_detail})",
+                        event=f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_detail})",
                         action="FAIL",
                         status="FAILED",
                         source_account=src_account,
@@ -324,7 +329,7 @@ class EmailMigrator:
                         sender=sender,
                         size_bytes=size,
                         size_str=size_str,
-                        error_code=err_code,
+                        error_code="APPEND_FAILED",
                         error_detail=err_detail,
                     )
 

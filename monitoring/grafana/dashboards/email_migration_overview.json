@@ -58,7 +58,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 1
       },
@@ -85,12 +85,72 @@
           },
           "editorMode": "code",
           "expr": "sum(email_migration_messages_migrated_total{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
-          "legendFormat": "Migrated",
+          "legendFormat": "Transferred",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Messages Migrated (Success)",
+      "title": "Messages Transferred",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 101,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(email_migration_messages_skipped_total{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
+          "legendFormat": "Skipped",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Messages Skipped",
       "type": "stat"
     },
     {
@@ -122,8 +182,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 8,
         "y": 1
       },
       "id": 2,
@@ -154,7 +214,7 @@
           "refId": "A"
         }
       ],
-      "title": "Messages Failed",
+      "title": "Messages Failed (Errors)",
       "type": "stat"
     },
     {
@@ -172,21 +232,25 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "blue",
+                "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "short"
         }
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 12,
         "y": 1
       },
-      "id": 3,
+      "id": 102,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -208,13 +272,73 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(email_migration_bytes_transferred_total{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
-          "legendFormat": "Transferred",
+          "expr": "sum(email_migration_messages_missing{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
+          "legendFormat": "Missing",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Payload Transferred",
+      "title": "Thư Còn Thiếu (Missing)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 103,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(email_migration_jobs_total{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
+          "legendFormat": "Jobs",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Tổng Lượt Chạy (Jobs)",
       "type": "stat"
     },
     {
@@ -246,8 +370,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 20,
         "y": 1
       },
       "id": 4,
@@ -879,11 +1003,66 @@
         "type": "loki",
         "uid": "Loki"
       },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 105,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "title": "Tần Suất Lỗi Theo Thời Gian (Errors Over Time - Err X/50)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "editorMode": "code",
+          "expr": "sum by (source_account) (count_over_time({job=\"email_migrator\"} |~ \"^Err \\\\d+/\\\\d+\" [1m])) or vector(0)",
+          "legendFormat": "{{source_account}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
       "gridPos": {
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 36
       },
       "id": 9,
       "options": {
@@ -1065,7 +1244,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 47
       },
       "id": 10,
       "options": {

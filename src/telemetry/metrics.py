@@ -17,6 +17,36 @@ MESSAGES_FAILED_TOTAL = Counter(
     ["source_account", "folder", "error_type"],
 )
 
+MESSAGES_SKIPPED_TOTAL = Counter(
+    "email_migration_messages_skipped_total",
+    "Total number of email messages skipped (already on destination)",
+    ["source_account", "folder"],
+)
+
+MESSAGES_MISSING_TOTAL = Gauge(
+    "email_migration_messages_missing",
+    "Messages found in host1 not in host2 at completion of sync",
+    ["source_account", "dest_account"],
+)
+
+MIGRATION_JOBS_TOTAL = Counter(
+    "email_migration_jobs_total",
+    "Total migration jobs executed by status and exit code",
+    ["source_account", "dest_account", "exit_code"],
+)
+
+MIGRATION_DURATION_SECONDS = Gauge(
+    "email_migration_duration_seconds",
+    "Total duration in seconds for account migration execution",
+    ["source_account", "dest_account"],
+)
+
+ERRORS_DETECTED_TOTAL = Counter(
+    "email_migration_errors_detected_total",
+    "Total detected errors during account migration",
+    ["source_account", "dest_account"],
+)
+
 BYTES_TRANSFERRED_TOTAL = Counter(
     "email_migration_bytes_transferred_total",
     "Total volume of email payload transferred in bytes",

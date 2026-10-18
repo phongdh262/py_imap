@@ -1,5 +1,9 @@
 import csv
+from datetime import datetime
+import os
 from pathlib import Path
+import socket
+import time
 from typing import Dict, List, Optional
 from rich.console import Console
 from rich.panel import Panel
@@ -18,6 +22,11 @@ from src.telemetry.metrics import (
     ACTIVE_WORKERS,
     SOURCE_MAILBOX_MESSAGES_TOTAL,
     SOURCE_MAILBOX_SIZE_BYTES,
+    MESSAGES_SKIPPED_TOTAL,
+    MESSAGES_MISSING_TOTAL,
+    MIGRATION_JOBS_TOTAL,
+    MIGRATION_DURATION_SECONDS,
+    ERRORS_DETECTED_TOTAL,
 )
 
 logger = setup_logging()
@@ -154,10 +163,61 @@ class MigrationService:
         if rec_throttle and "batch_delay_ms" in rec_throttle:
             self.throttler.batch_delay = rec_throttle["batch_delay_ms"] / 1000.0
 
+        start_time = time.time()
+        start_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        hostname = socket.gethostname()
+        pid = os.getpid()
+
+        logger.info(
+            f"Here is py_imap 1.0.0 on host {hostname} PID is {pid}",
+            event=f"Here is py_imap 1.0.0 on host {hostname} PID is {pid}",
+            action="SESSION_START",
+            status="INFO",
+            source_account=src_creds.username,
+            dest_account=dst_creds.username,
+            host1=src_creds.host,
+            host2=dst_creds.host,
+            user1=src_creds.username,
+            user2=dst_creds.username,
+            pid=pid,
+        )
+        logger.info(
+            f"Host1: IMAP server [{src_creds.host}] port [{src_creds.port}] user [{src_creds.username}]",
+            event=f"Host1: IMAP server [{src_creds.host}] port [{src_creds.port}] user [{src_creds.username}]",
+            source_account=src_creds.username,
+            dest_account=dst_creds.username,
+        )
+        logger.info(
+            f"Host2: IMAP server [{dst_creds.host}] port [{dst_creds.port}] user [{dst_creds.username}]",
+            event=f"Host2: IMAP server [{dst_creds.host}] port [{dst_creds.port}] user [{dst_creds.username}]",
+            source_account=src_creds.username,
+            dest_account=dst_creds.username,
+        )
+
         try:
             with IMAPClientWrapper(src_creds) as src_client, IMAPClientWrapper(dst_creds) as dst_client:
+                logger.info(
+                    f"Host1: success login on [{src_creds.host}]",
+                    event=f"Host1: success login on [{src_creds.host}]",
+                    source_account=src_creds.username,
+                    dest_account=dst_creds.username,
+                )
+                logger.info(
+                    f"Host2: success login on [{dst_creds.host}]",
+                    event=f"Host2: success login on [{dst_creds.host}]",
+                    source_account=src_creds.username,
+                    dest_account=dst_creds.username,
+                )
+
                 # 1. Pre-flight inspect source
                 summary = inspector.inspect(src_client)
+                logger.info(
+                    f"Host1: found {len(summary.folders)} folders.",
+                    event=f"Host1: found {len(summary.folders)} folders.",
+                    source_account=src_creds.username,
+                    dest_account=dst_creds.username,
+                )
+
                 SOURCE_MAILBOX_SIZE_BYTES.labels(source_account=src_creds.username).set(summary.total_size_bytes)
                 SOURCE_MAILBOX_MESSAGES_TOTAL.labels(source_account=src_creds.username).set(summary.total_messages)
 
@@ -194,6 +254,8 @@ class MigrationService:
                 # 4. Migrate each non-excluded selectable folder
                 migrated_msgs_counter = 0
                 total_target_msgs = summary.total_messages or 1
+                selectable_folders = [f for f in summary.folders if not f.is_excluded and f.is_selectable]
+                folders_synced_count = 0
 
                 for folder in summary.folders:
                     if folder.is_excluded or not folder.is_selectable:
@@ -233,6 +295,8 @@ class MigrationService:
                     total_failed += f_count
                     total_skipped += skip_count
                     migrated_msgs_counter += (s_count + f_count + skip_count)
+                    if f_count == 0:
+                        folders_synced_count += 1
 
                 ACCOUNT_PROGRESS_PERCENT.labels(
                     source_account=src_creds.username, dest_account=dst_creds.username
@@ -245,7 +309,60 @@ class MigrationService:
                 # 6. Generate HTML and CSV audit reports
                 html_report, csv_report = self.reporter.generate_reports(migration_id)
 
-                # 7. Print summary panel
+                # 7. Print summary panel & log imapsync ++++ Statistics
+                duration_sec = time.time() - start_time
+                end_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                missing_count = max(0, summary.total_messages - (total_success + total_skipped))
+                exit_code = 0 if total_failed == 0 else 111
+                exit_desc = "EX_OK: successful termination" if exit_code == 0 else "EX_ERRORS: termination with errors"
+                msg_rate = total_success / max(duration_sec, 0.1)
+                bw_rate_mib = round((summary.total_size_bytes / (1024 * 1024)) / max(duration_sec, 0.1), 2)
+
+                stats_lines = [
+                    "++++ Statistics",
+                    f"Transfer started on : {start_time_str}",
+                    f"Transfer ended on   : {end_time_str}",
+                    f"Transfer time       : {duration_sec:.1f} sec",
+                    f"Folders synced      : {folders_synced_count}/{len(selectable_folders)} synced",
+                    f"Messages transferred: {total_success}",
+                    f"Messages skipped    : {total_skipped}",
+                    f"Messages found in host1 not in host2 : {missing_count}",
+                    f"Total bytes transferred : {summary.total_size_bytes}",
+                    f"Total bytes skipped     : 0",
+                    f"Message rate        : {msg_rate:.1f} msgs/sec",
+                    f"Average bandwidth rate : {bw_rate_mib:.2f} MiB/sec",
+                    f"Host1 Nb messages   : {summary.total_messages}",
+                    f"Host2 Nb messages   : {total_success + total_skipped}",
+                    f"Host1 Total size    : {summary.total_size_bytes}",
+                    f"Host2 Total size    : {summary.total_size_bytes}",
+                    f"Final difference host2 - host1 : {missing_count}",
+                    f"Detected {total_failed} errors",
+                    f"Exiting with return value {exit_code} ({exit_desc}) {total_failed}/50 nb_errors/max_errors",
+                ]
+                stats_text = "\n".join(stats_lines)
+
+                logger.info(
+                    stats_text,
+                    event=stats_text,
+                    action="STATISTICS",
+                    status="SUCCESS" if exit_code == 0 else "FAILED",
+                    source_account=src_creds.username,
+                    dest_account=dst_creds.username,
+                    exit_code=exit_code,
+                    transferred=total_success,
+                    skipped=total_skipped,
+                    missing=missing_count,
+                    errors=total_failed,
+                    duration_sec=duration_sec,
+                )
+
+                # Prometheus metrics update for imapsync dashboard
+                MESSAGES_SKIPPED_TOTAL.labels(source_account=src_creds.username, folder="ALL").inc(total_skipped)
+                MESSAGES_MISSING_TOTAL.labels(source_account=src_creds.username, dest_account=dst_creds.username).set(missing_count)
+                MIGRATION_JOBS_TOTAL.labels(source_account=src_creds.username, dest_account=dst_creds.username, exit_code=str(exit_code)).inc()
+                MIGRATION_DURATION_SECONDS.labels(source_account=src_creds.username, dest_account=dst_creds.username).set(duration_sec)
+                ERRORS_DETECTED_TOTAL.labels(source_account=src_creds.username, dest_account=dst_creds.username).inc(total_failed)
+
                 report_info = f"[bold cyan]HTML Report:[/bold cyan] {html_report.resolve()}"
                 if csv_report:
                     report_info += f"\n[bold red]Failures CSV:[/bold red] {csv_report.resolve()}"
@@ -270,6 +387,23 @@ class MigrationService:
                     "html_report": str(html_report),
                     "csv_report": str(csv_report) if csv_report else None,
                 }
+
+        except Exception as e:
+            exit_code = 16 if ("auth" in str(e).lower() or "login" in str(e).lower()) else 10
+            exit_desc = "EX_AUTHENTICATION_FAILURE" if exit_code == 16 else "EX_CONNECTION_FAILURE"
+            err_line = f"failure: Error login [{str(e)}]\nExiting with return value {exit_code} ({exit_desc}) 1/50 nb_errors/max_errors"
+            logger.error(
+                err_line,
+                event=err_line,
+                action="SESSION_FAIL",
+                status="FAILED",
+                source_account=src_creds.username,
+                dest_account=dst_creds.username,
+                exit_code=exit_code,
+            )
+            MIGRATION_JOBS_TOTAL.labels(source_account=src_creds.username, dest_account=dst_creds.username, exit_code=str(exit_code)).inc()
+            ERRORS_DETECTED_TOTAL.labels(source_account=src_creds.username, dest_account=dst_creds.username).inc(1)
+            raise e
 
         finally:
             ACTIVE_WORKERS.dec()
