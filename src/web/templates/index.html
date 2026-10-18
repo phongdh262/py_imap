@@ -88,6 +88,15 @@
                     </span>
                     <span>Di Chuyển Hàng Loạt (CSV)</span>
                 </button>
+                <button class="nav-item" data-tab="activeTasksTab" id="navActiveTasks">
+                    <span class="nav-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                    </span>
+                    <span>Tiến Trình Đang Chạy</span>
+                    <span class="badge badge-neutral" id="activeTasksBadge" style="display:none; margin-left:auto; font-size:10px;">0</span>
+                </button>
                 <button class="nav-item" data-tab="sessionsTab">
                     <span class="nav-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -281,12 +290,20 @@
 
                 <!-- Live Migration Progress Box -->
                 <div id="singleProgressContainer" class="card progress-card" style="display: none; margin-top: 24px;">
-                    <div class="card-header">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <div class="progress-title-row">
                             <span class="status-dot"></span>
                             <h3>Tiến Trình Di Chuyển Thời Gian Thực</h3>
                         </div>
-                        <span id="progressPercentBadge" class="badge badge-neutral">0%</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span id="progressPercentBadge" class="badge badge-neutral">0%</span>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnMinimizeProgress" title="Thu gọn xuống góc màn hình để tiếp tục tạo tiến trình khác">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                <span>Thu gọn</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="progress-bar-container">
                         <div id="progressBarFill" class="progress-bar-fill" style="width: 0%;"></div>
@@ -365,6 +382,28 @@
                                 <tbody id="csvTableBody"></tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: Active & Running Background Tasks -->
+            <section id="activeTasksTab" class="tab-pane">
+                <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2>Tiến Trình Đang Chạy & Hàng Đợi (Background Tasks)</h2>
+                        <p>Theo dõi các tác vụ đang chạy ngầm trên VPS. Tiến trình tiếp tục chạy an toàn ngay cả khi bạn đóng trình duyệt web.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshTasks">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                        <span>Làm mới</span>
+                    </button>
+                </div>
+
+                <div id="activeTasksList" class="tasks-grid">
+                    <div class="card" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                        Hiện không có tiến trình nào đang chạy ngầm.
                     </div>
                 </div>
             </section>
@@ -462,6 +501,33 @@
         </div>
         <div class="drawer-body" id="drawerConsoleBody">
             <div class="log-line text-muted">[Ready] Hệ thống đã sẵn sàng ghi nhận log di chuyển...</div>
+        </div>
+    </div>
+
+    <!-- Floating Minimized Task Widget (Bottom Right) -->
+    <div id="floatingTaskWidget" class="floating-task-widget" style="display: none;">
+        <div class="floating-task-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="status-dot"></span>
+                <strong id="floatingTaskTitle" style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">Đang di chuyển...</strong>
+            </div>
+            <button type="button" class="floating-btn-close" id="btnExpandProgress" title="Mở rộng xem chi tiết">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9"/>
+                    <polyline points="9 21 3 21 3 15"/>
+                    <line x1="21" y1="3" x2="14" y2="10"/>
+                    <line x1="3" y1="21" x2="10" y2="14"/>
+                </svg>
+            </button>
+        </div>
+        <div class="floating-task-body">
+            <div class="progress-bar-container" style="height: 4px; margin-bottom: 6px;">
+                <div id="floatingProgressBarFill" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+                <span id="floatingTaskFolder">Đang xử lý...</span>
+                <span id="floatingTaskPercent">0%</span>
+            </div>
         </div>
     </div>
 

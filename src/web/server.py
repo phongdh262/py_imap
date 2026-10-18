@@ -1,8 +1,10 @@
 import asyncio
+from datetime import datetime
 import json
 import os
 from pathlib import Path
 import secrets
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, status
@@ -80,6 +82,16 @@ class SingleMigrateRequest(BaseModel):
 
 class BatchCheckRequest(BaseModel):
     accounts: List[Dict[str, Any]]
+
+
+class BatchMigrateRequest(BaseModel):
+    accounts: List[Dict[str, Any]]
+    sanitize_accents: bool = False
+    batch_delay_ms: int = 50
+
+
+# In-memory Task State for Background Migrations
+ACTIVE_TASKS: Dict[str, Dict[str, Any]] = {}
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -204,15 +216,30 @@ async def inspect_source_mailbox(creds: AccountCredentials):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def run_migration_worker(req: SingleMigrateRequest, loop: asyncio.AbstractEventLoop):
-    """Background worker executing the migration and pushing progress events."""
+def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.AbstractEventLoop):
+    """Background worker executing the migration, updating ACTIVE_TASKS, and pushing SSE events."""
     service = MigrationService(
         sanitize_accents=req.sanitize_accents,
         batch_delay_seconds=req.batch_delay_ms / 1000.0,
     )
 
+    ACTIVE_TASKS[task_id] = {
+        "task_id": task_id,
+        "source": req.source.username,
+        "dest": req.dest.username,
+        "status": "RUNNING",
+        "percent": 0.0,
+        "current_folder": "Đang kết nối...",
+        "success": 0,
+        "skipped": 0,
+        "failed": 0,
+        "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "html_report": None,
+        "csv_report": None,
+        "error_message": None,
+    }
+
     try:
-        # Patch on_progress callback to push SSE
         orig_migrate_folder = service.migrator.migrate_folder
 
         def custom_migrate_folder(*args, **kwargs):
@@ -223,14 +250,25 @@ def run_migration_worker(req: SingleMigrateRequest, loop: asyncio.AbstractEventL
                 if user_cb:
                     user_cb(done, total)
                 pct = round((done / (total or 1)) * 100, 1)
+
+                task_data = ACTIVE_TASKS.get(task_id, {})
+                task_data["percent"] = pct
+                task_data["current_folder"] = src_folder
+                summary = service.state_db.get_migration_summary(kwargs.get("migration_id", 0)) if kwargs.get("migration_id") else {}
+                task_data["success"] = summary.get("migrated_messages", done)
+                task_data["skipped"] = summary.get("skipped_messages", 0)
+                task_data["failed"] = summary.get("failed_messages", 0)
+
                 asyncio.run_coroutine_threadsafe(
                     progress_event_queue.put({
                         "type": "progress",
+                        "task_id": task_id,
+                        "source": req.source.username,
                         "percent": pct,
                         "folder": src_folder,
-                        "success": service.state_db.get_migration_summary(kwargs.get("migration_id", 0)).get("migrated_messages", 0) if kwargs.get("migration_id") else done,
-                        "skipped": 0,
-                        "failed": 0,
+                        "success": task_data["success"],
+                        "skipped": task_data["skipped"],
+                        "failed": task_data["failed"],
                     }),
                     loop,
                 )
@@ -239,38 +277,127 @@ def run_migration_worker(req: SingleMigrateRequest, loop: asyncio.AbstractEventL
             return orig_migrate_folder(*args, **kwargs)
 
         service.migrator.migrate_folder = custom_migrate_folder
-
         res = service.migrate_account(req.source, req.dest)
+
+        report_url = f"/api/reports/view/{res['migration_id']}"
+        csv_name = Path(res['csv_report']).name if res.get("csv_report") else None
+
+        ACTIVE_TASKS[task_id].update({
+            "status": "COMPLETED",
+            "percent": 100.0,
+            "success": res["success"],
+            "skipped": res["skipped"],
+            "failed": res["failed"],
+            "html_report": report_url,
+            "csv_report": f"/reports/{csv_name}" if csv_name else None,
+        })
 
         asyncio.run_coroutine_threadsafe(
             progress_event_queue.put({
                 "type": "completed",
+                "task_id": task_id,
+                "source": req.source.username,
                 "percent": 100,
                 "success": res["success"],
                 "skipped": res["skipped"],
                 "failed": res["failed"],
-                "html_report": f"/api/reports/view/{res['migration_id']}",
-                "csv_report": f"/reports/{Path(res['csv_report']).name}" if res.get("csv_report") else None,
+                "html_report": report_url,
+                "csv_report": f"/reports/{csv_name}" if csv_name else None,
             }),
             loop,
         )
 
     except Exception as e:
+        ACTIVE_TASKS[task_id].update({
+            "status": "FAILED",
+            "error_message": str(e),
+        })
         asyncio.run_coroutine_threadsafe(
             progress_event_queue.put({
                 "type": "error",
+                "task_id": task_id,
+                "source": req.source.username,
                 "message": str(e),
             }),
             loop,
         )
 
 
+def run_batch_migration_worker(batch_id: str, req: BatchMigrateRequest, loop: asyncio.AbstractEventLoop):
+    """Processes CSV accounts queue in background, updating ACTIVE_TASKS for each."""
+    for idx, row in enumerate(req.accounts):
+        sub_task_id = f"{batch_id}_{idx + 1}"
+        try:
+            src = AccountCredentials(
+                host=row.get("source_host", "").strip(),
+                port=int(row.get("source_port", 993)),
+                ssl=str(row.get("source_ssl", "true")).lower() in ("true", "1"),
+                username=row.get("source_user", "").strip(),
+                password=row.get("source_password", "").strip(),
+            )
+            dst = AccountCredentials(
+                host=row.get("dest_host", "").strip(),
+                port=int(row.get("dest_port", 993)),
+                ssl=str(row.get("dest_ssl", "true")).lower() in ("true", "1"),
+                username=row.get("dest_user", "").strip(),
+                password=row.get("dest_password", "").strip(),
+            )
+            single_req = SingleMigrateRequest(
+                source=src,
+                dest=dst,
+                sanitize_accents=req.sanitize_accents,
+                batch_delay_ms=req.batch_delay_ms,
+            )
+            run_migration_worker(sub_task_id, single_req, loop)
+        except Exception as e:
+            ACTIVE_TASKS[sub_task_id] = {
+                "task_id": sub_task_id,
+                "source": row.get("source_user", "Unknown"),
+                "dest": row.get("dest_user", "Unknown"),
+                "status": "FAILED",
+                "percent": 0.0,
+                "current_folder": "-",
+                "success": 0,
+                "skipped": 0,
+                "failed": 0,
+                "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+                "html_report": None,
+                "csv_report": None,
+                "error_message": str(e),
+            }
+
+
 @app.post("/api/migrate/start")
 async def start_migration_task(req: SingleMigrateRequest, background_tasks: BackgroundTasks):
-    """Starts migration task in background thread."""
+    """Starts migration task in background thread and returns task ID."""
     loop = asyncio.get_running_loop()
-    background_tasks.add_task(run_migration_worker, req, loop)
-    return {"status": "started", "message": "Migration initiated"}
+    task_id = f"task_{int(time.time())}_{secrets.token_hex(3)}"
+    background_tasks.add_task(run_migration_worker, task_id, req, loop)
+    return {
+        "status": "started",
+        "task_id": task_id,
+        "message": f"Tiến trình di chuyển cho {req.source.username} đã khởi động trong nền"
+    }
+
+
+@app.post("/api/migrate/batch")
+async def start_batch_migration(req: BatchMigrateRequest, background_tasks: BackgroundTasks):
+    """Enqueues multiple accounts for background migration."""
+    loop = asyncio.get_running_loop()
+    batch_id = f"batch_{int(time.time())}"
+    background_tasks.add_task(run_batch_migration_worker, batch_id, req, loop)
+    return {
+        "status": "started",
+        "batch_id": batch_id,
+        "total_accounts": len(req.accounts),
+        "message": f"Đã khởi động hàng đợi di chuyển cho {len(req.accounts)} tài khoản trong nền"
+    }
+
+
+@app.get("/api/tasks/active")
+async def get_active_tasks():
+    """Returns all current active and recent background tasks."""
+    return list(ACTIVE_TASKS.values())
 
 
 @app.get("/api/migrate/stream")

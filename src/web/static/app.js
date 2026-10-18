@@ -6,9 +6,12 @@ document.addEventListener("DOMContentLoaded", () => {
     initProviderChips();
     initSingleAccountTab();
     initDropZone();
+    initActiveTasksTab();
     initSessionsTab();
     initLogDrawer();
     updateGrafanaLink();
+    loadActiveTasks();
+    setInterval(loadActiveTasks, 3000);
 });
 
 // Toast notification helper
@@ -63,19 +66,23 @@ function initTabs() {
     const navItems = document.querySelectorAll(".nav-item");
     navItems.forEach(item => {
         item.addEventListener("click", () => {
-            navItems.forEach(n => n.classList.remove("active"));
-            document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
-
-            item.classList.add("active");
-            const targetTab = document.getElementById(item.dataset.tab);
-            if (targetTab) {
-                targetTab.classList.add("active");
-                if (item.dataset.tab === "sessionsTab") {
-                    loadSessions();
-                }
-            }
+            switchToTab(item.dataset.tab);
         });
     });
+}
+
+function switchToTab(tabId) {
+    document.querySelectorAll(".nav-item").forEach(n => {
+        n.classList.toggle("active", n.dataset.tab === tabId);
+    });
+    document.querySelectorAll(".tab-pane").forEach(p => {
+        p.classList.toggle("active", p.id === tabId);
+    });
+    if (tabId === "sessionsTab") {
+        loadSessions();
+    } else if (tabId === "activeTasksTab") {
+        loadActiveTasks();
+    }
 }
 
 // Provider Quick Presets Logic
@@ -561,6 +568,8 @@ function listenToEventStream() {
                     ${d.csv_report ? `<a href="${d.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Thư Lỗi</a>` : ''}
                 </div>
             `;
+            loadActiveTasks();
+            loadSessions();
         }
 
         if (d.type === "error") {
@@ -570,6 +579,7 @@ function listenToEventStream() {
             btn.textContent = "Bắt Đầu Di Chuyển";
             showToast(`Lỗi tiến trình: ${d.message}`, "error");
             appendTerminalLog(`[ERROR] ${d.message}`, "error");
+            loadActiveTasks();
         }
     };
 
@@ -662,9 +672,38 @@ function initDropZone() {
                 return;
             }
             btnBatch.disabled = true;
-            btnBatch.textContent = "Đang xử lý hàng đợi...";
-            showToast(`Bắt đầu di chuyển hàng loạt ${parsedCsvData.length} tài khoản!`, "info");
-            appendTerminalLog(`[BATCH MIGRATE] Khởi động tiến trình hàng loạt cho ${parsedCsvData.length} tài khoản...`, "info");
+            btnBatch.textContent = "Đang khởi tạo hàng đợi...";
+
+            const sanitizeAccents = document.getElementById("sanitizeAccents") ? document.getElementById("sanitizeAccents").checked : false;
+            const batchDelay = document.getElementById("batchDelayInput") ? parseInt(document.getElementById("batchDelayInput").value) : 50;
+
+            try {
+                const res = await fetch("/api/migrate/batch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        accounts: parsedCsvData,
+                        sanitize_accents: sanitizeAccents,
+                        batch_delay_ms: batchDelay,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Khởi động di chuyển hàng loạt thất bại");
+
+                showToast(`Đã đưa ${parsedCsvData.length} tài khoản vào hàng đợi di chuyển ngầm!`, "success");
+                appendTerminalLog(`[BATCH QUEUED] ${data.message}`, "success");
+
+                // Switch to Active Tasks tab automatically
+                switchToTab("activeTasksTab");
+                loadActiveTasks();
+                listenToEventStream();
+            } catch (err) {
+                showToast(`Lỗi: ${err.message}`, "error");
+                appendTerminalLog(`[BATCH ERROR] ${err.message}`, "error");
+            } finally {
+                btnBatch.disabled = false;
+                btnBatch.textContent = "Bắt Đầu Di Chuyển Toàn Bộ CSV";
+            }
         });
     }
 }
@@ -725,6 +764,201 @@ function renderCsvPreview() {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// Active Tasks & Background Queue Manager Logic
+function initActiveTasksTab() {
+    const btnMin = document.getElementById("btnMinimizeProgress");
+    if (btnMin) {
+        btnMin.addEventListener("click", minimizeProgressWidget);
+    }
+
+    const btnExp = document.getElementById("btnExpandProgress");
+    if (btnExp) {
+        btnExp.addEventListener("click", (e) => {
+            e.stopPropagation();
+            expandProgressWidget();
+        });
+    }
+
+    const floatWidget = document.getElementById("floatingTaskWidget");
+    if (floatWidget) {
+        floatWidget.addEventListener("click", (e) => {
+            if (e.target.closest("#btnExpandProgress")) return;
+            expandProgressWidget();
+        });
+    }
+
+    const btnRefresh = document.getElementById("btnRefreshTasks");
+    if (btnRefresh) {
+        btnRefresh.addEventListener("click", loadActiveTasks);
+    }
+}
+
+function minimizeProgressWidget() {
+    const container = document.getElementById("singleProgressContainer");
+    if (container) container.style.display = "none";
+
+    const floatWidget = document.getElementById("floatingTaskWidget");
+    if (floatWidget) floatWidget.style.display = "block";
+
+    const btn = document.getElementById("btnStartSingleMigrate");
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Bắt Đầu Di Chuyển";
+    }
+    showToast("Tiến trình đã được thu gọn xuống góc màn hình. Bạn có thể tạo tiếp tiến trình mới!", "info");
+    loadActiveTasks();
+}
+
+function expandProgressWidget() {
+    const floatWidget = document.getElementById("floatingTaskWidget");
+    if (floatWidget) floatWidget.style.display = "none";
+
+    switchToTab("singleTab");
+    const container = document.getElementById("singleProgressContainer");
+    if (container) {
+        container.style.display = "block";
+        container.scrollIntoView({ behavior: "smooth" });
+    }
+}
+
+async function loadActiveTasks() {
+    try {
+        const res = await fetch("/api/tasks/active");
+        if (!res.ok) return;
+        const tasks = await res.json();
+
+        // 1. Update Active Tasks Badge
+        const runningTasks = tasks.filter(t => t.status === "RUNNING");
+        const badge = document.getElementById("activeTasksBadge");
+        if (badge) {
+            if (runningTasks.length > 0) {
+                badge.style.display = "inline-flex";
+                badge.textContent = runningTasks.length;
+            } else {
+                badge.style.display = "none";
+            }
+        }
+
+        // 2. Update Floating Widget if active
+        const floatWidget = document.getElementById("floatingTaskWidget");
+        const singleContainer = document.getElementById("singleProgressContainer");
+        const isSingleOpen = singleContainer && singleContainer.style.display !== "none";
+
+        if (runningTasks.length > 0) {
+            const current = runningTasks[0];
+            const titleEl = document.getElementById("floatingTaskTitle");
+            const folderEl = document.getElementById("floatingTaskFolder");
+            const pctEl = document.getElementById("floatingTaskPercent");
+            const barEl = document.getElementById("floatingProgressBarFill");
+
+            if (titleEl) titleEl.textContent = `${current.source} ➔ ${current.dest}`;
+            if (folderEl) folderEl.textContent = current.current_folder || "Đang xử lý...";
+            if (pctEl) pctEl.textContent = `${(current.percent || 0).toFixed(1)}%`;
+            if (barEl) barEl.style.width = `${current.percent || 0}%`;
+
+            if (!isSingleOpen && floatWidget) {
+                floatWidget.style.display = "block";
+            }
+        } else {
+            if (floatWidget && tasks.length > 0) {
+                const lastTask = tasks[tasks.length - 1];
+                if (lastTask.status === "COMPLETED") {
+                    const titleEl = document.getElementById("floatingTaskTitle");
+                    const pctEl = document.getElementById("floatingTaskPercent");
+                    const barEl = document.getElementById("floatingProgressBarFill");
+                    if (titleEl) titleEl.textContent = `Hoàn tất: ${lastTask.source}`;
+                    if (pctEl) pctEl.textContent = "100%";
+                    if (barEl) barEl.style.width = "100%";
+                }
+            }
+        }
+
+        // 3. Render Active Tasks Grid
+        const container = document.getElementById("activeTasksList");
+        if (!container) return;
+
+        if (tasks.length === 0) {
+            container.innerHTML = `
+                <div class="card" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                    Hiện không có tiến trình nào đang chạy ngầm.
+                </div>
+            `;
+            return;
+        }
+
+        const reversedTasks = [...tasks].reverse();
+        container.innerHTML = "";
+
+        reversedTasks.forEach(t => {
+            const card = document.createElement("div");
+            card.className = "card task-card";
+
+            let statusBadge = `<span class="badge badge-neutral"><span class="status-dot"></span> Đang chạy</span>`;
+            if (t.status === "COMPLETED") {
+                statusBadge = `<span class="badge badge-neutral" style="color:var(--text-primary); border-color:var(--text-primary);">Hoàn thành</span>`;
+            } else if (t.status === "FAILED") {
+                statusBadge = `<span class="badge badge-neutral" style="color:var(--danger-text); border-color:var(--danger-text);">Lỗi</span>`;
+            }
+
+            const pct = (t.percent || 0).toFixed(1);
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            ${statusBadge}
+                            <span style="font-size: 11px; color: var(--text-dim);">${t.started_at || ''}</span>
+                        </div>
+                        <h4 style="font-size: 14px; margin: 0; font-family: 'JetBrains Mono', monospace;">
+                            ${t.source} ➔ ${t.dest}
+                        </h4>
+                    </div>
+                    <span class="badge badge-neutral" style="font-weight: 700;">${pct}%</span>
+                </div>
+
+                <div class="progress-bar-container" style="margin-bottom: 12px; height: 6px;">
+                    <div class="progress-bar-fill" style="width: ${pct}%;"></div>
+                </div>
+
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    <strong>Thư mục:</strong> <code>${t.current_folder || 'Đang kết nối...'}</code>
+                </div>
+
+                <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 12px;">
+                    <div class="stat-mini">
+                        <span class="stat-mini-label">THÀNH CÔNG</span>
+                        <span class="stat-mini-value" style="font-size: 16px;">${t.success || 0}</span>
+                    </div>
+                    <div class="stat-mini">
+                        <span class="stat-mini-label">BỎ QUA</span>
+                        <span class="stat-mini-value" style="font-size: 16px;">${t.skipped || 0}</span>
+                    </div>
+                    <div class="stat-mini">
+                        <span class="stat-mini-label">LỖI</span>
+                        <span class="stat-mini-value" style="font-size: 16px; color: var(--danger-text);">${t.failed || 0}</span>
+                    </div>
+                </div>
+
+                ${t.status === "COMPLETED" && t.html_report ? `
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 12px;">
+                        <a href="${t.html_report}" target="_blank" class="btn btn-primary btn-sm">Xem Báo Cáo Audit</a>
+                        ${t.csv_report ? `<a href="/api/reports/download/${t.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Thư Lỗi</a>` : ''}
+                    </div>
+                ` : ''}
+
+                ${t.status === "FAILED" && t.error_message ? `
+                    <div style="font-size: 12px; color: var(--danger-text); background: rgba(239, 68, 68, 0.08); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                        ${t.error_message}
+                    </div>
+                ` : ''}
+            `;
+            container.appendChild(card);
+        });
+    } catch (e) {
+        console.error("Error loading active tasks:", e);
+    }
 }
 
 // Sessions & Archive Tab Logic
