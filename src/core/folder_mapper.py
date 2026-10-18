@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from imapclient import imap_utf7
 
 from src.core.models import FolderInfo, FolderRole
+from src.core.provider_rules import ProviderRulesManager
 
 # Standard RFC 6154 attributes mapped to our canonical roles
 SPECIAL_USE_FLAGS = {
@@ -42,6 +43,7 @@ class FolderMapper:
     Handles folder identification, exclusion rules, cross-server hierarchy mapping,
     and advanced Vietnamese / Yandex encoding normalization:
     - Automatically heals Modified UTF-7 (mUTF-7) and Mojibake (UTF-8 masquerading as Latin-1)
+    - Integrates ProviderRulesManager for provider-aware folder exclusions (e.g. [Gmail]/All Mail)
     - Supports optional Vietnamese accent stripping ('Thư đã gửi' -> 'Thu da gui') for legacy servers
     - Delimiter conversion ('/' <-> '.')
     """
@@ -51,11 +53,25 @@ class FolderMapper:
         exclude_patterns: Optional[List[str]] = None,
         custom_mappings: Optional[Dict[str, str]] = None,
         sanitize_accents: bool = False,
+        source_provider: str = "generic",
+        dest_provider: str = "generic",
+        rules_manager: Optional[ProviderRulesManager] = None,
     ):
+        self.rules_manager = rules_manager or ProviderRulesManager()
+        self.source_provider = source_provider
+        self.dest_provider = dest_provider
+
+        # Merge provider-specific exclusions with custom exclude patterns
+        if exclude_patterns is not None:
+            raw_patterns = exclude_patterns
+        else:
+            raw_patterns = self.rules_manager.get_provider_rules(source_provider).get(
+                "exclude_by_default",
+                [r".*spam.*", r".*junk.*", r".*trash.*", r".*deleted.*", r"\[gmail\]/all mail"]
+            )
+
         self.exclude_patterns = [
-            re.compile(p, re.IGNORECASE) for p in (exclude_patterns or [
-                r".*spam.*", r".*junk.*", r".*trash.*", r".*deleted.*", r"\[gmail\]/all mail"
-            ])
+            re.compile(p, re.IGNORECASE) for p in raw_patterns
         ]
         self.custom_mappings = custom_mappings or {}
         self.sanitize_accents = sanitize_accents
@@ -135,6 +151,15 @@ class FolderMapper:
         for role, aliases in CANONICAL_ALIASES.items():
             if lower_name in aliases:
                 return role
+
+        # 3. Check provider rules role mappings
+        prov_mappings = self.rules_manager.get_role_mappings(self.source_provider)
+        for pattern_name, target_role_str in prov_mappings.items():
+            if lower_name == pattern_name.lower():
+                try:
+                    return FolderRole(target_role_str.lower())
+                except Exception:
+                    pass
 
         return FolderRole.CUSTOM
 

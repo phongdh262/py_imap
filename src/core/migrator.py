@@ -1,7 +1,7 @@
 import email
 from email import policy
 import time
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Set
 from imapclient import IMAPClient
 from imapclient.exceptions import IMAPClientError
 
@@ -56,6 +56,7 @@ class EmailMigrator:
         dst_folder: str,
         migration_id: Optional[int] = None,
         on_progress: Optional[Callable[[int, int], None]] = None,
+        force_remigrate: bool = False,
     ) -> tuple[int, int, int]:
         """
         Migrates all messages from src_folder to dst_folder.
@@ -67,6 +68,31 @@ class EmailMigrator:
 
         # 1. Ensure destination folder exists
         dst_folder = self._ensure_dest_folder(dst_client, dst_folder)
+
+        # 1b. Live Destination Scan: Discover Message-IDs currently physical on destination
+        existing_dest_message_ids: Set[str] = set()
+        try:
+            dst_client.select_folder(dst_folder, readonly=True)
+            dst_uids = dst_client.search(["ALL"])
+            if dst_uids:
+                # Fast header fetch for Message-ID on destination
+                dst_headers = dst_client.fetch(dst_uids, ["BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)]"])
+                for d_uid, d_res in dst_headers.items():
+                    for k, v in d_res.items():
+                        if isinstance(v, (bytes, str)):
+                            v_str = v.decode("latin-1", errors="ignore") if isinstance(v, bytes) else str(v)
+                            for line in v_str.splitlines():
+                                if line.lower().startswith("message-id:"):
+                                    mid = line.split(":", 1)[1].strip()
+                                    if mid:
+                                        existing_dest_message_ids.add(mid)
+            logger.info(
+                "Destination live verification pre-scanned",
+                dest_folder=dst_folder,
+                existing_count=len(existing_dest_message_ids),
+            )
+        except Exception as e:
+            logger.warning("Could not pre-scan destination folder %s: %s", dst_folder, e)
 
         # 2. Select source folder readonly
         src_client.select_folder(src_folder, readonly=True)
@@ -146,12 +172,23 @@ class EmailMigrator:
 
                 msg_hash = StateDatabase.compute_message_hash(message_id, date_str, subject, size)
 
-                # Deduplication check: Has this message already been migrated?
-                if self.state_db and self.state_db.is_message_migrated(src_account, src_folder, msg_hash):
+                # DEDUPLICATION & RECONCILIATION LOGIC:
+                # 1. If message is PHYSICALLY ON DESTINATION right now:
+                # Always SKIP it to guarantee 0% duplicates and keep destination intact.
+                if message_id and message_id in existing_dest_message_ids:
                     skipped_count += 1
                     if migration_id:
                         self.state_db.record_skipped(migration_id)
                     continue
+
+                # 2. If destination check was empty/unavailable (e.g. brand new folder or server query failed),
+                # fallback to checking SQLite state database if force_remigrate is False:
+                if not existing_dest_message_ids and not force_remigrate:
+                    if self.state_db and self.state_db.is_message_migrated(src_account, src_folder, msg_hash):
+                        skipped_count += 1
+                        if migration_id:
+                            self.state_db.record_skipped(migration_id)
+                        continue
 
                 # Validation: size limit exceeded
                 if size > self.max_message_size:
@@ -183,6 +220,8 @@ class EmailMigrator:
                             raise append_err
 
                     success_count += 1
+                    if message_id:
+                        existing_dest_message_ids.add(message_id)
                     MESSAGES_MIGRATED_TOTAL.labels(source_account=src_account, folder=src_folder).inc()
                     BYTES_TRANSFERRED_TOTAL.labels(source_account=src_account).inc(size)
 

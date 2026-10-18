@@ -1,0 +1,170 @@
+{
+  "version": "1.0.0",
+  "description": "Provider-specific migration, folder mapping, security, and deduplication rules",
+  "providers": {
+    "gmail": {
+      "name": "Google Workspace / Gmail",
+      "host_pattern": ".*gmail\\.com|.*googlemail\\.com",
+      "default_host": "imap.gmail.com",
+      "default_port": 993,
+      "default_ssl": true,
+      "folder_delimiter": "/",
+      "namespace_prefix": "",
+      "security_note": "Yêu cầu bật 2FA và tạo Mật khẩu ứng dụng (App Password 16 ký tự).",
+      "virtual_folders": [
+        "[Gmail]/All Mail",
+        "[Gmail]/Tất cả thư",
+        "[Gmail]/Important",
+        "[Gmail]/Quan trọng",
+        "[Gmail]/Starred",
+        "[Gmail]/Có gắn dấu sao"
+      ],
+      "exclude_by_default": [
+        "(?i)\\[gmail\\]/all mail",
+        "(?i)\\[gmail\\]/tất cả thư",
+        "(?i)\\[gmail\\]/spam",
+        "(?i)\\[gmail\\]/thư rác",
+        "(?i)\\[gmail\\]/trash",
+        "(?i)\\[gmail\\]/thùng rác"
+      ],
+      "duplicate_risk_note": "Thư mục '[Gmail]/Tất cả thư' (All Mail) thực chất chứa bản sao của toàn bộ email tài khoản. Mặc định loại trừ để tránh nhân đôi dung lượng khi sang cPanel/Dovecot.",
+      "role_mappings": {
+        "[Gmail]/Thư đã gửi": "SENT",
+        "[Gmail]/Sent Mail": "SENT",
+        "[Gmail]/Thư nháp": "DRAFTS",
+        "[Gmail]/Drafts": "DRAFTS",
+        "[Gmail]/Quan trọng": "CUSTOM_INBOX_CHILD",
+        "[Gmail]/Important": "CUSTOM_INBOX_CHILD",
+        "[Gmail]/Có gắn dấu sao": "CUSTOM_INBOX_CHILD",
+        "[Gmail]/Starred": "CUSTOM_INBOX_CHILD"
+      },
+      "rate_limit": {
+        "batch_size": 50,
+        "batch_delay_ms": 30
+      }
+    },
+    "outlook": {
+      "name": "Microsoft 365 / Outlook / Exchange",
+      "host_pattern": ".*office365\\.com|.*outlook\\.com",
+      "default_host": "outlook.office365.com",
+      "default_port": 993,
+      "default_ssl": true,
+      "folder_delimiter": "/",
+      "namespace_prefix": "",
+      "security_note": "Yêu cầu bật IMAP trong Exchange Admin Center hoặc dùng App Password nếu có 2FA.",
+      "virtual_folders": [],
+      "exclude_by_default": [
+        "(?i).*junk email.*",
+        "(?i).*deleted items.*",
+        "(?i).*thư rác.*",
+        "(?i).*thùng rác.*"
+      ],
+      "role_mappings": {
+        "Sent Items": "SENT",
+        "Thư đã gửi": "SENT",
+        "Deleted Items": "TRASH",
+        "Junk Email": "JUNK",
+        "Drafts": "DRAFTS",
+        "Archive": "ARCHIVE",
+        "Conversation History": "CUSTOM_INBOX_CHILD"
+      },
+      "rate_limit": {
+        "batch_size": 35,
+        "batch_delay_ms": 80
+      }
+    },
+    "cpanel": {
+      "name": "cPanel / Dovecot Mail Server",
+      "host_pattern": "mail\\..*",
+      "default_port": 993,
+      "default_ssl": true,
+      "folder_delimiter": ".",
+      "namespace_prefix": "INBOX.",
+      "security_note": "Mặc định sử dụng mail.domain.com trên cổng 993 SSL. Cấu hình Dovecot phân cấp theo INBOX.folder.",
+      "virtual_folders": [],
+      "exclude_by_default": [
+        "(?i).*spam.*",
+        "(?i).*junk.*",
+        "(?i).*trash.*"
+      ],
+      "role_mappings": {
+        "INBOX.Sent": "SENT",
+        "INBOX.Drafts": "DRAFTS",
+        "INBOX.Trash": "TRASH",
+        "INBOX.Junk": "JUNK",
+        "INBOX.Archive": "ARCHIVE",
+        "Sent": "SENT",
+        "Drafts": "DRAFTS"
+      },
+      "rate_limit": {
+        "batch_size": 50,
+        "batch_delay_ms": 20
+      }
+    },
+    "yandex": {
+      "name": "Yandex Mail / Yandex 360",
+      "host_pattern": ".*yandex\\..*",
+      "default_host": "imap.yandex.com",
+      "default_port": 993,
+      "default_ssl": true,
+      "folder_delimiter": "|",
+      "security_note": "Tạo Mật khẩu ứng dụng tại Yandex ID > Security > App Passwords.",
+      "virtual_folders": [],
+      "exclude_by_default": [
+        "(?i).*спам.*",
+        "(?i).*корзина.*"
+      ],
+      "role_mappings": {
+        "Отправленные": "SENT",
+        "Черновики": "DRAFTS",
+        "Корзина": "TRASH",
+        "Спам": "JUNK",
+        "Архив": "ARCHIVE"
+      },
+      "rate_limit": {
+        "batch_size": 40,
+        "batch_delay_ms": 50
+      }
+    },
+    "zimbra": {
+      "name": "Zimbra Collaboration",
+      "host_pattern": ".*zimbra.*",
+      "default_port": 993,
+      "default_ssl": true,
+      "folder_delimiter": "/",
+      "namespace_prefix": "",
+      "security_note": "Sử dụng mật khẩu tài khoản hoặc Application Code.",
+      "virtual_folders": [],
+      "exclude_by_default": [
+        "(?i).*junk.*",
+        "(?i).*trash.*"
+      ],
+      "role_mappings": {
+        "Sent": "SENT",
+        "Drafts": "DRAFTS",
+        "Trash": "TRASH",
+        "Junk": "JUNK"
+      },
+      "rate_limit": {
+        "batch_size": 40,
+        "batch_delay_ms": 40
+      }
+    },
+    "generic": {
+      "name": "Generic RFC 3501 IMAP",
+      "default_port": 993,
+      "default_ssl": true,
+      "auto_detect_namespace": true,
+      "auto_detect_special_use": true,
+      "exclude_by_default": [
+        "(?i).*spam.*",
+        "(?i).*junk.*",
+        "(?i).*trash.*"
+      ],
+      "rate_limit": {
+        "batch_size": 50,
+        "batch_delay_ms": 50
+      }
+    }
+  }
+}

@@ -24,6 +24,7 @@ logger = setup_logging()
 console = Console()
 
 
+from src.core.provider_rules import ProviderRulesManager
 from src.core.throttler import ProviderThrottler
 
 
@@ -45,7 +46,9 @@ class MigrationService:
         self.state_db = StateDatabase()
         self.reporter = MigrationReporter(self.state_db)
         self.throttler = ProviderThrottler(batch_delay_seconds=batch_delay_seconds)
-        self.mapper = FolderMapper(sanitize_accents=sanitize_accents)
+        self.rules_mgr = ProviderRulesManager()
+        self.sanitize_accents = sanitize_accents
+        self.mapper = FolderMapper(sanitize_accents=sanitize_accents, rules_manager=self.rules_mgr)
         self.inspector = MailboxInspector(mapper=self.mapper)
         self.migrator = EmailMigrator(state_db=self.state_db, throttler=self.throttler)
 
@@ -53,8 +56,16 @@ class MigrationService:
         """Inspects source account and outputs formatted terminal summary."""
         console.print(f"[bold cyan]🔍 Inspecting Source Mailbox:[/bold cyan] [yellow]{src_creds.username}[/yellow] ({src_creds.host})")
 
+        src_prov = self.rules_mgr.detect_provider(src_creds.host, src_creds.username)
+        src_mapper = FolderMapper(
+            source_provider=src_prov,
+            sanitize_accents=self.sanitize_accents,
+            rules_manager=self.rules_mgr,
+        )
+        inspector = MailboxInspector(mapper=src_mapper)
+
         with IMAPClientWrapper(src_creds) as src_client:
-            summary = self.inspector.inspect(src_client)
+            summary = inspector.inspect(src_client)
 
             # Update Prometheus Gauges
             SOURCE_MAILBOX_SIZE_BYTES.labels(source_account=src_creds.username).set(summary.total_size_bytes)
@@ -64,11 +75,53 @@ class MigrationService:
             self._render_inspection_table(summary)
             return summary
 
+    def inspect_destination(self, dst_creds: AccountCredentials) -> MailboxSummary:
+        """Inspects destination account to discover existing folders, size, and messages."""
+        dst_prov = self.rules_mgr.detect_provider(dst_creds.host, dst_creds.username)
+        dst_mapper = FolderMapper(
+            source_provider=dst_prov,
+            sanitize_accents=self.sanitize_accents,
+            rules_manager=self.rules_mgr,
+        )
+        inspector = MailboxInspector(mapper=dst_mapper)
+        with IMAPClientWrapper(dst_creds) as dst_client:
+            return inspector.inspect(dst_client)
+
+    def inspect_both(
+        self, src_creds: AccountCredentials, dst_creds: Optional[AccountCredentials] = None
+    ) -> dict:
+        """Pre-flight dual inspection: compares source against destination."""
+        src_summary = self.inspect_source(src_creds)
+        dst_summary = None
+
+        if dst_creds and dst_creds.username and dst_creds.password:
+            try:
+                dst_summary = self.inspect_destination(dst_creds)
+            except Exception as e:
+                logger.warning("Destination pre-flight scan failed: %s", e)
+
+        reconciliation = {
+            "source_messages": src_summary.total_messages,
+            "source_size_mb": src_summary.total_size_mb,
+            "dest_existing_messages": dst_summary.total_messages if dst_summary else 0,
+            "dest_existing_size_mb": dst_summary.total_size_mb if dst_summary else "0.00",
+            "messages_to_transfer": max(0, src_summary.total_messages - (dst_summary.total_messages if dst_summary else 0)),
+            "dest_quota": dst_summary.quota if dst_summary else None,
+            "safe_mode_guarantee": "Hệ thống hoạt động theo nguyên tắc Append-Only: Giữ nguyên vẹn 100% dữ liệu đang có trên máy chủ đích, tự động quét Message-ID thực tế để không xóa đè và không nạp trùng.",
+        }
+
+        return {
+            "source": src_summary,
+            "dest": dst_summary,
+            "reconciliation": reconciliation,
+        }
+
     def migrate_account(
         self,
         src_creds: AccountCredentials,
         dst_creds: AccountCredentials,
         custom_folder_mapping: Optional[Dict[str, str]] = None,
+        force_remigrate: bool = False,
     ) -> dict:
         """Executes full migration for a single account pair with resume & reporting."""
         console.print(
@@ -85,10 +138,26 @@ class MigrationService:
         total_failed = 0
         total_skipped = 0
 
+        src_prov = self.rules_mgr.detect_provider(src_creds.host, src_creds.username)
+        dst_prov = self.rules_mgr.detect_provider(dst_creds.host, dst_creds.username)
+        mapper = FolderMapper(
+            custom_mappings=custom_folder_mapping,
+            sanitize_accents=self.sanitize_accents,
+            source_provider=src_prov,
+            dest_provider=dst_prov,
+            rules_manager=self.rules_mgr,
+        )
+        inspector = MailboxInspector(mapper=mapper)
+
+        # Apply recommended provider rate limits
+        rec_throttle = self.rules_mgr.get_recommended_throttling(src_prov)
+        if rec_throttle and "batch_delay_ms" in rec_throttle:
+            self.throttler.batch_delay = rec_throttle["batch_delay_ms"] / 1000.0
+
         try:
             with IMAPClientWrapper(src_creds) as src_client, IMAPClientWrapper(dst_creds) as dst_client:
                 # 1. Pre-flight inspect source
-                summary = self.inspector.inspect(src_client)
+                summary = inspector.inspect(src_client)
                 SOURCE_MAILBOX_SIZE_BYTES.labels(source_account=src_creds.username).set(summary.total_size_bytes)
                 SOURCE_MAILBOX_MESSAGES_TOTAL.labels(source_account=src_creds.username).set(summary.total_messages)
 
@@ -112,8 +181,8 @@ class MigrationService:
 
                 for flags, delimiter, raw_name in dst_folders:
                     dest_delim = delimiter.decode("latin-1") if isinstance(delimiter, bytes) else str(delimiter)
-                    folder_name = self.mapper.decode_folder_name(raw_name)
-                    role = self.mapper.identify_role(folder_name, flags)
+                    folder_name = mapper.decode_folder_name(raw_name)
+                    role = mapper.identify_role(folder_name, flags)
                     if role != FolderRole.CUSTOM and role not in dst_canonical_map:
                         dst_canonical_map[role] = folder_name
                     if not dest_prefix:
@@ -131,7 +200,7 @@ class MigrationService:
                         continue
 
                     # Map target name
-                    target_name = self.mapper.map_folder_name(
+                    target_name = mapper.map_folder_name(
                         source_folder=folder.name,
                         source_role=folder.role,
                         source_delim=folder.delimiter,
@@ -158,6 +227,7 @@ class MigrationService:
                         dst_folder=target_name,
                         migration_id=migration_id,
                         on_progress=on_progress,
+                        force_remigrate=force_remigrate,
                     )
                     total_success += s_count
                     total_failed += f_count

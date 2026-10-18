@@ -222,20 +222,52 @@ async def check_csv_passwords(req: BatchCheckRequest):
 
 
 @app.post("/api/inspect")
-async def inspect_source_mailbox(creds: AccountCredentials):
-    """Pre-flight inspection: returns mailbox size in MB/GB, quota, and folders."""
+async def inspect_mailbox(req: Dict[str, Any]):
+    """Pre-flight inspection: inspects source and optionally destination to provide full reconciliation."""
     try:
-        summary: MailboxSummary = migration_service.inspect_source(creds)
-        data = summary.model_dump()
-        # Guarantee calculated fields are present
-        data["total_size_mb"] = summary.total_size_mb
-        data["total_size_gb"] = summary.total_size_gb
-        data["quota"] = summary.quota
-        for idx, f in enumerate(summary.folders):
-            if idx < len(data.get("folders", [])):
-                data["folders"][idx]["size_mb"] = f.size_mb
-                data["folders"][idx]["destination_folder"] = f.destination_folder
-        return data
+        if "source" in req:
+            src_creds = AccountCredentials(**req["source"])
+            dst_creds = AccountCredentials(**req["dest"]) if req.get("dest") and req["dest"].get("username") and req["dest"].get("password") else None
+        else:
+            src_creds = AccountCredentials(**req)
+            dst_creds = None
+
+        if dst_creds:
+            result = migration_service.inspect_both(src_creds, dst_creds)
+            src_data = result["source"].model_dump()
+            src_data["total_size_mb"] = result["source"].total_size_mb
+            src_data["total_size_gb"] = result["source"].total_size_gb
+            src_data["quota"] = result["source"].quota
+
+            dst_data = None
+            if result["dest"]:
+                dst_data = result["dest"].model_dump()
+                dst_data["total_size_mb"] = result["dest"].total_size_mb
+                dst_data["total_size_gb"] = result["dest"].total_size_gb
+                dst_data["quota"] = result["dest"].quota
+
+            return {
+                "is_dual": True,
+                "source": src_data,
+                "dest": dst_data,
+                "reconciliation": result["reconciliation"],
+                "total_messages": src_data["total_messages"],
+                "total_size_mb": src_data["total_size_mb"],
+                "total_size_bytes": src_data["total_size_bytes"],
+                "quota": src_data["quota"],
+                "folders": src_data["folders"],
+            }
+        else:
+            summary = migration_service.inspect_source(src_creds)
+            data = summary.model_dump()
+            data["total_size_mb"] = summary.total_size_mb
+            data["total_size_gb"] = summary.total_size_gb
+            data["quota"] = summary.quota
+            for idx, f in enumerate(summary.folders):
+                if idx < len(data.get("folders", [])):
+                    data["folders"][idx]["size_mb"] = f.size_mb
+                    data["folders"][idx]["destination_folder"] = f.destination_folder
+            return data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -301,7 +333,7 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
             return orig_migrate_folder(*args, **kwargs)
 
         service.migrator.migrate_folder = custom_migrate_folder
-        res = service.migrate_account(req.source, req.dest)
+        res = service.migrate_account(req.source, req.dest, force_remigrate=req.force_remigrate)
 
         report_url = f"/api/reports/view/{res['migration_id']}"
         csv_name = Path(res['csv_report']).name if res.get("csv_report") else None

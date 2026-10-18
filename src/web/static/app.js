@@ -274,28 +274,43 @@ function initSingleAccountTab() {
         }
     });
 
-    // 3. Inspect Source Mailbox
+    // 3. Inspect Source & Destination Mailbox (Dual Pre-Flight Scan)
     document.getElementById("btnInspectSrc").addEventListener("click", async () => {
         const btn = document.getElementById("btnInspectSrc");
         btn.disabled = true;
         btn.textContent = "Đang quét...";
 
         const payload = {
-            host: document.getElementById("srcHost").value.trim(),
-            port: parseInt(document.getElementById("srcPort").value) || 993,
-            ssl: document.getElementById("srcSsl").value === "true",
-            username: document.getElementById("srcUser").value.trim(),
-            password: document.getElementById("srcPass").value.trim(),
+            source: {
+                host: document.getElementById("srcHost").value.trim(),
+                port: parseInt(document.getElementById("srcPort").value) || 993,
+                ssl: document.getElementById("srcSsl").value === "true",
+                username: document.getElementById("srcUser").value.trim(),
+                password: document.getElementById("srcPass").value.trim(),
+            },
+            dest: {
+                host: document.getElementById("dstHost").value.trim(),
+                port: parseInt(document.getElementById("dstPort").value) || 993,
+                ssl: document.getElementById("dstSsl").value === "true",
+                username: document.getElementById("dstUser").value.trim(),
+                password: document.getElementById("dstPass").value.trim(),
+            }
         };
 
-        if (!payload.username || !payload.password) {
+        if (!payload.source.username || !payload.source.password) {
             showToast("Vui lòng nhập Email và Mật khẩu nguồn để quét!", "error");
             btn.disabled = false;
             btn.textContent = "Quét Dung Lượng & Cây Thư Mục";
             return;
         }
 
-        appendTerminalLog(`[INSPECT] Bắt đầu quét hộp thư nguồn ${payload.username}...`, "info");
+        const isDual = !!(payload.dest.username && payload.dest.password);
+        appendTerminalLog(
+            isDual
+                ? `[INSPECT] Quét và đối chiếu cả 2 đầu: ${payload.source.username} ➔ ${payload.dest.username}...`
+                : `[INSPECT] Quét hộp thư nguồn ${payload.source.username}...`,
+            "info"
+        );
 
         try {
             const res = await fetch("/api/inspect", {
@@ -312,8 +327,14 @@ function initSingleAccountTab() {
             const totalMb = data.total_size_mb != null
                 ? data.total_size_mb
                 : (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
-            showToast(`Đã quét xong: ${totalMb} MB (${data.total_messages || 0} thư)`, "success");
-            appendTerminalLog(`[INSPECT DONE] Tổng: ${totalMb} MB trên ${(data.folders || []).length} thư mục`, "success");
+
+            if (data.is_dual && data.reconciliation) {
+                showToast(`Quét đối chiếu thành công: Nguồn ${totalMb} MB | Đích hiện có ${data.reconciliation.dest_existing_size_mb} MB`, "success");
+                appendTerminalLog(`[INSPECT DONE] Nguồn: ${totalMb} MB (${data.total_messages} thư) | Đích hiện tại: ${data.reconciliation.dest_existing_size_mb} MB (${data.reconciliation.dest_existing_messages} thư)`, "success");
+            } else {
+                showToast(`Đã quét xong: ${totalMb} MB (${data.total_messages || 0} thư)`, "success");
+                appendTerminalLog(`[INSPECT DONE] Tổng: ${totalMb} MB trên ${(data.folders || []).length} thư mục`, "success");
+            }
         } catch (e) {
             showToast(`Lỗi quét dung lượng: ${e.message}`, "error");
             appendTerminalLog(`[INSPECT ERROR] ${e.message}`, "error");
@@ -406,13 +427,43 @@ function renderInspectionResults(data) {
     const totalMsgs = data.total_messages != null ? data.total_messages : 0;
     const foldersCount = data.folders ? data.folders.length : 0;
 
-    // Summary Badges
+    const titleEl = document.getElementById("inspectionTitle") || document.querySelector("#inspectionResultContainer h3");
+    const reconBox = document.getElementById("reconciliationBox");
     const badgeContainer = document.getElementById("inspectionSummaryBadges");
-    badgeContainer.innerHTML = `
-        <span class="badge badge-neutral">Tổng: ${totalMb} MB</span>
-        <span class="badge badge-neutral">${totalMsgs.toLocaleString()} Thư</span>
-        <span class="badge badge-neutral">${foldersCount} Thư mục</span>
-    `;
+
+    if (data.is_dual && data.reconciliation) {
+        const recon = data.reconciliation;
+        if (titleEl) titleEl.textContent = "Kết Quả Đối Chiếu Nguồn & Đích (Dual Pre-flight Scan)";
+
+        badgeContainer.innerHTML = `
+            <span class="badge badge-neutral" style="font-weight: 600;" title="Dữ liệu trên máy chủ nguồn">Nguồn: ${recon.source_size_mb} MB (${(recon.source_messages || 0).toLocaleString()} thư)</span>
+            <span class="badge badge-neutral" style="font-weight: 600; color: #16a34a; border-color: rgba(22, 163, 74, 0.4);" title="Dữ liệu hiện hữu thực tế trên máy chủ đích">Đích hiện có: ${recon.dest_existing_size_mb} MB (${(recon.dest_existing_messages || 0).toLocaleString()} thư)</span>
+            <span class="badge badge-neutral" style="font-weight: 600; color: #2563eb; border-color: rgba(37, 99, 235, 0.4);" title="Số lượng thư dự kiến cần chuyển bổ sung">Cần chuyển: ${(recon.messages_to_transfer || 0).toLocaleString()} thư</span>
+        `;
+
+        if (reconBox) {
+            reconBox.style.display = "block";
+            reconBox.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <div style="font-size: 16px;">🛡️</div>
+                    <div style="font-size: 12px; line-height: 1.5; color: var(--text-muted);">
+                        <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Nguyên tắc 100% Append-Only & Chống trùng email:</strong>
+                        ${recon.safe_mode_guarantee}
+                        ${recon.dest_existing_messages > 0 ? `<br><span style="color: #16a34a; font-weight: 600;">✓ Máy chủ đích đang có ${recon.dest_existing_messages.toLocaleString()} thư (${recon.dest_existing_size_mb} MB). Hệ thống giữ nguyên vẹn 100% thư này và chỉ bổ sung các email chưa có.</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        if (titleEl) titleEl.textContent = "Kết Quả Quét Hộp Thư Nguồn (Pre-flight Inspection)";
+        if (reconBox) reconBox.style.display = "none";
+
+        badgeContainer.innerHTML = `
+            <span class="badge badge-neutral">Tổng: ${totalMb} MB</span>
+            <span class="badge badge-neutral">${totalMsgs.toLocaleString()} Thư</span>
+            <span class="badge badge-neutral">${foldersCount} Thư mục</span>
+        `;
+    }
 
     // Quota details
     const quota = data.quota;

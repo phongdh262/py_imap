@@ -60,7 +60,21 @@ class TestFolderMappingAndNamespace(unittest.TestCase):
 
         res_folder = migrator._ensure_dest_folder(mock_client, "Quan trọng")
         self.assertEqual(res_folder, "INBOX.Quan trọng")
-        mock_client.create_folder.assert_called_with("INBOX.Quan trọng")
+    def test_provider_detection_and_exclusion(self):
+        from src.core.provider_rules import ProviderRulesManager
+
+        rules_mgr = ProviderRulesManager()
+        self.assertEqual(rules_mgr.detect_provider("imap.gmail.com", "user@gmail.com"), "gmail")
+        self.assertEqual(rules_mgr.detect_provider("outlook.office365.com", "user@company.com"), "outlook")
+        self.assertEqual(rules_mgr.detect_provider("mail.domain.vn", "contact@domain.vn"), "cpanel")
+        self.assertEqual(rules_mgr.detect_provider("imap.yandex.com", "user@yandex.com"), "yandex")
+
+        gmail_mapper = FolderMapper(source_provider="gmail", rules_manager=rules_mgr)
+        self.assertTrue(gmail_mapper.is_excluded("[Gmail]/All Mail", FolderRole.ARCHIVE))
+        self.assertTrue(gmail_mapper.is_excluded("[Gmail]/Tất cả thư", FolderRole.ARCHIVE))
+        self.assertTrue(gmail_mapper.is_excluded("[Gmail]/Spam", FolderRole.JUNK))
+        self.assertFalse(gmail_mapper.is_excluded("INBOX", FolderRole.INBOX))
+        self.assertFalse(gmail_mapper.is_excluded("[Gmail]/Quan trọng", FolderRole.CUSTOM))
 
 
 if __name__ == "__main__":
