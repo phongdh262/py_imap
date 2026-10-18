@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 import secrets
 import time
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Set
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -64,8 +65,29 @@ reporter = MigrationReporter(state_db)
 migration_service = MigrationService()
 auth_checker = AuthChecker()
 
-# Global Event Queue for SSE Streaming
-progress_event_queue: asyncio.Queue = asyncio.Queue()
+# Isolated Pub/Sub for SSE Task Streaming (Supports multi-tab concurrent migrations)
+TASK_SUBSCRIBERS: Dict[str, Set[asyncio.Queue]] = defaultdict(set)
+GLOBAL_SUBSCRIBERS: Set[asyncio.Queue] = set()
+
+
+def broadcast_task_event(task_id: str, event_data: dict, loop: asyncio.AbstractEventLoop):
+    """Safely dispatches event to both task-specific SSE subscribers and global monitors."""
+    event_data["task_id"] = task_id
+
+    def _push():
+        for q in list(TASK_SUBSCRIBERS.get(task_id, set())):
+            try:
+                q.put_nowait(event_data)
+            except Exception:
+                pass
+        for q in list(GLOBAL_SUBSCRIBERS):
+            try:
+                q.put_nowait(event_data)
+            except Exception:
+                pass
+
+    if loop.is_running():
+        loop.call_soon_threadsafe(_push)
 
 
 class LoginRequest(BaseModel):
@@ -259,19 +281,16 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
                 task_data["skipped"] = summary.get("skipped_messages", 0)
                 task_data["failed"] = summary.get("failed_messages", 0)
 
-                asyncio.run_coroutine_threadsafe(
-                    progress_event_queue.put({
-                        "type": "progress",
-                        "task_id": task_id,
-                        "source": req.source.username,
-                        "percent": pct,
-                        "folder": src_folder,
-                        "success": task_data["success"],
-                        "skipped": task_data["skipped"],
-                        "failed": task_data["failed"],
-                    }),
-                    loop,
-                )
+                broadcast_task_event(task_id, {
+                    "type": "progress",
+                    "task_id": task_id,
+                    "source": req.source.username,
+                    "percent": pct,
+                    "folder": src_folder,
+                    "success": task_data["success"],
+                    "skipped": task_data["skipped"],
+                    "failed": task_data["failed"],
+                }, loop)
 
             kwargs["on_progress"] = wrapped_progress
             return orig_migrate_folder(*args, **kwargs)
@@ -292,35 +311,29 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
             "csv_report": f"/reports/{csv_name}" if csv_name else None,
         })
 
-        asyncio.run_coroutine_threadsafe(
-            progress_event_queue.put({
-                "type": "completed",
-                "task_id": task_id,
-                "source": req.source.username,
-                "percent": 100,
-                "success": res["success"],
-                "skipped": res["skipped"],
-                "failed": res["failed"],
-                "html_report": report_url,
-                "csv_report": f"/reports/{csv_name}" if csv_name else None,
-            }),
-            loop,
-        )
+        broadcast_task_event(task_id, {
+            "type": "completed",
+            "task_id": task_id,
+            "source": req.source.username,
+            "percent": 100,
+            "success": res["success"],
+            "skipped": res["skipped"],
+            "failed": res["failed"],
+            "html_report": report_url,
+            "csv_report": f"/reports/{csv_name}" if csv_name else None,
+        }, loop)
 
     except Exception as e:
         ACTIVE_TASKS[task_id].update({
             "status": "FAILED",
             "error_message": str(e),
         })
-        asyncio.run_coroutine_threadsafe(
-            progress_event_queue.put({
-                "type": "error",
-                "task_id": task_id,
-                "source": req.source.username,
-                "message": str(e),
-            }),
-            loop,
-        )
+        broadcast_task_event(task_id, {
+            "type": "error",
+            "task_id": task_id,
+            "source": req.source.username,
+            "message": str(e),
+        }, loop)
 
 
 def run_batch_migration_worker(batch_id: str, req: BatchMigrateRequest, loop: asyncio.AbstractEventLoop):
@@ -401,16 +414,43 @@ async def get_active_tasks():
 
 
 @app.get("/api/migrate/stream")
-async def stream_migration_events():
-    """SSE endpoint for real-time progress updates."""
-    async def event_generator():
-        while True:
-            data = await progress_event_queue.get()
-            yield f"data: {json.dumps(data)}\n\n"
-            if data.get("type") in ("completed", "error"):
-                break
+async def stream_migration_events(request: Request, task_id: Optional[str] = None):
+    """SSE endpoint for real-time progress updates with per-task subscriber isolation."""
+    queue: asyncio.Queue = asyncio.Queue()
+    if task_id:
+        TASK_SUBSCRIBERS[task_id].add(queue)
+    else:
+        GLOBAL_SUBSCRIBERS.add(queue)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    data = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    yield f"data: {json.dumps(data)}\n\n"
+                    if task_id and data.get("type") in ("completed", "error"):
+                        break
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        finally:
+            if task_id:
+                TASK_SUBSCRIBERS[task_id].discard(queue)
+                if not TASK_SUBSCRIBERS[task_id]:
+                    TASK_SUBSCRIBERS.pop(task_id, None)
+            else:
+                GLOBAL_SUBSCRIBERS.discard(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @app.get("/api/sessions")

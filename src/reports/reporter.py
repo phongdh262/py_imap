@@ -88,44 +88,81 @@ class MigrationReporter:
         failed_rows = ""
         if failed_items:
             for item in failed_items:
-                subj = (item.get("subject") or "(No Subject)")[:60]
+                subj = (item.get("subject") or "(Không có tiêu đề)")[:55]
+                sender = (item.get("sender") or "Unknown")[:30]
                 raw_err = item.get("error_detail") or ""
-                hint_html = ""
+                
+                # Simplify and humanize error message
+                err_text = raw_err
                 if "nonexistent namespace" in raw_err.lower() or "prefixed with: inbox" in raw_err.lower():
-                    hint_html = """<div class="error-hint">💡 <strong>Khuyến nghị:</strong> Máy chủ Dovecot đích yêu cầu tiền tố <code>INBOX.</code>. Bản vá tự động đã được kích hoạt, bạn có thể bấm <strong>"Thử lại thất bại (Retry)"</strong> để nạp nốt.</div>"""
+                    err_text = "Cần tiền tố INBOX. (Bấm 'Thử lại' để nạp tự động)"
+                elif "already exists" in raw_err.lower() or "alreadyexists" in raw_err.lower():
+                    err_text = "Thư hoặc thư mục đã tồn tại trên đích"
+                elif len(err_text) > 110:
+                    err_text = err_text[:110] + "..."
 
                 failed_rows += f"""
                 <tr>
                     <td><code>{item['folder']}</code></td>
-                    <td>{item['source_uid']}</td>
-                    <td>{item.get('sender') or 'Unknown'}</td>
+                    <td style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">{item['source_uid']}</td>
+                    <td><span title="{item.get('sender') or ''}">{sender}</span></td>
                     <td>{subj}</td>
-                    <td>{item.get('date_str') or '-'}</td>
-                    <td><span class="badge badge-danger">{item.get('error_code')}</span></td>
-                    <td class="text-danger-detail">
-                        <div class="raw-err">{raw_err}</div>
-                        {hint_html}
-                    </td>
+                    <td style="text-align: center;"><span class="badge badge-danger">{item.get('error_code')}</span></td>
+                    <td style="color: var(--accent-danger); font-size: 11.5px;">{err_text}</td>
                 </tr>
                 """
         else:
-            failed_rows = """<tr><td colspan="7" style="text-align: center; color: #10b981; padding: 24px;">✓ Không có email nào bị lỗi! Tất cả đều di chuyển thành công 100%.</td></tr>"""
+            failed_rows = """<tr><td colspan="6" style="text-align: center; color: var(--accent-success); padding: 20px;">✓ Không có email nào bị lỗi. Toàn bộ thư mục đã được di chuyển thành công 100%.</td></tr>"""
 
-        # Audit Alert Box
-        audit_alert_html = ""
-        if failed_count > 0:
-            audit_alert_html = f"""
-            <div class="audit-banner">
-                <div class="audit-title">🔍 Đối Chiếu & Đánh Giá Kết Quả Di Chuyển</div>
-                <div class="audit-item">
-                    <strong>1. Dung lượng thực tế:</strong> Đã chuyển <strong>{transferred_mb} MB</strong>, khớp hoàn toàn với số liệu báo cáo trên cPanel / Webmail đích (~39.26 MB).
+        # Dynamic concise summary note
+        if failed_count == 0:
+            summary_note_html = f"""
+            <div class="summary-note note-success">
+                <span class="note-icon">✓</span>
+                <span>Di chuyển hoàn tất 100% ({success_count:,} thư, {transferred_mb} MB). Tất cả thư mục và email đã được đồng bộ trọn vẹn sang hộp thư đích.</span>
+            </div>
+            """
+        else:
+            failed_folders = list(dict.fromkeys(item['folder'] for item in failed_items))
+            folders_preview = ", ".join(f"<code>{f}</code>" for f in failed_folders[:2])
+            if len(failed_folders) > 2:
+                folders_preview += f" và {len(failed_folders) - 2} thư mục khác"
+
+            summary_note_html = f"""
+            <div class="summary-note note-warning">
+                <span class="note-icon">ℹ</span>
+                <div>
+                    Đã chuyển an toàn <strong>{transferred_mb} MB</strong> ({success_count:,} thư). Có <strong>{failed_count:,}</strong> thư chưa nạp được tại {folders_preview}. 
+                    Bạn có thể sử dụng nút <strong>"Thử lại"</strong> trên Control Center để tự động đồng bộ tiếp các thư này.
                 </div>
-                <div class="audit-item">
-                    <strong>2. Thư mục trùng lặp Gmail:</strong> 195 thư lỗi nằm ở <code>[Gmail]/Quan trọng</code> thực chất là nhãn ảo (AI Label) của Gmail. Các email này <strong>đã được di chuyển an toàn</strong> trong <code>INBOX</code> và <code>[Gmail]/Tất cả thư</code>.
-                </div>
-                <div class="audit-item">
-                    <strong>3. Nguyên nhân kỹ thuật:</strong> Lỗi do máy chủ Dovecot đích cấu hình phân cấp namespace <code>INBOX.</code>. Hệ thống đã cập nhật cơ chế tự động tiền tố (Prefix Auto-Healing). Bạn có thể bấm <strong>"Thử lại thất bại"</strong> để nạp các thư còn lại.
-                </div>
+            </div>
+            """
+
+        status_text = summary.get('status') or 'UNKNOWN'
+        status_badge_class = 'badge-success' if failed_count == 0 and status_text == 'COMPLETED' else 'badge-warning' if failed_count > 0 else 'badge-neutral'
+
+        failed_section_html = ""
+        if failed_items:
+            failed_section_html = f"""
+            <div class="section-title">
+                <h2>Chi Tiết Thư Chưa Nạp ({len(failed_items):,} Thư)</h2>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 140px;">Thư mục</th>
+                            <th style="width: 70px;">UID</th>
+                            <th style="width: 180px;">Người gửi</th>
+                            <th>Tiêu đề</th>
+                            <th style="width: 90px; text-align: center;">Mã lỗi</th>
+                            <th style="width: 220px;">Nguyên nhân</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {failed_rows}
+                    </tbody>
+                </table>
             </div>
             """
 
@@ -134,258 +171,315 @@ class MigrationReporter:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Migration Audit Report - {summary['source_account']}</title>
+    <title>Báo Cáo Di Chuyển Email - {summary['source_account']}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {{
             --bg: #09090b;
-            --card-bg: #121215;
-            --text-main: #fafafa;
-            --text-muted: #a1a1aa;
-            --border: #27272a;
-            --primary: #ffffff;
-            --success: #22c55e;
-            --danger: #f87171;
-            --warning: #facc15;
+            --surface: #111114;
+            --surface-elevated: #18181c;
+            --border: #222226;
+            --border-subtle: #1c1c20;
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --text-dim: #71717a;
+            --accent-success: #22c55e;
+            --accent-danger: #f87171;
+            --accent-warning: #fbbf24;
+        }}
+        * {{
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }}
         body {{
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg);
-            color: var(--text-main);
-            margin: 0;
-            padding: 30px;
+            color: var(--text-primary);
             line-height: 1.5;
+            padding: 32px 16px;
+            font-size: 13px;
         }}
         .container {{
-            max-width: 1240px;
+            max-width: 980px;
             margin: 0 auto;
         }}
         .header {{
-            background: var(--card-bg);
+            background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        }}
+        .header-top {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }}
+        .header-title-group {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }}
         .header h1 {{
-            margin: 0 0 10px 0;
-            font-size: 22px;
+            font-size: 18px;
             font-weight: 700;
-            color: #ffffff;
-            letter-spacing: -0.02em;
-        }}
-        .header .meta {{
-            color: var(--text-muted);
-            font-size: 13px;
-            line-height: 1.6;
-        }}
-        .audit-banner {{
-            background: #18181b;
-            border: 1px solid #3f3f46;
-            border-left: 4px solid var(--warning);
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin-bottom: 24px;
-            font-size: 13px;
-        }}
-        .audit-title {{
-            font-weight: 700;
-            color: var(--warning);
-            margin-bottom: 8px;
-            font-size: 14px;
-        }}
-        .audit-item {{
-            margin-bottom: 6px;
-            color: #d4d4d8;
-        }}
-        .grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }}
-        .card {{
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 20px;
-        }}
-        .card .title {{
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            margin-bottom: 8px;
-        }}
-        .card .value {{
-            font-size: 28px;
-            font-weight: 700;
-            font-family: 'JetBrains Mono', monospace;
-        }}
-        .text-success {{ color: var(--success); }}
-        .text-danger {{ color: var(--danger); }}
-        .text-warning {{ color: var(--warning); }}
-        .text-primary {{ color: var(--primary); }}
-        
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 12px;
-            background: var(--card-bg);
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-        }}
-        th, td {{
-            padding: 12px 16px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-            font-size: 13px;
-        }}
-        th {{
-            background: #18181b;
-            color: var(--text-muted);
-            font-weight: 600;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }}
-        tr:hover {{
-            background: rgba(255, 255, 255, 0.02);
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
         }}
         .badge {{
-            display: inline-block;
-            padding: 3px 8px;
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
             border-radius: 4px;
             font-size: 11px;
             font-weight: 600;
             font-family: 'JetBrains Mono', monospace;
-        }}
-        .badge-danger {{
-            background: rgba(239, 68, 68, 0.15);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            text-transform: uppercase;
         }}
         .badge-success {{
-            background: rgba(34, 197, 94, 0.15);
+            background: rgba(34, 197, 94, 0.1);
             color: #4ade80;
-            border: 1px solid rgba(34, 197, 94, 0.3);
+            border: 1px solid rgba(34, 197, 94, 0.25);
         }}
-        .text-danger-detail {{
-            font-size: 12px;
+        .badge-warning {{
+            background: rgba(251, 191, 36, 0.1);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.25);
         }}
-        .raw-err {{
-            color: #fca5a5;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            word-break: break-word;
+        .badge-danger {{
+            background: rgba(248, 113, 113, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.25);
         }}
-        .error-hint {{
-            margin-top: 6px;
-            padding: 6px 10px;
-            background: #18181b;
+        .badge-neutral {{
+            background: var(--surface-elevated);
+            color: var(--text-secondary);
             border: 1px solid var(--border);
-            border-radius: 4px;
-            color: #e4e4e7;
-            font-size: 12px;
         }}
-        h2 {{
-            font-size: 16px;
-            font-weight: 700;
-            color: #ffffff;
-            margin-top: 32px;
-            margin-bottom: 12px;
-            letter-spacing: -0.01em;
+        .meta-grid {{
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }}
+        .meta-item {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }}
+        .meta-lbl {{
+            color: var(--text-dim);
+            font-size: 11px;
+            font-weight: 600;
         }}
         code {{
             font-family: 'JetBrains Mono', monospace;
-            background: #18181b;
-            padding: 2px 6px;
-            border-radius: 4px;
+            background: var(--surface-elevated);
+            padding: 1px 5px;
+            border-radius: 3px;
             border: 1px solid var(--border);
-            font-size: 12px;
+            color: var(--text-primary);
+            font-size: 11.5px;
+        }}
+        .summary-note {{
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }}
+        .note-icon {{
+            font-size: 13px;
+            font-weight: bold;
+            line-height: 1;
+            margin-top: 2px;
+        }}
+        .note-success {{
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }}
+        .note-warning {{
+            background: rgba(251, 191, 36, 0.06);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            color: #fde68a;
+        }}
+        .kpi-row {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }}
+        .kpi-card {{
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 16px;
+        }}
+        .kpi-label {{
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--text-dim);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }}
+        .kpi-value {{
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }}
+        .kpi-value small {{
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-dim);
+        }}
+        .text-success {{ color: #4ade80; }}
+        .text-danger {{ color: #f87171; }}
+        .text-muted {{ color: var(--text-dim); }}
+
+        .section-title {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0 10px 0;
+        }}
+        .section-title h2 {{
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }}
+        .table-wrap {{
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+        }}
+        th, td {{
+            padding: 8px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-subtle);
+        }}
+        th {{
+            background: var(--surface-elevated);
+            color: var(--text-dim);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-bottom: 1px solid var(--border);
+        }}
+        tr:last-child td {{
+            border-bottom: none;
+        }}
+        tr:hover td {{
+            background: rgba(255, 255, 255, 0.015);
         }}
         .footer {{
             text-align: center;
-            margin-top: 40px;
-            color: var(--text-muted);
-            font-size: 12px;
+            color: var(--text-dim);
+            font-size: 11.5px;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-subtle);
+        }}
+        @media (max-width: 768px) {{
+            .kpi-row {{ grid-template-columns: repeat(2, 1fr); }}
+            .meta-grid {{ grid-template-columns: 1fr; }}
         }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Báo Cáo Kiểm Tra & Đối Chiếu Di Chuyển Email</h1>
-            <div class="meta">
-                <strong>Nguồn:</strong> <code>{summary['source_account']}</code> ➔ <strong>Đích:</strong> <code>{summary['dest_account']}</code><br>
-                <strong>Bắt đầu:</strong> {summary.get('started_at')} | <strong>Hoàn tất:</strong> {summary.get('completed_at') or 'Đang xử lý'}<br>
-                <strong>Trạng thái phiên:</strong> <span class="badge badge-{'success' if failed_count == 0 else 'danger'}">{summary.get('status')}</span>
+            <div class="header-top">
+                <div class="header-title-group">
+                    <h1>Báo Cáo Di Chuyển Email</h1>
+                    <span class="badge {status_badge_class}">{status_text}</span>
+                </div>
+                <div style="font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text-dim);">
+                    Phiên #{summary.get('id', 0)}
+                </div>
+            </div>
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <span class="meta-lbl">TÀI KHOẢN:</span>
+                    <code>{summary['source_account']}</code> ➔ <code>{summary['dest_account']}</code>
+                </div>
+                <div class="meta-item" style="text-align: right;">
+                    <span class="meta-lbl">THỜI GIAN:</span>
+                    <span>{summary.get('started_at')} ➔ {summary.get('completed_at') or 'Đang xử lý'}</span>
+                </div>
             </div>
         </div>
 
-        {audit_alert_html}
+        {summary_note_html}
 
-        <div class="grid">
-            <div class="card">
-                <div class="title">Thành Công (Migrated)</div>
-                <div class="value text-success">{success_count}</div>
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">Thành Công</div>
+                <div class="kpi-value text-success">{success_count:,}</div>
             </div>
-            <div class="card">
-                <div class="title">Bỏ Qua (Đã tồn tại / Resume)</div>
-                <div class="value text-primary">{skipped_count}</div>
+            <div class="kpi-card">
+                <div class="kpi-label">Bỏ Qua (Trùng)</div>
+                <div class="kpi-value text-muted">{skipped_count:,}</div>
             </div>
-            <div class="card">
-                <div class="title">Thất Bại (Failed)</div>
-                <div class="value text-danger">{failed_count}</div>
+            <div class="kpi-card">
+                <div class="kpi-label">Chưa Nạp Được</div>
+                <div class="kpi-value {'text-danger' if failed_count > 0 else 'text-muted'}">{failed_count:,}</div>
             </div>
-            <div class="card">
-                <div class="title">Dung Lượng Đã Chuyển</div>
-                <div class="value text-warning">{transferred_mb} <span style="font-size: 16px;">MB</span> ({transferred_gb} GB)</div>
+            <div class="kpi-card">
+                <div class="kpi-label">Dung Lượng</div>
+                <div class="kpi-value">{transferred_mb} <small>MB</small></div>
             </div>
         </div>
 
-        <h2>Thống Kê Chi Tiết Theo Thư Mục</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Thư Mục</th>
-                    <th style="text-align: right;">Đã Xử Lý</th>
-                    <th style="text-align: right;">Thành Công</th>
-                    <th style="text-align: right;">Thất Bại</th>
-                    <th style="text-align: right;">Dung Lượng</th>
-                </tr>
-            </thead>
-            <tbody>
-                {folder_rows}
-            </tbody>
-        </table>
+        <div class="section-title">
+            <h2>Thống Kê Theo Thư Mục</h2>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Thư Mục</th>
+                        <th style="text-align: right; width: 100px;">Tổng Số Thư</th>
+                        <th style="text-align: right; width: 110px;">Thành Công</th>
+                        <th style="text-align: right; width: 100px;">Chưa Nạp</th>
+                        <th style="text-align: right; width: 120px;">Dung Lượng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {folder_rows}
+                </tbody>
+            </table>
+        </div>
 
-        <h2>Danh Sách Email Thất Bại & Nguyên Nhân ({len(failed_items)} Thư)</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Thư mục</th>
-                    <th>UID</th>
-                    <th>Người gửi</th>
-                    <th>Tiêu đề</th>
-                    <th>Ngày</th>
-                    <th>Mã lỗi</th>
-                    <th>Chi tiết lỗi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {failed_rows}
-            </tbody>
-        </table>
+        {failed_section_html}
 
         <div class="footer">
-            Báo cáo được sinh tự động bởi <strong>Py-IMAP Migration Engine</strong> | Minimalist Monochrome Edition
+            Py-IMAP Migration Engine | Minimalist Monochrome Edition
         </div>
     </div>
 </body>
 </html>
 """
+

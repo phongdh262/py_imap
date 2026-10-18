@@ -372,7 +372,7 @@ function initSingleAccountTab() {
             if (!res.ok) throw new Error(data.detail || "Khởi động di chuyển thất bại");
 
             showToast("Tiến trình di chuyển đã bắt đầu!", "info");
-            listenToEventStream();
+            listenToEventStream(data.task_id);
 
         } catch (e) {
             showToast(`Lỗi: ${e.message}`, "error");
@@ -523,12 +523,27 @@ function renderStorageDonutChart(summary) {
     });
 }
 
-// Server-Sent Events (SSE) Stream Listener
-function listenToEventStream() {
-    const evtSource = new EventSource("/api/migrate/stream");
+// Server-Sent Events (SSE) Stream Listener with Task-ID Isolation
+let currentSseSource = null;
+
+function listenToEventStream(taskId = null) {
+    if (currentSseSource) {
+        currentSseSource.close();
+        currentSseSource = null;
+    }
+
+    const url = taskId ? `/api/migrate/stream?task_id=${encodeURIComponent(taskId)}` : `/api/migrate/stream`;
+    const evtSource = new EventSource(url);
+    currentSseSource = evtSource;
 
     evtSource.onmessage = (event) => {
-        const d = JSON.parse(event.data);
+        if (!event.data || event.data.trim() === ": ping") return;
+        let d;
+        try {
+            d = JSON.parse(event.data);
+        } catch (e) {
+            return;
+        }
 
         if (d.type === "progress") {
             const pct = d.percent || 0;
@@ -549,6 +564,7 @@ function listenToEventStream() {
 
         if (d.type === "completed") {
             evtSource.close();
+            currentSseSource = null;
             const btn = document.getElementById("btnStartSingleMigrate");
             btn.disabled = false;
             btn.textContent = "Bắt Đầu Di Chuyển";
@@ -574,6 +590,7 @@ function listenToEventStream() {
 
         if (d.type === "error") {
             evtSource.close();
+            currentSseSource = null;
             const btn = document.getElementById("btnStartSingleMigrate");
             btn.disabled = false;
             btn.textContent = "Bắt Đầu Di Chuyển";
@@ -584,10 +601,7 @@ function listenToEventStream() {
     };
 
     evtSource.onerror = () => {
-        evtSource.close();
-        const btn = document.getElementById("btnStartSingleMigrate");
-        btn.disabled = false;
-        btn.textContent = "Bắt Đầu Di Chuyển";
+        // SSE error or completed disconnect
     };
 }
 
@@ -795,7 +809,10 @@ function initActiveTasksTab() {
     }
 }
 
+let isTaskMinimizedInCurrentTab = false;
+
 function minimizeProgressWidget() {
+    isTaskMinimizedInCurrentTab = true;
     const container = document.getElementById("singleProgressContainer");
     if (container) container.style.display = "none";
 
@@ -807,11 +824,12 @@ function minimizeProgressWidget() {
         btn.disabled = false;
         btn.textContent = "Bắt Đầu Di Chuyển";
     }
-    showToast("Tiến trình đã được thu gọn xuống góc màn hình. Bạn có thể tạo tiếp tiến trình mới!", "info");
+    showToast("Tiến trình đã được thu gọn xuống góc màn hình. Bạn có thể mở tab mới hoặc tiếp tục tạo tiến trình!", "info");
     loadActiveTasks();
 }
 
 function expandProgressWidget() {
+    isTaskMinimizedInCurrentTab = false;
     const floatWidget = document.getElementById("floatingTaskWidget");
     if (floatWidget) floatWidget.style.display = "none";
 
@@ -829,7 +847,7 @@ async function loadActiveTasks() {
         if (!res.ok) return;
         const tasks = await res.json();
 
-        // 1. Update Active Tasks Badge
+        // 1. Update Active Tasks Badge in Sidebar
         const runningTasks = tasks.filter(t => t.status === "RUNNING");
         const badge = document.getElementById("activeTasksBadge");
         if (badge) {
@@ -841,7 +859,7 @@ async function loadActiveTasks() {
             }
         }
 
-        // 2. Update Floating Widget if active
+        // 2. Update Floating Widget only if minimized in THIS tab
         const floatWidget = document.getElementById("floatingTaskWidget");
         const singleContainer = document.getElementById("singleProgressContainer");
         const isSingleOpen = singleContainer && singleContainer.style.display !== "none";
@@ -858,11 +876,13 @@ async function loadActiveTasks() {
             if (pctEl) pctEl.textContent = `${(current.percent || 0).toFixed(1)}%`;
             if (barEl) barEl.style.width = `${current.percent || 0}%`;
 
-            if (!isSingleOpen && floatWidget) {
+            if (isTaskMinimizedInCurrentTab && !isSingleOpen && floatWidget) {
                 floatWidget.style.display = "block";
+            } else if (!isTaskMinimizedInCurrentTab && floatWidget) {
+                floatWidget.style.display = "none";
             }
         } else {
-            if (floatWidget && tasks.length > 0) {
+            if (floatWidget && tasks.length > 0 && isTaskMinimizedInCurrentTab) {
                 const lastTask = tasks[tasks.length - 1];
                 if (lastTask.status === "COMPLETED") {
                     const titleEl = document.getElementById("floatingTaskTitle");
@@ -872,6 +892,8 @@ async function loadActiveTasks() {
                     if (pctEl) pctEl.textContent = "100%";
                     if (barEl) barEl.style.width = "100%";
                 }
+            } else if (floatWidget && !isTaskMinimizedInCurrentTab) {
+                floatWidget.style.display = "none";
             }
         }
 

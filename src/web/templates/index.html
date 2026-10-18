@@ -51,6 +51,12 @@
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
                 </svg>
+            <a href="/" target="_blank" class="btn btn-secondary btn-sm" id="btnNewBrowserTab" title="Mở một tab làm việc mới để tạo thêm tiến trình khác song song">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Mở Tab Mới</span>
             </a>
             <a href="/logout" class="btn btn-secondary btn-sm" id="logoutBtn" title="Đăng xuất khỏi phiên quản trị">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -297,7 +303,13 @@
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <span id="progressPercentBadge" class="badge badge-neutral">0%</span>
-                            <button type="button" class="btn btn-secondary btn-sm" id="btnMinimizeProgress" title="Thu gọn xuống góc màn hình để tiếp tục tạo tiến trình khác">
+                            <a href="/" target="_blank" class="btn btn-secondary btn-sm" id="btnOpenNewMigrationTab" title="Mở một tab trình duyệt mới để tạo thêm tiến trình khác song song">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
+                                </svg>
+                                <span>Mở Tab Mới Tạo Tiến Trình Khác</span>
+                            </a>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnMinimizeProgress" title="Thu gọn xuống góc màn hình">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="5" y1="12" x2="19" y2="12"/>
                                 </svg>
