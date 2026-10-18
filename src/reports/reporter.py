@@ -186,7 +186,7 @@ class MigrationReporter:
 
                 err_text = raw_err
                 if "nonexistent namespace" in raw_err.lower() or "prefixed with: inbox" in raw_err.lower():
-                    err_text = "Cần tiền tố INBOX. (Bấm 'Thử lại' để nạp tự động)"
+                    err_text = "Cần tiền tố INBOX"
                 elif "already exists" in raw_err.lower() or "alreadyexists" in raw_err.lower():
                     err_text = "Thư hoặc thư mục đã tồn tại trên đích"
                 elif len(err_text) > 100:
@@ -229,8 +229,8 @@ class MigrationReporter:
                     </svg>
                 </div>
                 <div>
-                    <strong style="display:block; font-size: 13.5px; margin-bottom: 2px;">Di chuyển hoàn tất an toàn 100%</strong>
-                    <span>Đã đồng bộ trọn vẹn <strong>{success_count:,}</strong> thư ({size_display}) sang máy chủ đích. Cơ chế chống trùng thư tự động bảo toàn <strong>{skipped_count:,}</strong> thư hiện hữu.</span>
+                    <strong style="display:block; font-size: 13.5px; margin-bottom: 2px;">Đồng bộ hoàn tất 100%</strong>
+                    <span>Đã nạp <strong>{success_count:,}</strong> thư ({size_display}). Tự động bảo toàn <strong>{skipped_count:,}</strong> thư hiện hữu trên đích.</span>
                 </div>
             </div>
             """
@@ -243,7 +243,7 @@ class MigrationReporter:
             csv_download_btn = (
                 f"""<a href="/reports/{csv_filename}" download class="btn btn-secondary btn-sm" style="margin-left:auto;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                    <span>Tải File CSV Lỗi</span>
+                    <span>Tải CSV Lỗi</span>
                 </a>"""
                 if csv_filename
                 else ""
@@ -259,8 +259,8 @@ class MigrationReporter:
                     </svg>
                 </div>
                 <div style="flex: 1;">
-                    <strong style="display:block; font-size: 13.5px; margin-bottom: 2px;">Có {failed_count:,} email cần xử lý</strong>
-                    <span>Đã chuyển thành công <strong>{success_count:,}</strong> thư ({size_display}). Các thư chưa nạp nằm tại {folders_preview}. Bạn có thể bấm "Thử lại" trên Control Center để tiếp tục đồng bộ.</span>
+                    <strong style="display:block; font-size: 13.5px; margin-bottom: 2px;">Có {failed_count:,} thư lỗi</strong>
+                    <span>Đã nạp <strong>{success_count:,}</strong> thư ({size_display}). Thư chưa nạp nằm tại {folders_preview}. Bấm "Thử lại" trên bảng điều khiển để tiếp tục.</span>
                 </div>
                 {csv_download_btn}
             </div>
@@ -273,9 +273,9 @@ class MigrationReporter:
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span class="status-dot" style="background: #f43f5e; box-shadow: 0 0 8px #f43f5e;"></span>
-                        <h2 style="font-size: 15px; margin: 0;">Danh Sách Email Chưa Nạp Được ({len(failed_items):,} Thư)</h2>
+                        <h2 style="font-size: 15px; margin: 0;">Danh Sách Thư Lỗi ({len(failed_items):,})</h2>
                     </div>
-                    {f'<a href="/reports/{csv_filename}" download class="btn btn-secondary btn-sm no-print">Xuất CSV Thư Lỗi</a>' if csv_filename else ''}
+                    {f'<a href="/reports/{csv_filename}" download class="btn btn-secondary btn-sm no-print">Xuất CSV</a>' if csv_filename else ''}
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -894,9 +894,9 @@ class MigrationReporter:
                         <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                     </svg>
                 </div>
-                <span class="brand-name">Py-IMAP Control Center</span>
+                <span class="brand-name">Py-IMAP</span>
                 <span class="brand-sep">/</span>
-                <span style="color: var(--text-muted); font-size: 13px;">Báo Cáo Di Chuyển</span>
+                <span style="color: var(--text-muted); font-size: 13px;">Báo Cáo</span>
             </div>
 
             <div class="top-actions">
@@ -911,14 +911,14 @@ class MigrationReporter:
                     </button>
                 </div>
 
-                <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()" title="In hoặc lưu file PDF">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()" title="In hoặc xuất PDF">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
-                    <span>In / Xuất PDF</span>
+                    <span>In / PDF</span>
                 </button>
 
-                <a href="/" class="btn btn-primary btn-sm" title="Quay lại bảng điều khiển chính">
+                <a href="/" class="btn btn-primary btn-sm" title="Quay lại bảng điều khiển">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-                    <span>Về Bảng Điều Khiển</span>
+                    <span>Quay Lại</span>
                 </a>
             </div>
         </div>
@@ -935,12 +935,12 @@ class MigrationReporter:
                                 {status_text}
                             </span>
                         </div>
-                        <h1>Báo Cáo Kết Quả Di Chuyển Email</h1>
-                        <p class="master-sub">Biên bản đối chiếu dữ liệu tự động theo tiêu chuẩn bảo toàn dữ liệu RFC 6154</p>
+                        <h1>Báo Cáo Di Chuyển Email</h1>
+                        <p class="master-sub">Đối chiếu kết quả đồng bộ dữ liệu giữa hai hộp thư</p>
                     </div>
 
                     <div style="text-align: right;" class="no-print">
-                        <div style="font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Tỷ Lệ Thành Công</div>
+                        <div style="font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Tỷ Lệ Hoàn Tất</div>
                         <div style="font-size: 28px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #10b981;">
                             {effective_safe_pct}%
                         </div>
@@ -950,10 +950,10 @@ class MigrationReporter:
                 <!-- Account Route Strip -->
                 <div class="route-strip">
                     <div class="account-box">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">NGUỒN:</span>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Nguồn:</span>
                         <span class="account-pill">{summary['source_account']}</span>
                         <span class="route-arrow">➔</span>
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">ĐÍCH:</span>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Đích:</span>
                         <span class="account-pill">{summary['dest_account']}</span>
                     </div>
 
@@ -965,7 +965,7 @@ class MigrationReporter:
                             Hoàn tất: <strong>{completed_display}</strong>
                         </div>
                         <div class="timeline-item">
-                            Thời lượng: <strong>{duration_str}</strong>
+                            Thời gian: <strong>{duration_str}</strong>
                         </div>
                     </div>
                 </div>
@@ -973,12 +973,12 @@ class MigrationReporter:
                 <!-- Multi-segment visual progress -->
                 <div class="progress-section">
                     <div class="progress-header">
-                        <span>Phân bổ kết quả đồng bộ ({total_count:,} thư)</span>
-                        <span>Đã chuyển: {success_count:,} &bull; Trùng: {skipped_count:,} &bull; Lỗi: {failed_count:,}</span>
+                        <span>Kết quả đồng bộ ({total_count:,} thư)</span>
+                        <span>Thành công: {success_count:,} &bull; Bỏ qua: {skipped_count:,} &bull; Lỗi: {failed_count:,}</span>
                     </div>
                     <div class="multi-bar-track">
                         <div class="multi-bar-segment seg-success" style="width: {success_pct}%;" title="Thành công: {success_count} ({success_pct}%)"></div>
-                        <div class="multi-bar-segment seg-skipped" style="width: {skipped_pct}%;" title="Bỏ qua / Trùng: {skipped_count} ({skipped_pct}%)"></div>
+                        <div class="multi-bar-segment seg-skipped" style="width: {skipped_pct}%;" title="Bỏ qua: {skipped_count} ({skipped_pct}%)"></div>
                         <div class="multi-bar-segment seg-failed" style="width: {failed_pct}%;" title="Lỗi: {failed_count} ({failed_pct}%)"></div>
                     </div>
                 </div>
@@ -995,12 +995,12 @@ class MigrationReporter:
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div class="kpi-value" style="color: #10b981;">{success_count:,}</div>
-                <div class="kpi-sub">{success_pct}% trên tổng số thư</div>
+                <div class="kpi-sub">{success_pct}% tổng thư</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-label">
-                    <span>Bỏ Qua (Trùng Lặp)</span>
+                    <span>Bỏ Qua</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                 </div>
                 <div class="kpi-value" style="color: #f59e0b;">{skipped_count:,}</div>
@@ -1009,27 +1009,27 @@ class MigrationReporter:
 
             <div class="kpi-card">
                 <div class="kpi-label">
-                    <span>Chưa Nạp Được</span>
+                    <span>Lỗi</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{'#f43f5e' if failed_count > 0 else 'var(--text-dim)'}" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </div>
                 <div class="kpi-value" style="color: {'#f43f5e' if failed_count > 0 else 'var(--text-dim)'};">{failed_count:,}</div>
-                <div class="kpi-sub">{'Cần đồng bộ lại' if failed_count > 0 else 'Hoàn toàn không có lỗi'}</div>
+                <div class="kpi-sub">{'Cần đồng bộ lại' if failed_count > 0 else '0 thư lỗi'}</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-label">
-                    <span>Dung Lượng Di Chuyển</span>
+                    <span>Dung Lượng</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2.2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
                 </div>
                 <div class="kpi-value" style="color: #06b6d4;">{transferred_mb} <span style="font-size: 13px; font-weight:600; color:var(--text-dim);">MB</span></div>
-                <div class="kpi-sub">{size_display} nạp thành công</div>
+                <div class="kpi-sub">{size_display} hoàn tất</div>
             </div>
         </div>
 
         <!-- Folder Breakdown Table Card -->
         <div class="card">
             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="font-size: 15px; font-weight: 700; margin: 0; color: var(--text-primary);">Thống Kê Chi Tiết Theo Thư Mục ({len(folder_stats)} Thư Mục)</h2>
+                <h2 style="font-size: 15px; font-weight: 700; margin: 0; color: var(--text-primary);">Thống Kê Thư Mục ({len(folder_stats)})</h2>
             </div>
             <div class="table-wrap">
                 <table>
@@ -1038,7 +1038,7 @@ class MigrationReporter:
                             <th>Thư Mục</th>
                             <th style="text-align: right; width: 110px;">Tổng Thư</th>
                             <th style="text-align: right; width: 110px;">Thành Công</th>
-                            <th style="text-align: right; width: 110px;">Chưa Nạp</th>
+                            <th style="text-align: right; width: 110px;">Lỗi</th>
                             <th style="text-align: right; width: 130px;">Dung Lượng</th>
                             <th style="text-align: center; width: 130px;">Tỷ Lệ</th>
                         </tr>
@@ -1048,7 +1048,7 @@ class MigrationReporter:
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td>TỔNG CỘNG ({len(folder_stats)} thư mục)</td>
+                            <td>Tổng cộng ({len(folder_stats)} thư mục)</td>
                             <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">{total_folder_msgs:,}</td>
                             <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #10b981;">{total_folder_success:,}</td>
                             <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: {'#f43f5e' if total_folder_failed > 0 else 'inherit'};">{total_folder_failed:,}</td>
@@ -1068,10 +1068,10 @@ class MigrationReporter:
         <!-- Footer -->
         <div class="footer">
             <div>
-                <strong>Py-IMAP Control Center</strong> &bull; Hệ Thống Di Chuyển Email Doanh Nghiệp
+                <strong>Py-IMAP Control Center</strong>
             </div>
             <div style="color: var(--text-dim); font-size: 11.5px;">
-                Báo cáo tự động tạo lúc {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                Tạo lúc {datetime.now().strftime('%d/%m/%Y %H:%M')}
             </div>
         </div>
     </div>

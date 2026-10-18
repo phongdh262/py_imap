@@ -656,8 +656,8 @@ function listenToEventStream(taskId = null) {
             links.style.display = "block";
             links.innerHTML = `
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    <a href="${d.html_report}" target="_blank" class="btn btn-primary btn-sm">Xem Báo Cáo HTML Audit</a>
-                    ${d.csv_report ? `<a href="${d.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Thư Lỗi</a>` : ''}
+                    <a href="${d.html_report}" target="_blank" class="btn btn-primary btn-sm">Xem Báo Cáo</a>
+                    ${d.csv_report ? `<a href="${d.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Lỗi</a>` : ''}
                 </div>
             `;
             loadActiveTasks();
@@ -1041,8 +1041,8 @@ async function loadActiveTasks() {
 
                 ${t.status === "COMPLETED" && t.html_report ? `
                     <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 12px;">
-                        <a href="${t.html_report}" target="_blank" class="btn btn-primary btn-sm">Xem Báo Cáo Audit</a>
-                        ${t.csv_report ? `<a href="/api/reports/download/${t.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Thư Lỗi</a>` : ''}
+                        <a href="${t.html_report}" target="_blank" class="btn btn-primary btn-sm">Xem Báo Cáo</a>
+                        ${t.csv_report ? `<a href="/api/reports/download/${t.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Lỗi</a>` : ''}
                     </div>
                 ` : ''}
 
@@ -1259,7 +1259,7 @@ function showSessionDetail(s) {
     const body = document.getElementById("sessionModalBody");
     if (!modal || !body) return;
 
-    if (title) title.textContent = `Chi Tiết Phiên Di Chuyển #${s.id}`;
+    if (title) title.textContent = `Chi Tiết Phiên #${s.id}`;
 
     let statusBadge = `<span class="badge badge-neutral">${s.status}</span>`;
     if (s.status === "COMPLETED") statusBadge = `<span class="status-badge status-success">COMPLETED</span>`;
@@ -1269,7 +1269,7 @@ function showSessionDetail(s) {
     body.innerHTML = `
         <div class="modal-summary-box">
             <div class="modal-summary-row">
-                <span>Nguồn ➔ Đích:</span>
+                <span>Tài khoản:</span>
                 <strong>${s.source_account} ➔ ${s.dest_account}</strong>
             </div>
             <div class="modal-summary-row">
@@ -1277,22 +1277,22 @@ function showSessionDetail(s) {
                 <div>${statusBadge}</div>
             </div>
             <div class="modal-summary-row">
-                <span>Thời gian bắt đầu:</span>
+                <span>Bắt đầu:</span>
                 <strong>${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</strong>
             </div>
         </div>
 
         <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
-            <div class="stat-mini">
+            <div class="stat-mini text-center">
                 <span class="stat-mini-label">THÀNH CÔNG</span>
                 <span class="stat-mini-value" style="color:#34d399;">${s.migrated_messages}</span>
             </div>
-            <div class="stat-mini">
-                <span class="stat-mini-label">BỎ QUA (RESUME)</span>
+            <div class="stat-mini text-center">
+                <span class="stat-mini-label">BỎ QUA</span>
                 <span class="stat-mini-value" style="color:#fbbf24;">${s.skipped_messages}</span>
             </div>
-            <div class="stat-mini">
-                <span class="stat-mini-label">LỖI (FAILED)</span>
+            <div class="stat-mini text-center">
+                <span class="stat-mini-label">LỖI</span>
                 <span class="stat-mini-value" style="color:#fb7185;">${s.failed_messages}</span>
             </div>
         </div>
@@ -1302,9 +1302,9 @@ function showSessionDetail(s) {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
                 </svg>
-                <span>Xem Báo Cáo HTML</span>
+                <span>Xem Báo Cáo</span>
             </a>
-            ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại lỗi</button>` : ''}
+            ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
         </div>
     `;
 
