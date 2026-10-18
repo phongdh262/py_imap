@@ -1,6 +1,7 @@
 import csv
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional
 
 from src.storage.state_db import StateDatabase
@@ -54,8 +55,37 @@ class MigrationReporter:
 
         return html_file, csv_file
 
+    @staticmethod
+    def _mask_sensitive(text: Optional[str]) -> str:
+        """
+        Masks IP addresses and references to internal Py control / servers
+        to ensure report anonymity and confidentiality.
+        """
+        if not text:
+            return ""
+
+        # 1. Mask IPv4 addresses (with optional port)
+        text = re.sub(
+            r"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b",
+            "***.***.***.***",
+            text,
+        )
+
+        # 2. Mask IPv6 addresses
+        text = re.sub(
+            r"\b(?:[0-9a-fA-F]{1,4}:){3,7}[0-9a-fA-F]{1,4}(?::\d+)?\b",
+            "****:****:****",
+            text,
+        )
+
+        # 3. Mask internal system / Py control references if any
+        text = re.sub(r"py[-_]?imap(?:\s+control(?:\s+center)?)?", "EmailMigrator", text, flags=re.IGNORECASE)
+        text = re.sub(r"py[-_]?control", "ControlServer", text, flags=re.IGNORECASE)
+
+        return text
+
     def _build_csv(self, file_path: Path, failed_items: List[Dict[str, Any]]):
-        """Writes failed items to a CSV file."""
+        """Writes failed items to a CSV file with sensitive data masked."""
         fieldnames = [
             "folder",
             "source_uid",
@@ -71,7 +101,11 @@ class MigrationReporter:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for item in failed_items:
-                writer.writerow(item)
+                row = dict(item)
+                row["error_detail"] = self._mask_sensitive(row.get("error_detail") or "")
+                if row.get("sender"):
+                    row["sender"] = self._mask_sensitive(row["sender"])
+                writer.writerow(row)
 
     @staticmethod
     def _format_duration(started_at: Optional[str], completed_at: Optional[str]) -> str:
@@ -108,6 +142,9 @@ class MigrationReporter:
         transferred_mb = round(transferred_bytes / (1024 * 1024), 2)
         transferred_gb = round(transferred_mb / 1024, 2)
         size_display = f"{transferred_gb} GB" if transferred_mb >= 1024 else f"{transferred_mb} MB"
+
+        src_account = self._mask_sensitive(summary.get("source_account", ""))
+        dst_account = self._mask_sensitive(summary.get("dest_account", ""))
 
         success_count = summary.get("migrated_messages", 0) or 0
         failed_count = summary.get("failed_messages", 0) or 0
@@ -179,10 +216,10 @@ class MigrationReporter:
                 subj = (item.get("subject") or "(Không có tiêu đề)").strip()
                 if len(subj) > 65:
                     subj = subj[:65] + "..."
-                sender = (item.get("sender") or "Không rõ").strip()
+                sender = self._mask_sensitive((item.get("sender") or "Không rõ").strip())
                 if len(sender) > 30:
                     sender = sender[:30] + "..."
-                raw_err = item.get("error_detail") or ""
+                raw_err = self._mask_sensitive(item.get("error_detail") or "")
 
                 err_text = raw_err
                 if "nonexistent namespace" in raw_err.lower() or "prefixed with: inbox" in raw_err.lower():
@@ -196,8 +233,8 @@ class MigrationReporter:
                 <tr>
                     <td><code>{item['folder']}</code></td>
                     <td style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-align: center;">{item['source_uid']}</td>
-                    <td><span title="{item.get('sender') or ''}">{sender}</span></td>
-                    <td title="{item.get('subject') or ''}">{subj}</td>
+                    <td><span title="{sender}">{sender}</span></td>
+                    <td title="{subj}">{subj}</td>
                     <td style="text-align: center;"><span class="badge badge-danger">{item.get('error_code') or 'ERR'}</span></td>
                     <td style="color: #f43f5e; font-size: 12px;">{err_text}</td>
                 </tr>
@@ -260,7 +297,7 @@ class MigrationReporter:
                 </div>
                 <div style="flex: 1;">
                     <strong style="display:block; font-size: 13.5px; margin-bottom: 2px;">Có {failed_count:,} thư lỗi</strong>
-                    <span>Đã nạp <strong>{success_count:,}</strong> thư ({size_display}). Thư chưa nạp nằm tại {folders_preview}. Bấm "Thử lại" trên bảng điều khiển để tiếp tục.</span>
+                    <span>Đã nạp <strong>{success_count:,}</strong> thư ({size_display}). Thư chưa nạp nằm tại {folders_preview}. Có thể thực hiện đồng bộ lại cho các thư này.</span>
                 </div>
                 {csv_download_btn}
             </div>
@@ -313,7 +350,7 @@ class MigrationReporter:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo Cáo Di Chuyển Email | Phiên #{summary.get('id', 0)} - {summary['source_account']}</title>
+    <title>Báo Cáo Di Chuyển Email | Phiên #{summary.get('id', 0)} - {src_account}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -894,9 +931,7 @@ class MigrationReporter:
                         <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                     </svg>
                 </div>
-                <span class="brand-name">Py-IMAP</span>
-                <span class="brand-sep">/</span>
-                <span style="color: var(--text-muted); font-size: 13px;">Báo Cáo</span>
+                <span class="brand-name">Báo Cáo Di Chuyển Email</span>
             </div>
 
             <div class="top-actions">
@@ -916,7 +951,7 @@ class MigrationReporter:
                     <span>In / PDF</span>
                 </button>
 
-                <a href="/" class="btn btn-primary btn-sm" title="Quay lại bảng điều khiển">
+                <a href="/" class="btn btn-primary btn-sm" title="Quay lại">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                     <span>Quay Lại</span>
                 </a>
@@ -951,10 +986,10 @@ class MigrationReporter:
                 <div class="route-strip">
                     <div class="account-box">
                         <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Nguồn:</span>
-                        <span class="account-pill">{summary['source_account']}</span>
+                        <span class="account-pill">{src_account}</span>
                         <span class="route-arrow">➔</span>
                         <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Đích:</span>
-                        <span class="account-pill">{summary['dest_account']}</span>
+                        <span class="account-pill">{dst_account}</span>
                     </div>
 
                     <div class="timeline-info">
@@ -1068,10 +1103,10 @@ class MigrationReporter:
         <!-- Footer -->
         <div class="footer">
             <div>
-                <strong>Py-IMAP Control Center</strong>
+                <strong>Báo Cáo Đối Chiếu Dữ Liệu Email</strong>
             </div>
             <div style="color: var(--text-dim); font-size: 11.5px;">
-                Tạo lúc {datetime.now().strftime('%d/%m/%Y %H:%M')}
+                Thời gian tạo: {datetime.now().strftime('%d/%m/%Y %H:%M')}
             </div>
         </div>
     </div>
@@ -1079,7 +1114,7 @@ class MigrationReporter:
     <script>
         function setTheme(theme) {{
             document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('py_imap_theme', theme);
+            localStorage.setItem('email_report_theme', theme);
             const btnDark = document.getElementById('btnThemeDark');
             const btnLight = document.getElementById('btnThemeLight');
             if (btnDark && btnLight) {{
@@ -1095,7 +1130,7 @@ class MigrationReporter:
 
         // Initialize theme from localStorage or default dark
         (function() {{
-            const saved = localStorage.getItem('py_imap_theme') || 'dark';
+            const saved = localStorage.getItem('email_report_theme') || 'dark';
             setTheme(saved);
         }})();
     </script>
