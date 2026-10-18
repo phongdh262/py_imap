@@ -76,16 +76,81 @@ Web Control Panel (`http://<SERVER_IP>:8080`) được xây dựng sẵn với c
 
 ---
 
-## 🛠️ Hướng Dẫn Khởi Chạy
+## 🚀 Hướng Dẫn Cài Đặt & Khởi Chạy Trên VPS (Ubuntu / Debian)
 
-### 1. Khởi chạy toàn bộ hạ tầng bằng Docker Compose (Khuyên dùng)
+### Cách 1: Khởi chạy bằng Docker & Docker Compose (Khuyên dùng)
+Tự động đóng gói và chạy toàn bộ 5 dịch vụ: **Web Control Panel, Prometheus, Grafana, Loki, Promtail**.
+
 ```bash
-# Khởi động 5 containers: Web App, Prometheus, Grafana, Loki, Promtail
-docker compose up -d
+# 1. Cài đặt Docker & Git trên VPS (nếu chưa có)
+sudo apt update && sudo apt install -y git curl docker.io docker-compose-v2
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER && newgrp docker
 
-# Xem log hoạt động
+# 2. Clone repository về VPS
+git clone https://github.com/phongdh262/py_imap.git
+cd py_imap
+
+# 3. Tạo file cấu hình môi trường (.env)
+cp .env.example .env
+# (Tùy chọn) Chỉnh sửa tài khoản/mật khẩu Web Admin:
+# nano .env
+
+# 4. Mở cổng Firewall (UFW) trên VPS
+sudo ufw allow 8080/tcp    # Web Admin Control Panel
+sudo ufw allow 3000/tcp    # Grafana Dashboard
+sudo ufw reload
+
+# 5. Build và khởi chạy ngầm tất cả dịch vụ
+docker compose up -d --build
+
+# 6. Kiểm tra trạng thái và logs
+docker compose ps
 docker compose logs -f app
 ```
+
+Truy cập hệ thống:
+- **Web Admin**: `http://<IP_VPS>:8080` (Mặc định: `admin` / `admin123` hoặc cấu hình trong `.env`)
+- **Grafana Dashboard**: `http://<IP_VPS>:3000` (Mặc định: `admin` / `admin`)
+
+---
+
+### Cách 2: Khởi chạy trực tiếp bằng Python (Không dùng Docker)
+Dành cho VPS cấu hình nhỏ (RAM 1GB) hoặc chạy thủ công:
+
+```bash
+# 1. Cài đặt Python 3, venv và Git
+sudo apt update && sudo apt install -y git python3 python3-pip python3-venv
+
+# 2. Clone repository & tạo môi trường ảo
+git clone https://github.com/phongdh262/py_imap.git
+cd py_imap
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 3. Mở cổng Web Admin trên VPS
+sudo ufw allow 8080/tcp && sudo ufw reload
+
+# 4. Khởi chạy Web Admin chạy nền (Background)
+nohup python3 -m src.main --web --port 8000 --web-port 8080 > app.log 2>&1 &
+```
+
+---
+
+### 🛑 Bảng Lệnh Quản Lý Nhanh Trên VPS
+
+| Thao tác | Docker Compose | Python Trực Tiếp |
+| :--- | :--- | :--- |
+| **Xem log realtime** | `docker compose logs -f app` | `tail -f app.log` |
+| **Dừng hệ thống** | `docker compose down` | `pkill -f "src.main"` |
+| **Khởi động lại** | `docker compose restart app` | Chạy lại lệnh `nohup ...` |
+| **Cập nhật code mới** | `git pull && docker compose up -d --build` | `git pull && pip install -r requirements.txt` |
+
+---
+
+## 🛠️ Hướng Dẫn Khởi Chạy Local (Máy cá nhân)
 
 ### 2. Khởi chạy cục bộ (Local / Development)
 Cài đặt các thư viện cần thiết:
