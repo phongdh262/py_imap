@@ -97,6 +97,12 @@ class StateDatabase:
             conn.commit()
             return cursor.lastrowid
 
+    def clear_account_state(self, source_account: str):
+        """Clears all migration states for an account so it can be re-migrated from scratch."""
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM messages_state WHERE source_account = ?", (source_account,))
+            conn.commit()
+
     def is_message_migrated(self, source_account: str, folder: str, msg_hash: str) -> bool:
         """Checks if a message was already successfully migrated to prevent duplication."""
         with self._get_connection() as conn:

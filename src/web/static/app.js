@@ -343,6 +343,7 @@ function initSingleAccountTab() {
             batch_size: parseInt(document.getElementById("settingBatchSize").value) || 50,
             batch_delay_ms: parseInt(document.getElementById("settingBatchDelay").value) || 50,
             sanitize_accents: document.getElementById("settingSanitizeAccents").checked,
+            force_remigrate: document.getElementById("forceRemigrateSingle") ? document.getElementById("forceRemigrateSingle").checked : false,
         };
 
         if (!payload.source.username || !payload.source.password || !payload.dest.username || !payload.dest.password) {

@@ -100,6 +100,7 @@ class SingleMigrateRequest(BaseModel):
     dest: AccountCredentials
     sanitize_accents: bool = False
     batch_delay_ms: int = 50
+    force_remigrate: bool = False
 
 
 class BatchCheckRequest(BaseModel):
@@ -110,6 +111,7 @@ class BatchMigrateRequest(BaseModel):
     accounts: List[Dict[str, Any]]
     sanitize_accents: bool = False
     batch_delay_ms: int = 50
+    force_remigrate: bool = False
 
 
 # In-memory Task State for Background Migrations
@@ -244,6 +246,9 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
         sanitize_accents=req.sanitize_accents,
         batch_delay_seconds=req.batch_delay_ms / 1000.0,
     )
+
+    if req.force_remigrate:
+        service.state_db.clear_account_state(req.source.username)
 
     ACTIVE_TASKS[task_id] = {
         "task_id": task_id,
@@ -451,6 +456,13 @@ async def stream_migration_events(request: Request, task_id: Optional[str] = Non
             "X-Accel-Buffering": "no",
         }
     )
+
+
+@app.post("/api/cache/clear")
+async def clear_account_cache(account: str):
+    """Clears SQLite migration state cache for an account."""
+    state_db.clear_account_state(account)
+    return {"status": "ok", "message": f"Đã xóa bộ nhớ đệm cho tài khoản {account}"}
 
 
 @app.get("/api/sessions")
