@@ -17,7 +17,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
+  "id": 2,
   "links": [],
   "liveNow": true,
   "panels": [
@@ -772,8 +772,6 @@
           "sort": "none"
         }
       },
-      "title": "Migration Speed (Messages / sec)",
-      "type": "timeseries",
       "targets": [
         {
           "datasource": {
@@ -793,7 +791,9 @@
           "legendFormat": "{{source_account}}",
           "refId": "B"
         }
-      ]
+      ],
+      "title": "Migration Speed (Messages / sec)",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -839,8 +839,6 @@
           "sort": "none"
         }
       },
-      "title": "Network Bandwidth (Bytes / sec)",
-      "type": "timeseries",
       "targets": [
         {
           "datasource": {
@@ -851,7 +849,9 @@
           "legendFormat": "Bandwidth",
           "refId": "A"
         }
-      ]
+      ],
+      "title": "Network Bandwidth (Bytes / sec)",
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -917,8 +917,6 @@
         },
         "showUnfilled": true
       },
-      "title": "Account Progress (%)",
-      "type": "bargauge",
       "targets": [
         {
           "datasource": {
@@ -929,7 +927,9 @@
           "legendFormat": "{{source_account}} ➔ {{dest_account}}",
           "refId": "A"
         }
-      ]
+      ],
+      "title": "Account Progress (%)",
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -972,8 +972,6 @@
           "sort": "none"
         }
       },
-      "title": "Failure Breakdown by Error Code",
-      "type": "piechart",
       "targets": [
         {
           "datasource": {
@@ -984,7 +982,9 @@
           "legendFormat": "{{error_type}}",
           "refId": "A"
         }
-      ]
+      ],
+      "title": "Failure Breakdown by Error Code",
+      "type": "piechart"
     },
     {
       "collapsed": false,
@@ -1037,8 +1037,6 @@
           "sort": "none"
         }
       },
-      "title": "Tần Suất Lỗi Theo Thời Gian (Errors Over Time - Err X/50)",
-      "type": "timeseries",
       "targets": [
         {
           "datasource": {
@@ -1051,7 +1049,9 @@
           "queryType": "range",
           "refId": "A"
         }
-      ]
+      ],
+      "title": "Tần Suất Lỗi Theo Thời Gian (Errors Over Time - Err X/50)",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -1074,8 +1074,6 @@
         "sortOrder": "Descending",
         "wrapLogMessage": true
       },
-      "title": "Nhật Ký Chuyển Thư Thời Gian Thực (imapsync Terminal Stream)",
-      "type": "logs",
       "targets": [
         {
           "datasource": {
@@ -1087,7 +1085,9 @@
           "queryType": "range",
           "refId": "A"
         }
-      ]
+      ],
+      "title": "Nhật Ký Chuyển Thư Thời Gian Thực (imapsync Terminal Stream)",
+      "type": "logs"
     },
     {
       "datasource": {
@@ -1120,20 +1120,20 @@
                 "value": [
                   {
                     "options": {
-                      "SUCCESS": {
-                        "color": "green",
-                        "index": 0,
-                        "text": "SUCCESS"
+                      "FAILED": {
+                        "color": "red",
+                        "index": 2,
+                        "text": "FAILED"
                       },
                       "SKIPPED": {
                         "color": "yellow",
                         "index": 1,
                         "text": "SKIPPED"
                       },
-                      "FAILED": {
-                        "color": "red",
-                        "index": 2,
-                        "text": "FAILED"
+                      "SUCCESS": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "SUCCESS"
                       }
                     },
                     "type": "value"
@@ -1276,62 +1276,6 @@
           }
         ]
       },
-      "title": "Bảng Tra Cứu Chi Tiết Thư - Access Log (Tra cứu theo UID, Message-ID, Subject)",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns"
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Line": true,
-              "labels": true,
-              "id": true,
-              "job": true,
-              "env": true,
-              "logger": true,
-              "level": true,
-              "timestamp": true,
-              "source_domain": true,
-              "dest_domain": true,
-              "action": true,
-              "size_bytes": true,
-              "error_code": true
-            },
-            "indexByName": {
-              "Time": 0,
-              "status": 1,
-              "uid": 2,
-              "size_str": 3,
-              "folder": 4,
-              "target_folder": 5,
-              "message_id": 6,
-              "subject": 7,
-              "source_account": 8,
-              "dest_account": 9,
-              "error_detail": 10
-            },
-            "renameByName": {
-              "Time": "Thời Gian",
-              "status": "Trạng Thái",
-              "uid": "UID",
-              "size_str": "Dung Lượng",
-              "folder": "Thư Mục",
-              "target_folder": "Đích Đến",
-              "message_id": "Message-ID",
-              "subject": "Tiêu Đề",
-              "source_account": "Tài Khoản Nguồn",
-              "dest_account": "Tài Khoản Đích",
-              "error_detail": "Chi Tiết Lỗi"
-            }
-          }
-        }
-      ],
-      "type": "table",
       "targets": [
         {
           "datasource": {
@@ -1343,10 +1287,83 @@
           "queryType": "range",
           "refId": "A"
         }
-      ]
+      ],
+      "title": "Bảng Tra Cứu Chi Tiết Thư - Access Log (Tra cứu theo UID, Message-ID, Subject)",
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "replace": false,
+            "source": "Line"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Line": true,
+              "action": true,
+              "dest_domain": true,
+              "dest_folder": true,
+              "duration_sec": true,
+              "env": true,
+              "error_code": true,
+              "errors": true,
+              "event": true,
+              "existing_count": true,
+              "exit_code": true,
+              "filename": true,
+              "id": true,
+              "job": true,
+              "labelTypes": true,
+              "labels": true,
+              "level": true,
+              "level_extracted": true,
+              "logger": true,
+              "missing": true,
+              "sender": true,
+              "service_name": true,
+              "size_bytes": true,
+              "skipped": true,
+              "source_domain": true,
+              "timestamp": true,
+              "transferred": true,
+              "tsNs": true
+            },
+            "indexByName": {
+              "Time": 0,
+              "dest_account": 9,
+              "error_detail": 10,
+              "folder": 4,
+              "message_id": 6,
+              "size_str": 3,
+              "source_account": 8,
+              "status": 1,
+              "subject": 7,
+              "target_folder": 5,
+              "uid": 2
+            },
+            "renameByName": {
+              "Time": "Thời Gian",
+              "dest_account": "Tài Khoản Đích",
+              "error_detail": "Chi Tiết Lỗi",
+              "folder": "Thư Mục",
+              "message_id": "Message-ID",
+              "size_str": "Dung Lượng",
+              "source_account": "Tài Khoản Nguồn",
+              "status": "Trạng Thái",
+              "subject": "Tiêu Đề",
+              "target_folder": "Đích Đến",
+              "uid": "UID"
+            }
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
-  "refresh": "2s",
+  "refresh": "5s",
   "schemaVersion": 38,
   "style": "dark",
   "tags": [
@@ -1355,23 +1372,6 @@
     "imap",
     "monitoring"
   ],
-  "time": {
-    "from": "now-15m",
-    "to": "now"
-  },
-  "timepicker": {
-    "refresh_intervals": [
-      "1s",
-      "2s",
-      "5s",
-      "10s",
-      "30s"
-    ]
-  },
-  "timezone": "browser",
-  "title": "Email Migration Control Center",
-  "uid": "email-migration-overview",
-  "version": 1,
   "templating": {
     "list": [
       {
@@ -1529,5 +1529,22 @@
         "type": "textbox"
       }
     ]
-  }
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1s",
+      "2s",
+      "5s",
+      "10s",
+      "30s"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Email Migration Control Center",
+  "uid": "email-migration-overview",
+  "version": 6
 }
