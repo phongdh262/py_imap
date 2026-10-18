@@ -470,53 +470,199 @@
                     </div>
                 </div>
 
-                <!-- Pre-flight Inspection Results Container -->
-                <div id="inspectionResultContainer" class="inspection-results card" style="display: none; margin-top: 26px;">
-                    <div class="card-header">
-                        <h3 id="inspectionTitle">Kết Quả Đối Chiếu Dữ Liệu</h3>
-                        <div id="inspectionSummaryBadges" class="badges-row" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+                <!-- Pre-flight Inspection Results & Reconciliation Dashboard -->
+                <div id="inspectionResultContainer" class="card inspection-card" style="display: none; margin-top: 26px;">
+                    <!-- Card Header with title, dual badges, and action buttons -->
+                    <div class="card-header" style="flex-wrap: wrap; gap: 14px; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="status-dot" style="background: #6366f1; box-shadow: 0 0 10px #6366f1;"></span>
+                                <h3 id="inspectionTitle" style="font-size: 16px; margin: 0;">Kết Quả Đối Chiếu Nguồn & Đích</h3>
+                            </div>
+                            <p style="font-size: 12.5px; color: var(--text-muted); margin: 4px 0 0 0;">
+                                Phân tích đối soát dữ liệu 2 đầu & kiểm tra dung lượng an toàn trước khi di chuyển.
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <div id="inspectionSummaryBadges" class="badges-row" style="display: flex; gap: 6px;"></div>
+                            <button type="button" class="btn btn-primary btn-sm" id="btnInspectStartMigration" style="box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                <span>Tiến Hành Di Chuyển</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnCloseInspection" title="Đóng bảng kết quả">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Reconciliation Safe Mode Box for Dual Scanning -->
-                    <div id="reconciliationBox" style="display: none; padding: 14px 18px; margin: 16px 0 8px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card-subtle);"></div>
+                    <!-- 3-Pillar Reconciliation Flow (Source ➔ Safe Sync ➔ Dest) -->
+                    <div id="reconciliationPillars" class="recon-pillars-grid" style="margin-top: 18px;">
+                        <!-- Pillar 1: Source Box -->
+                        <div class="recon-pillar-card recon-source">
+                            <div class="recon-pillar-header">
+                                <span class="badge badge-source">NGUỒN</span>
+                                <span id="reconSourceHost" class="recon-host-text">-</span>
+                            </div>
+                            <div id="reconSourceUser" class="recon-user-text">-</div>
+                            <div class="recon-stats-row">
+                                <div class="recon-stat">
+                                    <span class="recon-stat-val" id="reconSrcMessages">0</span>
+                                    <span class="recon-stat-lbl">Tổng thư nguồn</span>
+                                </div>
+                                <div class="recon-stat">
+                                    <span class="recon-stat-val" id="reconSrcSize">0 MB</span>
+                                    <span class="recon-stat-lbl">Dung lượng nguồn</span>
+                                </div>
+                                <div class="recon-stat">
+                                    <span class="recon-stat-val" id="reconSrcFolders">0</span>
+                                    <span class="recon-stat-lbl">Thư mục</span>
+                                </div>
+                            </div>
+                        </div>
 
-                    <!-- Visual Chart & Quota Bar -->
-                    <div class="chart-and-quota-row">
+                        <!-- Pillar 2: Reconciliation Bridge (Center Arrow & Diff) -->
+                        <div class="recon-bridge-card">
+                            <div class="recon-bridge-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4"/>
+                                </svg>
+                            </div>
+                            <div class="recon-bridge-title">ĐỐI SOÁT</div>
+                            <div class="recon-bridge-diff" id="reconDiffNumber">~0 thư</div>
+                            <span class="badge badge-neutral" style="font-size: 11px; font-weight:600; color:#818cf8; border-color:rgba(99,102,241,0.3);">
+                                Cần nạp
+                            </span>
+                            <div class="recon-bridge-mode" title="Tự động đối chiếu Message-ID và băm nội dung để không nạp trùng">
+                                Append-Only
+                            </div>
+                        </div>
+
+                        <!-- Pillar 3: Destination Box -->
+                        <div class="recon-pillar-card recon-dest">
+                            <div class="recon-pillar-header">
+                                <span class="badge badge-dest">ĐÍCH</span>
+                                <span id="reconDestHost" class="recon-host-text">-</span>
+                            </div>
+                            <div id="reconDestUser" class="recon-user-text">-</div>
+                            <div class="recon-stats-row">
+                                <div class="recon-stat">
+                                    <span class="recon-stat-val" id="reconDestMessages" style="color: #34d399;">0</span>
+                                    <span class="recon-stat-lbl">Thư hiện có sẵn</span>
+                                </div>
+                                <div class="recon-stat">
+                                    <span class="recon-stat-val" id="reconDestSize" style="color: #34d399;">0 MB</span>
+                                    <span class="recon-stat-lbl">Dung lượng hiện có</span>
+                                </div>
+                                <div class="recon-stat">
+                                    <span class="recon-stat-val" id="reconDestCapacity" style="color: #60a5fa;">Đủ chứa</span>
+                                    <span class="recon-stat-lbl">Trạng thái dung lượng</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Safe Mode Guarantee Callout Banner -->
+                    <div id="reconciliationSafeBanner" class="recon-safe-banner" style="margin-top: 16px;">
+                        <div class="safe-banner-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <path d="m9 12 2 2 4-4"/>
+                            </svg>
+                        </div>
+                        <div class="safe-banner-content">
+                            <div class="safe-banner-title">Nguyên tắc bảo vệ dữ liệu đích (Zero-Data-Loss & Append-Only)</div>
+                            <div class="safe-banner-desc" id="safeBannerText">
+                                Hệ thống cam kết không xóa hoặc ghi đè bất kỳ email nào đang tồn tại trên máy chủ đích. Các email đã có sẽ được tự động nhận diện qua Message-ID/MD5 và bỏ qua, chỉ tải lên các thư mới.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Breakdown Row: Donut Chart + Storage Quota Capacity -->
+                    <div class="chart-and-quota-row" style="margin-top: 18px;">
+                        <!-- Left: Storage Donut Breakdown -->
                         <div class="chart-box">
+                            <div style="font-size: 12.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; width: 100%; text-align: left;">
+                                Phân Bổ Dung Lượng Hộp Thư Nguồn
+                            </div>
                             <div class="chart-container">
                                 <svg id="storageDonutSvg" viewBox="0 0 160 160" width="160" height="160"></svg>
                                 <div class="donut-center-text">
                                     <span id="donutCenterSize">0 MB</span>
-                                    <small>Tổng dung lượng</small>
+                                    <small>Nguồn</small>
                                 </div>
                             </div>
                             <div id="chartLegend" class="chart-legend"></div>
                         </div>
+
+                        <!-- Right: Destination Quota & Space Capacity -->
                         <div class="quota-box">
-                            <div class="quota-header">
-                                <span>Hạn mức lưu trữ</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-size: 12.5px; font-weight: 600; color: var(--text-muted);">
+                                    Hạn Mức Lưu Trữ & Sức Chứa Máy Chủ Đích
+                                </div>
+                                <span id="quotaStatusBadge" class="badge badge-success">An toàn</span>
+                            </div>
+
+                            <div class="quota-header" style="margin-top: 4px;">
+                                <span>Mức sử dụng hiện tại</span>
                                 <strong id="quotaPercentText">0%</strong>
                             </div>
                             <div class="quota-progress-track">
                                 <div id="quotaProgressFill" class="quota-progress-fill" style="width: 0%;"></div>
                             </div>
-                            <div id="quotaDetailText" class="quota-detail-text">Chưa quét quota</div>
+                            <div id="quotaDetailText" class="quota-detail-text">Đang kiểm tra quota...</div>
+
+                            <!-- Capacity Simulation -->
+                            <div id="capacitySimulationBox" class="capacity-sim-box">
+                                <div class="capacity-sim-row">
+                                    <span style="color: var(--text-dim);">Dung lượng cần nạp thêm:</span>
+                                    <strong id="simNeedTransferSize" style="color: #60a5fa; font-family: 'JetBrains Mono', monospace;">0 MB</strong>
+                                </div>
+                                <div class="capacity-sim-row">
+                                    <span style="color: var(--text-dim);">Ước tính sau di chuyển:</span>
+                                    <strong id="simEstimatedTotalSize" style="color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">0 MB</strong>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="table-responsive" style="margin-top: 22px;">
-                        <table class="data-table" id="foldersTable">
-                            <thead>
-                                <tr>
-                                    <th>Tên Thư Mục</th>
-                                    <th>Phân Loại</th>
-                                    <th style="text-align: right;">Số Thư</th>
-                                    <th style="text-align: right;">Dung Lượng</th>
-                                    <th style="text-align: center;">Thư Mục Đích</th>
-                                </tr>
-                            </thead>
-                            <tbody id="foldersTableBody"></tbody>
-                        </table>
+                    <!-- Detailed Folder Mapping & Diff Matrix Table -->
+                    <div style="margin-top: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h4 style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                                    Bảng Ánh Xạ & Đối Soát Chi Tiết Từng Thư Mục
+                                </h4>
+                                <span style="font-size: 12px; color: var(--text-dim);">
+                                    Đối chiếu tên thư mục nguồn với thư mục đích thực tế (đã áp dụng chuẩn hóa RFC).
+                                </span>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="text" id="folderFilterInput" placeholder="Lọc thư mục..." style="height: 32px; width: 180px; font-size: 12px; padding: 0 10px; border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="data-table" id="foldersTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 25%;">Thư Mục Nguồn</th>
+                                        <th style="width: 14%;">Phân Loại RFC</th>
+                                        <th style="text-align: right; width: 12%;">Số Thư Nguồn</th>
+                                        <th style="text-align: right; width: 14%;">Dung Lượng</th>
+                                        <th style="width: 20%;">Ánh Xạ Thư Mục Đích</th>
+                                        <th style="text-align: right; width: 15%;">Đích Hiện Có</th>
+                                        <th style="text-align: center; width: 15%;">Trạng Thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="foldersTableBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 

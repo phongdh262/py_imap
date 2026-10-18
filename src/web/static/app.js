@@ -466,108 +466,283 @@ function resetProgressUI() {
     document.getElementById("reportLinksContainer").style.display = "none";
 }
 
+function getFolderIcon(role, name) {
+    const r = (role || "").toUpperCase();
+    const n = (name || "").toUpperCase();
+    if (r === "INBOX" || n === "INBOX") {
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" style="flex-shrink:0;"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`;
+    } else if (r === "SENT" || n.includes("SENT") || n.includes("GỬI")) {
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" style="flex-shrink:0;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`;
+    } else if (r === "TRASH" || n.includes("TRASH") || n.includes("THÙNG RÁC")) {
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" style="flex-shrink:0;"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+    } else if (r === "SPAM" || r === "JUNK" || n.includes("SPAM") || n.includes("JUNK")) {
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" style="flex-shrink:0;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    } else if (r === "DRAFTS" || n.includes("DRAFT") || n.includes("NHÁP")) {
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" style="flex-shrink:0;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+    }
+    return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; color:var(--text-dim);"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`;
+}
+
 function renderInspectionResults(data) {
     const container = document.getElementById("inspectionResultContainer");
+    if (!container) return;
     container.style.display = "block";
     container.scrollIntoView({ behavior: "smooth" });
 
-    // Robust calculation for total MB
-    const totalMb = data.total_size_mb != null
-        ? data.total_size_mb
-        : (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
+    // Cache current inspection data for modal/export
+    window.lastInspectionData = data;
 
-    const totalMsgs = data.total_messages != null ? data.total_messages : 0;
-    const foldersCount = data.folders ? data.folders.length : 0;
+    const srcUser = document.getElementById("srcUser")?.value.trim() || (data.source ? data.source.username : "") || "Hộp thư nguồn";
+    const srcHost = document.getElementById("srcHost")?.value.trim() || (data.source ? data.source.host : "") || "-";
+    const dstUser = document.getElementById("dstUser")?.value.trim() || (data.dest ? data.dest.username : "") || "Hộp thư đích";
+    const dstHost = document.getElementById("dstHost")?.value.trim() || (data.dest ? data.dest.host : "") || "-";
 
-    const titleEl = document.getElementById("inspectionTitle") || document.querySelector("#inspectionResultContainer h3");
-    const reconBox = document.getElementById("reconciliationBox");
+    const totalSrcMsgs = (data.source ? data.source.total_messages : data.total_messages) || 0;
+    const totalSrcMb = (data.source ? data.source.total_size_mb : data.total_size_mb) || "0.00";
+    const folders = (data.source ? data.source.folders : data.folders) || [];
+
+    // Set Pillar 1: Source
+    const reconSrcHost = document.getElementById("reconSourceHost");
+    if (reconSrcHost) reconSrcHost.textContent = srcHost;
+    const reconSrcUser = document.getElementById("reconSourceUser");
+    if (reconSrcUser) reconSrcUser.textContent = srcUser;
+    const reconSrcMessages = document.getElementById("reconSrcMessages");
+    if (reconSrcMessages) reconSrcMessages.textContent = totalSrcMsgs.toLocaleString();
+    const reconSrcSize = document.getElementById("reconSrcSize");
+    if (reconSrcSize) reconSrcSize.textContent = `${totalSrcMb} MB`;
+    const reconSrcFolders = document.getElementById("reconSrcFolders");
+    if (reconSrcFolders) reconSrcFolders.textContent = folders.length;
+
+    // Check Destination & Reconciliation
+    const isDual = data.is_dual && data.reconciliation;
+    const recon = data.reconciliation || {};
+
+    const destMsgs = recon.dest_existing_messages || (data.dest ? data.dest.total_messages : 0) || 0;
+    const destMb = recon.dest_existing_size_mb || (data.dest ? data.dest.total_size_mb : "0.00") || "0.00";
+    const diffToTransfer = recon.messages_to_transfer != null ? recon.messages_to_transfer : totalSrcMsgs;
+
+    // Set Pillar 2: Bridge
+    const reconDiffEl = document.getElementById("reconDiffNumber");
+    if (reconDiffEl) reconDiffEl.textContent = `~${diffToTransfer.toLocaleString()} thư`;
+
+    // Set Pillar 3: Dest
+    const reconDestHost = document.getElementById("reconDestHost");
+    if (reconDestHost) reconDestHost.textContent = dstHost;
+    const reconDestUser = document.getElementById("reconDestUser");
+    if (reconDestUser) reconDestUser.textContent = dstUser;
+    const reconDestMessages = document.getElementById("reconDestMessages");
+    if (reconDestMessages) reconDestMessages.textContent = destMsgs.toLocaleString();
+    const reconDestSize = document.getElementById("reconDestSize");
+    if (reconDestSize) reconDestSize.textContent = `${destMb} MB`;
+
+    // Title & Badges
+    const titleEl = document.getElementById("inspectionTitle");
     const badgeContainer = document.getElementById("inspectionSummaryBadges");
-
-    if (data.is_dual && data.reconciliation) {
-        const recon = data.reconciliation;
-        if (titleEl) titleEl.textContent = "Kết Quả Đối Chiếu Nguồn & Đích";
-
-        badgeContainer.innerHTML = `
-            <span class="badge badge-neutral" style="font-weight: 600;" title="Dữ liệu trên máy chủ nguồn">Nguồn: ${recon.source_size_mb} MB (${(recon.source_messages || 0).toLocaleString()} thư)</span>
-            <span class="badge badge-neutral" style="font-weight: 600; color: #16a34a; border-color: rgba(22, 163, 74, 0.4);" title="Dữ liệu hiện hữu thực tế trên máy chủ đích">Đích hiện có: ${recon.dest_existing_size_mb} MB (${(recon.dest_existing_messages || 0).toLocaleString()} thư)</span>
-            <span class="badge badge-neutral" style="font-weight: 600; color: #2563eb; border-color: rgba(37, 99, 235, 0.4);" title="Số lượng thư dự kiến cần chuyển bổ sung">Cần chuyển: ${(recon.messages_to_transfer || 0).toLocaleString()} thư</span>
-        `;
-
-        if (reconBox) {
-            reconBox.style.display = "block";
-            reconBox.innerHTML = `
-                <div style="display: flex; align-items: flex-start; gap: 10px;">
-                    <div style="font-size: 16px;">🛡️</div>
-                    <div style="font-size: 12px; line-height: 1.5; color: var(--text-muted);">
-                        <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Nguyên tắc an toàn & chống trùng email:</strong>
-                        ${recon.safe_mode_guarantee}
-                        ${recon.dest_existing_messages > 0 ? `<br><span style="color: #16a34a; font-weight: 600;">✓ Máy chủ đích đang có ${recon.dest_existing_messages.toLocaleString()} thư (${recon.dest_existing_size_mb} MB). Hệ thống giữ nguyên vẹn 100% thư này và chỉ bổ sung các email chưa có.</span>` : ''}
-                    </div>
-                </div>
-            `;
-        }
-    } else {
-        if (titleEl) titleEl.textContent = "Kết Quả Quét Hộp Thư Nguồn";
-        if (reconBox) reconBox.style.display = "none";
-
-        badgeContainer.innerHTML = `
-            <span class="badge badge-neutral">Tổng: ${totalMb} MB</span>
-            <span class="badge badge-neutral">${totalMsgs.toLocaleString()} Thư</span>
-            <span class="badge badge-neutral">${foldersCount} Thư mục</span>
-        `;
+    if (titleEl) {
+        titleEl.textContent = isDual ? "Kết Quả Đối Chiếu Nguồn & Đích" : "Kết Quả Quét Hộp Thư Nguồn";
     }
 
-    // Quota details
-    const quota = data.quota;
+    if (badgeContainer) {
+        if (isDual) {
+            badgeContainer.innerHTML = `
+                <span class="badge badge-success" style="font-size:11.5px;"><span class="status-dot" style="background:#10b981;"></span> Dual-Scan Hoàn Tất</span>
+                <span class="badge badge-neutral" style="font-size:11.5px; font-weight:600;">Cần chuyển ~${diffToTransfer.toLocaleString()} thư</span>
+            `;
+        } else {
+            badgeContainer.innerHTML = `
+                <span class="badge badge-neutral">Nguồn: ${totalSrcMb} MB</span>
+                <span class="badge badge-neutral">${totalSrcMsgs.toLocaleString()} thư</span>
+            `;
+        }
+    }
+
+    // Safe Banner
+    const safeBannerText = document.getElementById("safeBannerText");
+    if (safeBannerText) {
+        if (destMsgs > 0) {
+            safeBannerText.innerHTML = `
+                Máy chủ đích đang có sẵn <strong>${destMsgs.toLocaleString()} thư (${destMb} MB)</strong>.
+                Hệ thống cam kết giữ nguyên 100% dữ liệu này và tự động đối chiếu Message-ID để chỉ tải lên các email mới, tuyệt đối không gây trùng lặp.
+            `;
+        } else {
+            safeBannerText.innerHTML = `
+                ${recon.safe_mode_guarantee || "Hệ thống hoạt động theo nguyên tắc Append-Only: Giữ nguyên vẹn 100% dữ liệu đang có trên máy chủ đích, tự động quét Message-ID thực tế để không xóa đè và không nạp trùng."}
+            `;
+        }
+    }
+
+    // Quota & Capacity Simulation
+    const quota = (data.dest && data.dest.quota) ? data.dest.quota : data.quota;
     const quotaFill = document.getElementById("quotaProgressFill");
     const quotaPct = document.getElementById("quotaPercentText");
     const quotaDetail = document.getElementById("quotaDetailText");
+    const quotaStatusBadge = document.getElementById("quotaStatusBadge");
+    const reconDestCapacity = document.getElementById("reconDestCapacity");
 
-    if (quota && quota.percent != null) {
-        quotaFill.style.width = `${Math.min(quota.percent, 100)}%`;
-        quotaPct.textContent = `${quota.percent}%`;
-        quotaDetail.textContent = `Đã dùng ${quota.usage_mb} MB / ${quota.limit_mb} MB`;
+    const simNeedTransfer = document.getElementById("simNeedTransferSize");
+    if (simNeedTransfer) simNeedTransfer.textContent = `${totalSrcMb} MB`;
+
+    const estimatedTotal = (parseFloat(destMb) + parseFloat(totalSrcMb)).toFixed(2);
+    const simEstimated = document.getElementById("simEstimatedTotalSize");
+    if (simEstimated) simEstimated.textContent = `~${estimatedTotal} MB`;
+
+    if (quota && quota.percent != null && quota.limit_mb > 0) {
+        const currentPct = quota.percent;
+        if (quotaFill) quotaFill.style.width = `${Math.min(currentPct, 100)}%`;
+        if (quotaPct) quotaPct.textContent = `${currentPct}%`;
+
+        const freeMb = Math.max(0, quota.limit_mb - quota.usage_mb);
+        if (quotaDetail) quotaDetail.textContent = `Đã dùng ${quota.usage_mb.toLocaleString()} MB / Hạn mức ${quota.limit_mb.toLocaleString()} MB (Còn trống ${freeMb.toLocaleString()} MB)`;
+
+        const neededMb = parseFloat(totalSrcMb);
+        if (neededMb > freeMb) {
+            if (quotaStatusBadge) {
+                quotaStatusBadge.className = "badge badge-danger";
+                quotaStatusBadge.textContent = "Cảnh báo thiếu dung lượng!";
+            }
+            if (reconDestCapacity) {
+                reconDestCapacity.textContent = "Thiếu dung lượng";
+                reconDestCapacity.style.color = "#f43f5e";
+            }
+        } else {
+            if (quotaStatusBadge) {
+                quotaStatusBadge.className = "badge badge-success";
+                quotaStatusBadge.textContent = "Đủ sức chứa";
+            }
+            if (reconDestCapacity) {
+                reconDestCapacity.textContent = "Đủ chứa";
+                reconDestCapacity.style.color = "#34d399";
+            }
+        }
     } else {
-        quotaFill.style.width = "0%";
-        quotaPct.textContent = "N/A";
-        quotaDetail.textContent = "Máy chủ không hỗ trợ lệnh IMAP QUOTA";
+        if (quotaFill) quotaFill.style.width = "0%";
+        if (quotaPct) quotaPct.textContent = "N/A";
+        if (quotaDetail) quotaDetail.textContent = "Máy chủ không trả về thông tin hạn mức IMAP QUOTA (Không giới hạn hoặc tùy thuộc hosting)";
+        if (quotaStatusBadge) {
+            quotaStatusBadge.className = "badge badge-neutral";
+            quotaStatusBadge.textContent = "Chưa rõ quota";
+        }
     }
 
-    // Folders table
+    // Build Destination Folder Map for Cross-referencing
+    const dstFolderMap = {};
+    if (data.dest && data.dest.folders) {
+        data.dest.folders.forEach(df => {
+            dstFolderMap[df.name.toLowerCase()] = df;
+            const stripped = df.name.replace(/^inbox\./i, "").toLowerCase();
+            dstFolderMap[stripped] = df;
+        });
+    }
+
+    // Render Matrix Folders Table
+    window.currentInspectedFolders = folders;
+    renderFolderMatrixRows(folders, dstFolderMap);
+
+    // Setup folder filter
+    const filterInput = document.getElementById("folderFilterInput");
+    if (filterInput) {
+        filterInput.value = "";
+        filterInput.oninput = (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = (window.currentInspectedFolders || []).filter(f =>
+                f.name.toLowerCase().includes(query) ||
+                (f.role && f.role.toLowerCase().includes(query)) ||
+                (f.destination_folder && f.destination_folder.toLowerCase().includes(query))
+            );
+            renderFolderMatrixRows(filtered, dstFolderMap);
+        };
+    }
+
+    // Hook Start Migration button inside inspection card
+    const btnInspectStart = document.getElementById("btnInspectStartMigration");
+    if (btnInspectStart) {
+        btnInspectStart.onclick = () => {
+            document.getElementById("btnStartSingleMigrate")?.click();
+        };
+    }
+
+    // Hook Close button
+    const btnCloseInspect = document.getElementById("btnCloseInspection");
+    if (btnCloseInspect) {
+        btnCloseInspect.onclick = () => {
+            container.style.display = "none";
+        };
+    }
+
+    // Donut chart
+    renderStorageDonutChart(data.source || data);
+}
+
+function renderFolderMatrixRows(foldersList, dstFolderMap) {
     const tbody = document.getElementById("foldersTableBody");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
-    (data.folders || []).forEach(f => {
+    if (!foldersList || foldersList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-dim); padding:24px;">Không tìm thấy thư mục phù hợp</td></tr>`;
+        return;
+    }
+
+    foldersList.forEach(f => {
         const tr = document.createElement("tr");
-        const roleBadge = f.role ? `<span class="badge badge-neutral">${f.role}</span>` : `<span class="text-dim">Mặc định</span>`;
-        
+        const role = f.role || "";
+        const iconSvg = getFolderIcon(role, f.name);
+
         const folderMb = f.size_mb != null
             ? f.size_mb
             : (f.size_bytes ? (f.size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
 
         const targetFolder = f.destination_folder || f.mapped_target || (f.role && f.role !== "CUSTOM" ? f.role : f.name);
-        const mapStatus = f.is_excluded
-            ? `<span class="badge badge-neutral">Loại trừ</span>`
-            : `<span class="text-primary">${targetFolder}</span>`;
+
+        // Check if destination already has this folder
+        const cleanTarget = targetFolder.toLowerCase().replace(/^inbox\./i, "");
+        const dstMatch = dstFolderMap ? (dstFolderMap[targetFolder.toLowerCase()] || dstFolderMap[cleanTarget]) : null;
+
+        let dstCountHtml = '<span style="color:var(--text-dim);">-</span>';
+        let actionBadge = '';
+
+        if (f.is_excluded) {
+            actionBadge = '<span class="badge badge-neutral" style="font-size:11px;">Loại trừ</span>';
+        } else if (dstMatch) {
+            dstCountHtml = `<strong style="color:#34d399; font-family:'JetBrains Mono',monospace;">${(dstMatch.messages_count || 0).toLocaleString()}</strong>`;
+            actionBadge = '<span class="badge badge-success" style="font-size:11px;"><span class="status-dot" style="background:#10b981;"></span> Hợp nhất</span>';
+        } else {
+            dstCountHtml = `<span style="color:var(--text-dim); font-family:'JetBrains Mono',monospace;">0</span>`;
+            actionBadge = '<span class="badge badge-neutral" style="font-size:11px; color:#818cf8; border-color:rgba(99,102,241,0.3);"><span class="status-dot" style="background:#6366f1;"></span> Tạo mới</span>';
+        }
+
+        const roleBadge = role
+            ? `<span class="badge badge-neutral" style="font-size:11px;">${escapeHtml(role)}</span>`
+            : `<span style="color:var(--text-dim); font-size:11.5px;">Tiêu chuẩn</span>`;
 
         tr.innerHTML = `
-            <td><strong>${f.name}</strong></td>
+            <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    ${iconSvg}
+                    <strong style="font-size:13px; color:var(--text-primary); word-break:break-all;">${escapeHtml(f.name)}</strong>
+                </div>
+            </td>
             <td>${roleBadge}</td>
-            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${(f.messages_count || 0).toLocaleString()}</td>
-            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${folderMb} MB</td>
-            <td style="text-align: center;">${mapStatus}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size:12.5px;">${(f.messages_count || 0).toLocaleString()}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size:12.5px;">${folderMb} MB</td>
+            <td>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="color:var(--text-dim); font-size:12px;">➔</span>
+                    <span class="mono-font" style="font-size:12px; color:#60a5fa; font-weight:500;">${escapeHtml(targetFolder)}</span>
+                </div>
+            </td>
+            <td style="text-align: right;">${dstCountHtml}</td>
+            <td style="text-align: center;">${actionBadge}</td>
         `;
         tbody.appendChild(tr);
     });
-
-    // Donut chart
-    renderStorageDonutChart(data);
 }
 
 function renderStorageDonutChart(summary) {
     const svg = document.getElementById("storageDonutSvg");
     const legend = document.getElementById("chartLegend");
     const centerSize = document.getElementById("donutCenterSize");
+    if (!svg || !legend || !centerSize) return;
 
     const totalMb = summary.total_size_mb != null
         ? summary.total_size_mb
@@ -577,27 +752,24 @@ function renderStorageDonutChart(summary) {
     svg.innerHTML = "";
     legend.innerHTML = "";
 
-    const activeFolders = summary.folders
-        .filter(f => !f.is_excluded && f.size_bytes > 0)
-        .sort((a, b) => b.size_bytes - a.size_bytes);
+    const activeFolders = (summary.folders || [])
+        .filter(f => !f.is_excluded && (f.size_bytes > 0 || (f.size_mb && parseFloat(f.size_mb) > 0)))
+        .sort((a, b) => (b.size_bytes || 0) - (a.size_bytes || 0));
 
-    if (activeFolders.length === 0 || summary.total_size_bytes === 0) {
+    if (activeFolders.length === 0 || !summary.total_size_bytes) {
         svg.innerHTML = `<circle cx="80" cy="80" r="60" fill="none" stroke="var(--border)" stroke-width="16"/>`;
-        legend.innerHTML = `<div class="legend-item"><span class="legend-color" style="background:var(--border);"></span><span>Hộp thư trống</span></div>`;
+        legend.innerHTML = `<div class="legend-item"><span class="legend-color" style="background:var(--border);"></span><span>Hộp thư trống hoặc chưa có dữ liệu dung lượng</span></div>`;
         return;
     }
 
-    const isLight = document.documentElement.getAttribute("data-theme") === "light";
-    const palette = isLight
-        ? ["#09090b", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8"]
-        : ["#ffffff", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b"];
+    const palette = ["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#06b6d4", "#ec4899"];
     const radius = 60;
     const circumference = 2 * Math.PI * radius;
     let accumulatedOffset = 0;
 
     activeFolders.slice(0, 5).forEach((f, idx) => {
         const color = palette[idx % palette.length];
-        const fraction = f.size_bytes / summary.total_size_bytes;
+        const fraction = summary.total_size_bytes > 0 ? (f.size_bytes / summary.total_size_bytes) : 0;
         const strokeLength = fraction * circumference;
         const strokeGap = circumference - strokeLength;
         const pct = (fraction * 100).toFixed(1);
@@ -621,7 +793,7 @@ function renderStorageDonutChart(summary) {
         item.className = "legend-item";
         item.innerHTML = `
             <span class="legend-color" style="background:${color};"></span>
-            <span><strong>${f.name}</strong>: ${pct}% (${(f.size_bytes/1048576).toFixed(1)} MB)</span>
+            <span style="font-size:11.5px;"><strong>${escapeHtml(f.name)}</strong>: ${pct}% (${f.size_mb || (f.size_bytes / 1048576).toFixed(1)} MB)</span>
         `;
         legend.appendChild(item);
     });
