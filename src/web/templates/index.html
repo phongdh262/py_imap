@@ -6,7 +6,7 @@
     <title>Py-IMAP Control Center | Enterprise Email Migration</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -102,6 +102,15 @@
                         </svg>
                     </span>
                     <span>Chuyển Hàng Loạt (CSV)</span>
+                </button>
+                <button class="nav-item" data-tab="authCheckTab">
+                    <span class="nav-icon">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </span>
+                    <span>Kiểm Tra Mật Khẩu</span>
                 </button>
                 <button class="nav-item" data-tab="activeTasksTab" id="navActiveTasks">
                     <span class="nav-icon">
@@ -836,6 +845,211 @@
                 </div>
             </section>
 
+            <!-- TAB: Standalone Auth Checker (Single & Batch CSV) -->
+            <section id="authCheckTab" class="tab-pane">
+                <div class="pane-header">
+                    <h2>Kiểm Tra Mật Khẩu & Xác Thực</h2>
+                    <p>Kiểm tra độ chính xác của mật khẩu / App Password cho từng tài khoản hoặc hàng loạt từ file CSV.</p>
+                </div>
+
+                <div class="grid-2-cols" style="align-items: start; margin-bottom: 24px;">
+                    <!-- LEFT COLUMN: Single Account Check -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-source">
+                                <span class="status-dot" style="background:#818cf8; box-shadow:0 0 8px #818cf8;"></span>
+                                ĐƠN LẺ
+                            </span>
+                            <h3>Kiểm Tra 1 Hộp Thư</h3>
+                        </div>
+
+                        <!-- Provider Presets Chips -->
+                        <div class="preset-label">Nhà cung cấp:</div>
+                        <div class="provider-chips">
+                            <button type="button" class="provider-chip active" data-target="singleAuth" data-provider="gmail">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+                                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.4 0 15.3c0 2.9.7 5.6 1.9 8l3.7-2.9z"/>
+                                    <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/>
+                                </svg>
+                                <span>Gmail</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="singleAuth" data-provider="outlook">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#0078D4">
+                                    <rect width="10" height="10" x="2" y="2" rx="1"/><rect width="10" height="10" x="12" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="2" y="12" rx="1"/><rect width="10" height="10" x="12" y="12" rx="1"/>
+                                </svg>
+                                <span>Outlook</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="singleAuth" data-provider="yandex">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FC3F1D">
+                                    <circle cx="12" cy="12" r="10"/><path fill="#fff" d="M13.5 6h-2.5c-2 0-3.3 1.2-3.3 3.2 0 1.5.8 2.5 2.1 3.2l-2.4 5.6h2.2l2.3-5.3h.6v5.3h2V6zm-1.5 5.2h-.9c-1 0-1.6-.6-1.6-1.6 0-1 .6-1.6 1.6-1.6h.9v3.2z"/>
+                                </svg>
+                                <span>Yandex</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="singleAuth" data-provider="cpanel">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FF6C2C">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                <span>cPanel</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="singleAuth" data-provider="custom">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+                                </svg>
+                                <span>Tùy biến</span>
+                            </button>
+                        </div>
+
+                        <div class="form-grid" style="margin-top: 16px;">
+                            <div class="form-group col-span-2">
+                                <label>Host IMAP</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/></svg>
+                                    </span>
+                                    <input type="text" id="singleAuthHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Port</label>
+                                <input type="number" id="singleAuthPort" value="993">
+                            </div>
+                            <div class="form-group">
+                                <label>SSL / TLS</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                    </span>
+                                    <select id="singleAuthSsl">
+                                        <option value="true" selected>SSL / TLS (Bắt buộc)</option>
+                                        <option value="false">STARTTLS / Plain</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Tài Khoản Email</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                    </span>
+                                    <input type="email" id="singleAuthUser" placeholder="name@domain.com">
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Mật Khẩu / App Password</label>
+                                <div class="input-icon-group has-action">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                    </span>
+                                    <input type="password" id="singleAuthPass" placeholder="Nhập mật khẩu hoặc App Password">
+                                    <button type="button" class="input-action-btn" id="toggleSingleAuthPass" title="Hiện/ẩn mật khẩu">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </button>
+                                </div>
+                                <small id="singleAuthHintText" class="helper-text"></small>
+                            </div>
+                        </div>
+
+                        <div class="card-footer" style="margin-top: 16px;">
+                            <button type="button" class="btn btn-primary" id="btnTestSingleAuth" style="width: 100%;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                <span>Kiểm Tra Xác Thực Ngay</span>
+                            </button>
+                        </div>
+
+                        <!-- Result Box for Single Check -->
+                        <div id="singleAuthResultBox" style="display: none; margin-top: 16px;"></div>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Batch CSV Check -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-neutral">
+                                <span class="status-dot" style="background:#06b6d4; box-shadow:0 0 8px #06b6d4;"></span>
+                                HÀNG LOẠT
+                            </span>
+                            <h3>Kiểm Tra Theo File CSV</h3>
+                        </div>
+
+                        <div class="preset-label">Máy chủ IMAP kiểm tra:</div>
+                        <div class="form-grid" style="margin-bottom: 16px;">
+                            <div class="form-group col-span-2">
+                                <label>Host IMAP Kiểm Tra</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/></svg>
+                                    </span>
+                                    <input type="text" id="batchAuthHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Port</label>
+                                <input type="number" id="batchAuthPort" value="993">
+                            </div>
+                            <div class="form-group">
+                                <label>SSL / TLS</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                    </span>
+                                    <select id="batchAuthSsl">
+                                        <option value="true" selected>SSL / TLS (993)</option>
+                                        <option value="false">STARTTLS / Plain (143)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mini Drop Zone for Auth Check -->
+                        <div id="authDropZone" class="drop-zone" style="padding: 24px 16px;">
+                            <div class="drop-zone-icon" style="margin-bottom: 8px;">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                            </div>
+                            <h4 style="font-size: 14px; font-weight:600; margin-bottom: 4px;">Kéo thả file CSV danh sách email/mật khẩu</h4>
+                            <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">Hỗ trợ file 2 cột (<code>email, password</code>) hoặc file 4 cột</p>
+                            <input type="file" id="authCsvFileInput" accept=".csv" style="display: none;">
+                            <div style="display: flex; gap: 10px; justify-content: center; align-items: center;">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('authCsvFileInput').click()">Chọn file CSV</button>
+                                <a href="/config/auth_check.example.csv" download class="example-link" style="font-size:12px;">Tải file mẫu (2 cột)</a>
+                            </div>
+                        </div>
+
+                        <!-- Action Bar for Batch Check -->
+                        <div id="authCheckActions" style="display: none; margin-top: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                                <div style="font-size: 13px;">
+                                    Đã nạp <strong id="authCheckTotalCount" style="color:var(--text-primary);">0</strong> tài khoản
+                                    <span id="authCheckStatsBadge"></span>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button type="button" class="btn btn-primary btn-sm" id="btnRunBatchAuthCheck">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span>Kiểm Tra Song Song</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                                <table class="data-table" id="authCheckTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 45px; text-align: center;">STT</th>
+                                            <th>Email</th>
+                                            <th style="text-align: center; width: 110px;">Độ Trễ</th>
+                                            <th style="text-align: center; width: 110px;">Kết Quả</th>
+                                            <th>Chi Tiết / Hướng Dẫn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="authCheckTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- TAB: Active & Running Background Tasks -->
             <section id="activeTasksTab" class="tab-pane">
                 <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:12px;">
@@ -897,41 +1111,181 @@
                 </div>
             </section>
 
-            <!-- TAB 4: Settings & Anti-Ban -->
+            <!-- TAB 4: Redesigned Comprehensive System Settings -->
             <section id="settingsTab" class="tab-pane">
                 <div class="pane-header">
                     <h2>Cài Đặt Hệ Thống</h2>
-                    <p>Tùy chỉnh thông số vận hành và kiểm soát tốc độ kết nối.</p>
+                    <p>Quản lý tham số đồng bộ dữ liệu, giới hạn tốc độ chống khóa tài khoản, bảo toàn dữ liệu và bảo mật quản trị.</p>
                 </div>
 
-                <div class="card" style="max-width: 820px;">
-                    <div class="form-grid">
-                        <div class="form-group col-span-2">
-                            <label>Khử Dấu Tiếng Việt Tên Thư Mục</label>
+                <div class="grid-2-cols" style="align-items: start; gap: 24px; margin-bottom: 24px;">
+                    <!-- Card 1: Performance & Anti-Ban Rate Limiting -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-neutral">
+                                <span class="status-dot" style="background:#6366f1; box-shadow:0 0 8px #6366f1;"></span>
+                                TỐC ĐỘ & HIỆU SUẤT
+                            </span>
+                            <h3>Kiểm Soát Kết Nối & Chống Khóa (Anti-Ban)</h3>
+                        </div>
+
+                        <div class="form-grid" style="margin-top: 14px;">
+                            <div class="form-group col-span-2">
+                                <label>Số Luồng Xử Lý Song Song (Workers Concurrency)</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    </span>
+                                    <input type="number" id="settingConcurrency" value="2" min="1" max="8">
+                                </div>
+                                <small class="helper-text">Khuyến nghị: 2 - 4 luồng để tránh bị máy chủ đích chặn IP hoặc quá tải CPU.</small>
+                            </div>
+
+                            <div class="form-group col-span-2">
+                                <label>Độ Trễ Nghỉ Giữa Các Email (ms)</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>
+                                    </span>
+                                    <input type="number" id="settingBatchDelay" value="50" min="0" max="5000">
+                                </div>
+                                <small class="helper-text">Mặc định 50ms. Tăng lên 200ms - 500ms nếu chuyển từ Gmail/Google Workspace để chống kích hoạt anti-abuse rate limit.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Kích Thước Khối Nạp (Batch Chunk)</label>
+                                <input type="number" id="settingBatchSize" value="50" min="10" max="200">
+                                <small class="helper-text">Số thư tải mỗi lượt.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Kích Thước Thư Tối Đa (MB)</label>
+                                <input type="number" id="settingMaxMsgSize" value="50" min="10" max="150">
+                                <small class="helper-text">Bỏ qua thư vượt kích thước.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Data Integrity & RFC Namespace Rules -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-source">
+                                <span class="status-dot" style="background:#10b981; box-shadow:0 0 8px #10b981;"></span>
+                                BẢO TOÀN DỮ LIỆU
+                            </span>
+                            <h3>Quy Tắc Thư Mục & Tương Thích Chuẩn</h3>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 14px;">
                             <label class="switch-container">
                                 <input type="checkbox" id="settingSanitizeAccents">
                                 <span class="slider"></span>
-                                <span style="margin-left: 12px; font-size: 13.5px; color: var(--text-muted);">
-                                    Tự động chuyển tên thư mục có dấu sang không dấu
-                                </span>
+                                <div style="margin-left: 12px;">
+                                    <strong style="display:block; font-size:13px; color:var(--text-primary); margin-bottom:2px;">Tự động chuẩn hóa dấu tiếng Việt</strong>
+                                    <span style="font-size:12px; color:var(--text-dim);">Chuyển tên thư mục có dấu thành không dấu (ví dụ: "Thư đã gửi" ➔ "Thu da gui") nếu máy chủ đích không hỗ trợ UTF-7.</span>
+                                </div>
+                            </label>
+
+                            <label class="switch-container">
+                                <input type="checkbox" id="settingAutoInboxPrefix" checked>
+                                <span class="slider"></span>
+                                <div style="margin-left: 12px;">
+                                    <strong style="display:block; font-size:13px; color:var(--text-primary); margin-bottom:2px;">Tự động bù tiền tố INBOX RFC 6154</strong>
+                                    <span style="font-size:12px; color:var(--text-dim);">Tự động phát hiện và thêm tiền tố "INBOX." cho các máy chủ Dovecot/cPanel yêu cầu chuẩn namespace.</span>
+                                </div>
+                            </label>
+
+                            <label class="switch-container">
+                                <input type="checkbox" id="settingSkipTrashSpam" checked>
+                                <span class="slider"></span>
+                                <div style="margin-left: 12px;">
+                                    <strong style="display:block; font-size:13px; color:var(--text-primary); margin-bottom:2px;">Bỏ qua thư mục Rác và Thư rác (Spam / Trash)</strong>
+                                    <span style="font-size:12px; color:var(--text-dim);">Không đồng bộ thư mục Junk, Spam, Trash để tối ưu thời gian và dung lượng lưu trữ máy chủ đích.</span>
+                                </div>
+                            </label>
+
+                            <label class="switch-container">
+                                <input type="checkbox" id="settingDeduplication" checked>
+                                <span class="slider"></span>
+                                <div style="margin-left: 12px;">
+                                    <strong style="display:block; font-size:13px; color:var(--text-primary); margin-bottom:2px;">Bảo vệ chống trùng lặp thư tuyệt đối</strong>
+                                    <span style="font-size:12px; color:var(--text-dim);">Đối chiếu Message-ID và nội dung MD5 hash trước khi ghi thư mới lên máy chủ đích.</span>
+                                </div>
                             </label>
                         </div>
+                    </div>
 
-                        <div class="form-group col-span-2">
-                            <label>Độ Trễ Giữa Các Batch (ms)</label>
-                            <input type="number" id="settingBatchDelay" value="50" min="0" max="5000">
-                            <small class="helper-text">Khuyến nghị: 50ms - 200ms để đảm bảo kết nối ổn định.</small>
+                    <!-- Card 3: Admin Credentials & Session Security -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-dest">
+                                <span class="status-dot" style="background:#f59e0b; box-shadow:0 0 8px #f59e0b;"></span>
+                                BẢO MẬT QUẢN TRỊ
+                            </span>
+                            <h3>Quản Lý Mật Khẩu Đăng Nhập Admin</h3>
                         </div>
 
-                        <div class="form-group">
-                            <label>Kích Thước Mỗi Batch (Email)</label>
-                            <input type="number" id="settingBatchSize" value="50" min="10" max="500">
+                        <div class="form-grid" style="margin-top: 14px;">
+                            <div class="form-group col-span-2">
+                                <label>Tài Khoản Đăng Nhập</label>
+                                <input type="text" id="settingAdminUser" value="admin" readonly style="opacity: 0.8; cursor: not-allowed;">
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Mật Khẩu Mới</label>
+                                <input type="password" id="settingAdminNewPass" placeholder="Nhập mật khẩu mới nếu muốn thay đổi">
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Xác Nhận Mật Khẩu Mới</label>
+                                <input type="password" id="settingAdminConfirmPass" placeholder="Nhập lại mật khẩu mới">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: System Information & Status -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-neutral">HẠ TẦNG</span>
+                            <h3>Thông Tin Môi Trường & Lưu Trữ</h3>
                         </div>
 
-                        <div class="form-group">
-                            <label>Giới Hạn Dung Lượng Mỗi Email (MB)</label>
-                            <input type="number" id="settingMaxMsgSize" value="50" min="10" max="150">
+                        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                                <span style="color:var(--text-muted);">Hệ quản trị CSDL:</span>
+                                <strong>SQLite 3 with WAL Mode (Write-Ahead Logging)</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                                <span style="color:var(--text-muted);">Giao thức IMAP:</span>
+                                <strong>RFC 3501 (IMAP4rev1) + SSL/TLS Socket Engine</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                                <span style="color:var(--text-muted);">Cơ chế bảo vệ:</span>
+                                <strong>Brute-Force Rate Limiter (5 lần/15 phút)</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+                                <span style="color:var(--text-muted);">Thời gian phiên (Cookie):</span>
+                                <strong>24 Giờ (HttpOnly, SameSite=Lax)</strong>
+                            </div>
                         </div>
+
+                        <div style="margin-top: 18px; display: flex; gap: 10px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnClearAllCacheBtn">
+                                <span>Xóa Bộ Nhớ Cache Phiên</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Save Action Bar -->
+                <div class="action-bar-row" style="padding: 16px 20px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div style="font-size: 13px; color: var(--text-muted);">
+                        Nhấn <strong>"Lưu Cài Đặt"</strong> để áp dụng các thay đổi cấu hình cho hệ thống.
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-secondary" id="btnResetSettings">Khôi Phục Mặc Định</button>
+                        <button type="button" class="btn btn-primary" id="btnSaveSettings">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            <span>Lưu Cài Đặt Hệ Thống</span>
+                        </button>
                     </div>
                 </div>
             </section>

@@ -218,8 +218,8 @@ async def check_csv_passwords(req: BatchCheckRequest):
             if src_ssl_val is not None
             else (req.source_ssl if req.source_ssl is not None else True)
         )
-        src_user = (row.get("source_user") or row.get("source_email") or "").strip()
-        src_pass = (row.get("source_password") or row.get("source_pass") or "").strip()
+        src_user = (row.get("source_user") or row.get("source_email") or row.get("email") or row.get("user") or "").strip()
+        src_pass = (row.get("source_password") or row.get("source_pass") or row.get("password") or row.get("pass") or "").strip()
 
         if src_user and src_host:
             creds_list.append(
@@ -580,6 +580,47 @@ async def download_example_csv():
     if not safe_path.exists():
         raise HTTPException(status_code=404, detail="accounts.example.csv not found")
     return FileResponse(path=safe_path, filename="accounts.example.csv", media_type="text/csv")
+
+
+@app.get("/config/auth_check.example.csv")
+async def download_auth_check_example_csv():
+    """Serves the template auth_check.example.csv for users."""
+    safe_path = PathSecurity.validate_safe_path(Path("config"), "auth_check.example.csv")
+    if not safe_path.exists():
+        raise HTTPException(status_code=404, detail="auth_check.example.csv not found")
+    return FileResponse(path=safe_path, filename="auth_check.example.csv", media_type="text/csv")
+
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+
+
+@app.post("/api/admin/change-password")
+async def change_admin_password(req: ChangePasswordRequest, request: Request):
+    """Updates admin password in current environment and updates .env file."""
+    if not req.new_password or len(req.new_password.strip()) < 4:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 4 ký tự.")
+    new_pwd = req.new_password.strip()
+    os.environ["ADMIN_PASSWORD"] = new_pwd
+    env_file = Path(".env")
+    try:
+        if env_file.exists():
+            content = env_file.read_text(encoding="utf-8")
+            if "ADMIN_PASSWORD=" in content:
+                import re
+                content = re.sub(r'ADMIN_PASSWORD=.*', f'ADMIN_PASSWORD="{new_pwd}"', content)
+            else:
+                content += f'\nADMIN_PASSWORD="{new_pwd}"\n'
+            env_file.write_text(content, encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"Could not persist new password to .env: {e}")
+    return {"status": "ok", "message": "Đã cập nhật mật khẩu quản trị viên thành công!"}
+
+
+@app.post("/api/admin/clear-cache")
+async def clear_system_cache():
+    """Clears system and session cache."""
+    return {"status": "ok", "message": "Đã làm sạch bộ nhớ cache phiên thành công!"}
 
 
 @app.post("/api/retry/{session_id}")

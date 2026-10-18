@@ -1,11 +1,11 @@
-// Py-IMAP Web Admin Control Panel Client Logic (Minimalist Monochrome Edition)
-
 document.addEventListener("DOMContentLoaded", () => {
     initThemeSwitcher();
     initTabs();
     initProviderChips();
     initSingleAccountTab();
     initDropZone();
+    initAuthCheckTab();
+    initSettingsTab();
     initActiveTasksTab();
     initSessionsTab();
     initLogDrawer();
@@ -16,6 +16,17 @@ document.addEventListener("DOMContentLoaded", () => {
     loadActiveTasks();
     setInterval(loadActiveTasks, 3000);
 });
+
+// HTML escaping helper
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 // Toast notification helper
 function showToast(message, type = "info") {
@@ -1426,7 +1437,8 @@ function showSessionDetail(s) {
 function setupPasswordToggles() {
     [
         { inputId: "srcPass", btnId: "toggleSrcPass" },
-        { inputId: "dstPass", btnId: "toggleDstPass" }
+        { inputId: "dstPass", btnId: "toggleDstPass" },
+        { inputId: "singleAuthPass", btnId: "toggleSingleAuthPass" }
     ].forEach(({ inputId, btnId }) => {
         const input = document.getElementById(inputId);
         const btn = document.getElementById(btnId);
@@ -1459,5 +1471,443 @@ function setupHistorySearch() {
             r.style.display = text.includes(query) ? "" : "none";
         });
     });
+}
+
+// --------------------------------------------------------------------------
+// STANDALONE AUTH CHECKER (SINGLE & BATCH CSV)
+// --------------------------------------------------------------------------
+let parsedAuthCsvData = [];
+
+function initAuthCheckTab() {
+    // 1. Single Auth Check
+    const btnTestSingle = document.getElementById("btnTestSingleAuth");
+    if (btnTestSingle) {
+        btnTestSingle.addEventListener("click", async () => {
+            const host = document.getElementById("singleAuthHost")?.value.trim();
+            const port = parseInt(document.getElementById("singleAuthPort")?.value) || 993;
+            const ssl = document.getElementById("singleAuthSsl")?.value === "true";
+            const user = document.getElementById("singleAuthUser")?.value.trim();
+            const pass = document.getElementById("singleAuthPass")?.value;
+            const resBox = document.getElementById("singleAuthResultBox");
+
+            if (!host || !user || !pass) {
+                showToast("Vui lòng nhập đầy đủ Host, Email và Mật khẩu", "error");
+                return;
+            }
+
+            btnTestSingle.disabled = true;
+            const originalHtml = btnTestSingle.innerHTML;
+            btnTestSingle.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                    <path d="M12 2a10 10 0 0 1 10 10"/>
+                </svg>
+                <span>Đang kiểm tra kết nối...</span>
+            `;
+            if (resBox) resBox.style.display = "none";
+
+            const t0 = performance.now();
+            try {
+                const resp = await fetch("/api/check-password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ host, port, ssl, username: user, password: pass })
+                });
+                const elapsed = Math.round(performance.now() - t0);
+                const data = await resp.json();
+
+                if (resBox) {
+                    resBox.style.display = "block";
+                    if (data.is_valid) {
+                        resBox.innerHTML = `
+                            <div style="padding: 14px 18px; border-radius: 10px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 28px; height: 28px; border-radius: 50%; background: #10b981; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">✓</div>
+                                    <div>
+                                        <strong style="color: #34d399; font-size: 13.5px; display: block;">Mật khẩu chính xác & Xác thực thành công!</strong>
+                                        <span style="font-size: 12px; color: var(--text-dim);">Kết nối an toàn đến <code>${escapeHtml(data.host)}</code></span>
+                                    </div>
+                                </div>
+                                <span class="badge badge-success" style="font-size: 11.5px; font-weight: 600;">${data.latency_ms || elapsed} ms</span>
+                            </div>
+                        `;
+                        showToast("Xác thực tài khoản thành công!", "success");
+                    } else {
+                        resBox.innerHTML = `
+                            <div style="padding: 14px 18px; border-radius: 10px; background: rgba(244, 63, 94, 0.12); border: 1px solid rgba(244, 63, 94, 0.3); display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: #fb7185; font-size: 16px; font-weight: bold;">✕</span>
+                                        <strong style="color: #fb7185; font-size: 13.5px;">Xác thực thất bại</strong>
+                                    </div>
+                                    <span class="badge badge-danger">${elapsed} ms</span>
+                                </div>
+                                <p style="font-size: 12.5px; color: var(--text-primary); margin: 0;">${escapeHtml(data.error_reason || "Mật khẩu không đúng hoặc máy chủ từ chối kết nối.")}</p>
+                                ${data.provider_hint ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(244, 63, 94, 0.2);">💡 Gợi ý: ${escapeHtml(data.provider_hint)}</div>` : ''}
+                            </div>
+                        `;
+                        showToast("Xác thực thất bại! Vui lòng kiểm tra lại thông tin.", "error");
+                    }
+                }
+            } catch (err) {
+                if (resBox) {
+                    resBox.style.display = "block";
+                    resBox.innerHTML = `
+                        <div style="padding: 14px 18px; border-radius: 10px; background: rgba(244, 63, 94, 0.12); border: 1px solid rgba(244, 63, 94, 0.3);">
+                            <strong style="color: #fb7185; font-size: 13px;">Lỗi kết nối máy chủ</strong>
+                            <p style="font-size: 12px; color: var(--text-dim); margin: 4px 0 0 0;">${escapeHtml(err.message)}</p>
+                        </div>
+                    `;
+                }
+                showToast("Lỗi kết nối máy chủ: " + err.message, "error");
+            } finally {
+                btnTestSingle.disabled = false;
+                btnTestSingle.innerHTML = originalHtml;
+            }
+        });
+    }
+
+    // 2. Batch CSV Drop Zone
+    const authDropZone = document.getElementById("authDropZone");
+    const authFileInput = document.getElementById("authCsvFileInput");
+
+    if (authDropZone && authFileInput) {
+        ["dragenter", "dragover"].forEach(name => {
+            authDropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                authDropZone.classList.add("dragover");
+            });
+        });
+        ["dragleave", "drop"].forEach(name => {
+            authDropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                authDropZone.classList.remove("dragover");
+            });
+        });
+
+        authDropZone.addEventListener("drop", (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.toLowerCase().endsWith(".csv")) {
+                parseAuthCsvFile(files[0]);
+            } else {
+                showToast("Vui lòng tải lên file định dạng CSV (.csv)", "error");
+            }
+        });
+
+        authFileInput.addEventListener("change", (e) => {
+            if (e.target.files.length > 0) {
+                parseAuthCsvFile(e.target.files[0]);
+            }
+        });
+    }
+
+    // 3. Run Batch Check
+    const btnRunBatch = document.getElementById("btnRunBatchAuthCheck");
+    if (btnRunBatch) {
+        btnRunBatch.addEventListener("click", runBatchAuthCheck);
+    }
+}
+
+function parseAuthCsvFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) {
+            showToast("File CSV rỗng", "error");
+            return;
+        }
+
+        parsedAuthCsvData = [];
+        let startIndex = 0;
+        const firstLineLower = lines[0].toLowerCase();
+        if (firstLineLower.includes("email") || firstLineLower.includes("user") || firstLineLower.includes("source")) {
+            startIndex = 1;
+        }
+
+        for (let i = startIndex; i < lines.length; i++) {
+            const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ''));
+            if (cols.length >= 2 && cols[0]) {
+                parsedAuthCsvData.push({
+                    email: cols[0],
+                    password: cols[1] || "",
+                    status: "pending",
+                    latency_ms: null,
+                    message: "Chờ kiểm tra"
+                });
+            }
+        }
+
+        if (parsedAuthCsvData.length === 0) {
+            showToast("Không tìm thấy dữ liệu tài khoản hợp lệ trong CSV", "error");
+            return;
+        }
+
+        const actionsContainer = document.getElementById("authCheckActions");
+        if (actionsContainer) actionsContainer.style.display = "block";
+        const totalCountEl = document.getElementById("authCheckTotalCount");
+        if (totalCountEl) totalCountEl.textContent = parsedAuthCsvData.length;
+        const statsEl = document.getElementById("authCheckStatsBadge");
+        if (statsEl) statsEl.innerHTML = "";
+
+        renderAuthCsvTable();
+        showToast(`Đã nạp ${parsedAuthCsvData.length} tài khoản từ file CSV`, "success");
+    };
+    reader.readAsText(file);
+}
+
+function renderAuthCsvTable() {
+    const tbody = document.getElementById("authCheckTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = parsedAuthCsvData.map((row, idx) => {
+        let statusBadge = '<span class="badge badge-neutral">Chờ kiểm tra</span>';
+        if (row.status === "testing") {
+            statusBadge = '<span class="badge badge-neutral"><span class="status-dot"></span> Đang thử...</span>';
+        } else if (row.status === "success") {
+            statusBadge = '<span class="badge badge-success"><span class="status-dot" style="background:#10b981;"></span> Hợp lệ</span>';
+        } else if (row.status === "failed") {
+            statusBadge = '<span class="badge badge-danger"><span class="status-dot" style="background:#f43f5e;"></span> Thất bại</span>';
+        }
+
+        const latencyText = row.latency_ms !== null ? `<span class="mono-font" style="font-size:12px;">${row.latency_ms} ms</span>` : '-';
+        return `
+            <tr id="authCheckRow_${idx}">
+                <td style="text-align: center; color: var(--text-dim); font-size:12px;">${idx + 1}</td>
+                <td style="font-weight: 500;">${escapeHtml(row.email)}</td>
+                <td style="text-align: center;">${latencyText}</td>
+                <td style="text-align: center;">${statusBadge}</td>
+                <td style="font-size: 12px; color: ${row.status === 'failed' ? '#fb7185' : 'var(--text-muted)'};">${escapeHtml(row.message || '')}</td>
+            </tr>
+        `;
+    }).join("");
+}
+
+async function runBatchAuthCheck() {
+    if (!parsedAuthCsvData || parsedAuthCsvData.length === 0) {
+        showToast("Chưa có danh sách tài khoản để kiểm tra", "error");
+        return;
+    }
+    const host = document.getElementById("batchAuthHost")?.value.trim();
+    const port = parseInt(document.getElementById("batchAuthPort")?.value) || 993;
+    const ssl = document.getElementById("batchAuthSsl")?.value === "true";
+
+    if (!host) {
+        showToast("Vui lòng nhập Host máy chủ IMAP kiểm tra", "error");
+        return;
+    }
+
+    const btn = document.getElementById("btnRunBatchAuthCheck");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                <path d="M12 2a10 10 0 0 1 10 10"/>
+            </svg>
+            <span>Đang kiểm tra...</span>
+        `;
+    }
+
+    parsedAuthCsvData.forEach(r => {
+        r.status = "testing";
+        r.message = "Đang kết nối...";
+    });
+    renderAuthCsvTable();
+
+    try {
+        const payload = {
+            source_host: host,
+            source_port: port,
+            source_ssl: ssl,
+            accounts: parsedAuthCsvData.map(r => ({
+                email: r.email,
+                password: r.password
+            }))
+        };
+        const resp = await fetch("/api/check-csv", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+        const results = await resp.json();
+        let successCount = 0;
+        let failCount = 0;
+
+        results.forEach((res, idx) => {
+            if (idx < parsedAuthCsvData.length) {
+                parsedAuthCsvData[idx].status = res.is_valid ? "success" : "failed";
+                parsedAuthCsvData[idx].latency_ms = res.latency_ms;
+                parsedAuthCsvData[idx].message = res.is_valid
+                    ? "Xác thực thành công"
+                    : (res.error_reason || "Mật khẩu không hợp lệ") + (res.provider_hint ? ` (${res.provider_hint})` : "");
+                if (res.is_valid) successCount++; else failCount++;
+            }
+        });
+
+        renderAuthCsvTable();
+        const statsEl = document.getElementById("authCheckStatsBadge");
+        if (statsEl) {
+            statsEl.innerHTML = `
+                <span class="badge badge-success" style="margin-left:8px;">${successCount} hợp lệ</span>
+                ${failCount > 0 ? `<span class="badge badge-danger" style="margin-left:4px;">${failCount} lỗi</span>` : ''}
+            `;
+        }
+        showToast(`Hoàn tất kiểm tra: ${successCount} hợp lệ, ${failCount} thất bại`, successCount > 0 ? "success" : "error");
+    } catch (err) {
+        showToast("Lỗi kiểm tra hàng loạt: " + err.message, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Kiểm Tra Song Song</span>
+            `;
+        }
+    }
+}
+
+// --------------------------------------------------------------------------
+// SYSTEM SETTINGS TAB LOGIC
+// --------------------------------------------------------------------------
+function initSettingsTab() {
+    // 1. Load saved settings from localStorage
+    const savedWorkers = localStorage.getItem("setting_workers");
+    if (savedWorkers && document.getElementById("settingWorkers")) {
+        document.getElementById("settingWorkers").value = savedWorkers;
+    }
+    const savedDelay = localStorage.getItem("setting_batch_delay");
+    if (savedDelay && document.getElementById("settingBatchDelay")) {
+        document.getElementById("settingBatchDelay").value = savedDelay;
+    }
+    const savedBatchSize = localStorage.getItem("setting_batch_size");
+    if (savedBatchSize && document.getElementById("settingBatchSize")) {
+        document.getElementById("settingBatchSize").value = savedBatchSize;
+    }
+    const savedMaxMsgSize = localStorage.getItem("setting_max_msg_size");
+    if (savedMaxMsgSize && document.getElementById("settingMaxMsgSize")) {
+        document.getElementById("settingMaxMsgSize").value = savedMaxMsgSize;
+    }
+
+    const savedSanitizeAccents = localStorage.getItem("setting_sanitize_accents");
+    if (savedSanitizeAccents !== null && document.getElementById("settingSanitizeAccents")) {
+        document.getElementById("settingSanitizeAccents").checked = savedSanitizeAccents === "true";
+    }
+    const savedAutoInbox = localStorage.getItem("setting_auto_inbox");
+    if (savedAutoInbox !== null && document.getElementById("settingAutoInboxPrefix")) {
+        document.getElementById("settingAutoInboxPrefix").checked = savedAutoInbox === "true";
+    }
+    const savedSkipTrash = localStorage.getItem("setting_skip_trash");
+    if (savedSkipTrash !== null && document.getElementById("settingSkipTrashSpam")) {
+        document.getElementById("settingSkipTrashSpam").checked = savedSkipTrash === "true";
+    }
+    const savedDeduplication = localStorage.getItem("setting_deduplication");
+    if (savedDeduplication !== null && document.getElementById("settingDeduplication")) {
+        document.getElementById("settingDeduplication").checked = savedDeduplication === "true";
+    }
+
+    // 2. Save Settings Handler
+    const btnSave = document.getElementById("btnSaveSettings");
+    if (btnSave) {
+        btnSave.addEventListener("click", async () => {
+            const workers = document.getElementById("settingWorkers")?.value;
+            const delay = document.getElementById("settingBatchDelay")?.value;
+            const batchSize = document.getElementById("settingBatchSize")?.value;
+            const maxMsgSize = document.getElementById("settingMaxMsgSize")?.value;
+            const sanitizeAccents = document.getElementById("settingSanitizeAccents")?.checked;
+            const autoInbox = document.getElementById("settingAutoInboxPrefix")?.checked;
+            const skipTrash = document.getElementById("settingSkipTrashSpam")?.checked;
+            const deduplication = document.getElementById("settingDeduplication")?.checked;
+
+            if (workers) localStorage.setItem("setting_workers", workers);
+            if (delay) localStorage.setItem("setting_batch_delay", delay);
+            if (batchSize) localStorage.setItem("setting_batch_size", batchSize);
+            if (maxMsgSize) localStorage.setItem("setting_max_msg_size", maxMsgSize);
+            localStorage.setItem("setting_sanitize_accents", sanitizeAccents);
+            localStorage.setItem("setting_auto_inbox", autoInbox);
+            localStorage.setItem("setting_skip_trash", skipTrash);
+            localStorage.setItem("setting_deduplication", deduplication);
+
+            // Check if admin password change was requested
+            const newPass = document.getElementById("settingAdminNewPass")?.value.trim();
+            const confirmPass = document.getElementById("settingAdminConfirmPass")?.value.trim();
+            if (newPass) {
+                if (newPass !== confirmPass) {
+                    showToast("Mật khẩu mới và mật khẩu xác nhận không khớp!", "error");
+                    return;
+                }
+                if (newPass.length < 4) {
+                    showToast("Mật khẩu mới phải có tối thiểu 4 ký tự!", "error");
+                    return;
+                }
+                try {
+                    const resp = await fetch("/api/admin/change-password", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ new_password: newPass })
+                    });
+                    const res = await resp.json();
+                    if (!resp.ok) throw new Error(res.detail || "Không thể đổi mật khẩu");
+                    document.getElementById("settingAdminNewPass").value = "";
+                    document.getElementById("settingAdminConfirmPass").value = "";
+                    showToast(res.message || "Đã đổi mật khẩu admin thành công!", "success");
+                } catch (e) {
+                    showToast("Lỗi cập nhật mật khẩu: " + e.message, "error");
+                    return;
+                }
+            }
+
+            showToast("Đã lưu toàn bộ cài đặt hệ thống thành công!", "success");
+        });
+    }
+
+    // 3. Reset Settings Handler
+    const btnReset = document.getElementById("btnResetSettings");
+    if (btnReset) {
+        btnReset.addEventListener("click", () => {
+            if (!confirm("Bạn có chắc chắn muốn đặt lại tất cả cài đặt về mặc định của hệ thống?")) return;
+            localStorage.removeItem("setting_workers");
+            localStorage.removeItem("setting_batch_delay");
+            localStorage.removeItem("setting_batch_size");
+            localStorage.removeItem("setting_max_msg_size");
+            localStorage.removeItem("setting_sanitize_accents");
+            localStorage.removeItem("setting_auto_inbox");
+            localStorage.removeItem("setting_skip_trash");
+            localStorage.removeItem("setting_deduplication");
+
+            if (document.getElementById("settingWorkers")) document.getElementById("settingWorkers").value = "2";
+            if (document.getElementById("settingBatchDelay")) document.getElementById("settingBatchDelay").value = "50";
+            if (document.getElementById("settingBatchSize")) document.getElementById("settingBatchSize").value = "50";
+            if (document.getElementById("settingMaxMsgSize")) document.getElementById("settingMaxMsgSize").value = "50";
+            if (document.getElementById("settingSanitizeAccents")) document.getElementById("settingSanitizeAccents").checked = false;
+            if (document.getElementById("settingAutoInboxPrefix")) document.getElementById("settingAutoInboxPrefix").checked = true;
+            if (document.getElementById("settingSkipTrashSpam")) document.getElementById("settingSkipTrashSpam").checked = true;
+            if (document.getElementById("settingDeduplication")) document.getElementById("settingDeduplication").checked = true;
+
+            showToast("Đã khôi phục cài đặt mặc định!", "info");
+        });
+    }
+
+    // 4. Clear Cache Button
+    const btnClearCache = document.getElementById("btnClearAllCacheBtn");
+    if (btnClearCache) {
+        btnClearCache.addEventListener("click", async () => {
+            btnClearCache.disabled = true;
+            try {
+                const resp = await fetch("/api/admin/clear-cache", { method: "POST" });
+                const res = await resp.json();
+                showToast(res.message || "Đã làm sạch bộ nhớ đệm!", "success");
+            } catch (err) {
+                showToast("Lỗi làm sạch bộ nhớ đệm", "error");
+            } finally {
+                btnClearCache.disabled = false;
+            }
+        });
+    }
 }
 
