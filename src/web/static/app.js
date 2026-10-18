@@ -457,7 +457,7 @@ function renderInspectionResults(data) {
 
     if (data.is_dual && data.reconciliation) {
         const recon = data.reconciliation;
-        if (titleEl) titleEl.textContent = "Kết Quả Đối Chiếu Nguồn & Đích (Dual Pre-flight Scan)";
+        if (titleEl) titleEl.textContent = "Kết Quả Đối Chiếu Nguồn & Đích";
 
         badgeContainer.innerHTML = `
             <span class="badge badge-neutral" style="font-weight: 600;" title="Dữ liệu trên máy chủ nguồn">Nguồn: ${recon.source_size_mb} MB (${(recon.source_messages || 0).toLocaleString()} thư)</span>
@@ -471,7 +471,7 @@ function renderInspectionResults(data) {
                 <div style="display: flex; align-items: flex-start; gap: 10px;">
                     <div style="font-size: 16px;">🛡️</div>
                     <div style="font-size: 12px; line-height: 1.5; color: var(--text-muted);">
-                        <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Nguyên tắc 100% Append-Only & Chống trùng email:</strong>
+                        <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">Nguyên tắc an toàn & chống trùng email:</strong>
                         ${recon.safe_mode_guarantee}
                         ${recon.dest_existing_messages > 0 ? `<br><span style="color: #16a34a; font-weight: 600;">✓ Máy chủ đích đang có ${recon.dest_existing_messages.toLocaleString()} thư (${recon.dest_existing_size_mb} MB). Hệ thống giữ nguyên vẹn 100% thư này và chỉ bổ sung các email chưa có.</span>` : ''}
                     </div>
@@ -479,7 +479,7 @@ function renderInspectionResults(data) {
             `;
         }
     } else {
-        if (titleEl) titleEl.textContent = "Kết Quả Quét Hộp Thư Nguồn (Pre-flight Inspection)";
+        if (titleEl) titleEl.textContent = "Kết Quả Quét Hộp Thư Nguồn";
         if (reconBox) reconBox.style.display = "none";
 
         badgeContainer.innerHTML = `

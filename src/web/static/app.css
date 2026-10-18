@@ -1731,3 +1731,13 @@ select:focus {
         gap: 12px;
     }
 }
+
+/* --------------------------------------------------------------------------
+   21. ALIGNMENT & TYPOGRAPHY UTILITIES
+   -------------------------------------------------------------------------- */
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.align-middle { vertical-align: middle !important; }
+.nowrap { white-space: nowrap !important; }
+
