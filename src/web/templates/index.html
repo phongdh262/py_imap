@@ -1198,23 +1198,147 @@
 
             <!-- TAB: Active & Running Background Tasks -->
             <section id="activeTasksTab" class="tab-pane">
-                <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:12px;">
+                <!-- Header with Action Toolbar -->
+                <div class="pane-header tasks-control-header">
                     <div>
-                        <h2>Tiến Trình Đang Chạy</h2>
-                        <p>Theo dõi các tác vụ ngầm đang hoạt động trên hệ thống.</p>
+                        <div class="tasks-title-row">
+                            <h2>Tiến Trình Đang Chạy</h2>
+                            <div class="live-status-pill" id="livePollingIndicator">
+                                <span class="live-pulse-dot"></span>
+                                <span class="live-pulse-text">Giám sát trực tiếp (3s)</span>
+                            </div>
+                        </div>
+                        <p>Theo dõi thời gian thực, giám sát tốc độ và điều khiển các tác vụ di chuyển email ngầm.</p>
                     </div>
-                    <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshTasks">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                        </svg>
-                        <span>Làm mới</span>
-                    </button>
+                    <div class="tasks-header-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshTasks" title="Làm mới danh sách tiến trình">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                            <span>Làm mới</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm text-muted" id="btnClearCompletedTasks" title="Dọn dẹp các tác vụ đã hoàn thành hoặc thất bại">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                            <span>Dọn dẹp đã xong</span>
+                        </button>
+                        <div class="dropdown-quick-start">
+                            <button type="button" class="btn btn-primary btn-sm" id="btnQuickNewTask">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Tạo Tiến Trình Mới</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="activeTasksList" class="tasks-grid">
-                    <div class="card" style="text-align: center; color: var(--text-muted); padding: 36px;">
-                        Hiện không có tiến trình nào đang chạy ngầm.
+                <!-- 4 Top Aggregate Summary Metric Cards -->
+                <div class="tasks-metrics-grid">
+                    <div class="task-metric-card" id="metricCardRunning">
+                        <div class="metric-icon-box metric-running-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                            </svg>
+                        </div>
+                        <div class="metric-info">
+                            <div class="metric-top-row">
+                                <span class="metric-label">ĐANG CHẠY</span>
+                                <span class="metric-sub-badge" id="metricActiveWorkers">0 tác vụ</span>
+                            </div>
+                            <div class="metric-value-huge" id="statTotalRunning">0</div>
+                            <div class="metric-desc">Tác vụ đang truyền tải dữ liệu</div>
+                        </div>
                     </div>
+
+                    <div class="task-metric-card">
+                        <div class="metric-icon-box metric-success-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <div class="metric-info">
+                            <div class="metric-top-row">
+                                <span class="metric-label">CHUYỂN THÀNH CÔNG</span>
+                            </div>
+                            <div class="metric-value-huge text-success" id="statTotalSuccess">0</div>
+                            <div class="metric-desc">Thư điện tử đã sang máy chủ đích</div>
+                        </div>
+                    </div>
+
+                    <div class="task-metric-card">
+                        <div class="metric-icon-box metric-skipped-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                        </div>
+                        <div class="metric-info">
+                            <div class="metric-top-row">
+                                <span class="metric-label">TRÙNG LẶP (BỎ QUA)</span>
+                            </div>
+                            <div class="metric-value-huge text-info" id="statTotalSkipped">0</div>
+                            <div class="metric-desc">Đã tồn tại, bảo toàn an toàn</div>
+                        </div>
+                    </div>
+
+                    <div class="task-metric-card">
+                        <div class="metric-icon-box metric-failed-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        <div class="metric-info">
+                            <div class="metric-top-row">
+                                <span class="metric-label">GẶP LỖI / THẤT BẠI</span>
+                            </div>
+                            <div class="metric-value-huge text-danger" id="statTotalFailed">0</div>
+                            <div class="metric-desc">Thư lỗi hoặc rớt kết nối</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls & Filter Toolbar -->
+                <div class="tasks-filter-bar">
+                    <div class="tasks-filter-pills" id="taskStatusFilters">
+                        <button type="button" class="filter-pill active" data-filter="all">
+                            <span>Tất cả</span>
+                            <span class="pill-count" id="filterCountAll">0</span>
+                        </button>
+                        <button type="button" class="filter-pill" data-filter="RUNNING">
+                            <span class="filter-dot dot-running"></span>
+                            <span>Đang chạy</span>
+                            <span class="pill-count" id="filterCountRunning">0</span>
+                        </button>
+                        <button type="button" class="filter-pill" data-filter="COMPLETED">
+                            <span class="filter-dot dot-completed"></span>
+                            <span>Hoàn tất</span>
+                            <span class="pill-count" id="filterCountCompleted">0</span>
+                        </button>
+                        <button type="button" class="filter-pill" data-filter="FAILED_STOPPED">
+                            <span class="filter-dot dot-failed"></span>
+                            <span>Lỗi / Đã dừng</span>
+                            <span class="pill-count" id="filterCountFailed">0</span>
+                        </button>
+                    </div>
+
+                    <div class="tasks-filter-search">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="taskFilterSearchInput" placeholder="Tìm kiếm theo email, task ID...">
+                    </div>
+                </div>
+
+                <!-- Main Task List Cards Grid -->
+                <div id="activeTasksList" class="tasks-pro-grid">
+                    <!-- Populated dynamically by app.js -->
                 </div>
             </section>
 

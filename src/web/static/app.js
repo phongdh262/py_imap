@@ -1152,6 +1152,85 @@ function renderCsvPreview() {
 }
 
 // Active Tasks & Background Queue Manager Logic
+let currentTaskFilter = "all";
+let taskSearchTerm = "";
+let cachedActiveTasks = [];
+
+function formatSeconds(sec) {
+    if (!sec || isNaN(sec) || sec < 0) return "00:00";
+    const totalSec = Math.floor(sec);
+    const hours = Math.floor(totalSec / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+    if (hours > 0) {
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function copyTaskId(id) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(id).then(() => {
+            showToast(`Đã sao chép Task ID: ${id}`, "info");
+        });
+    } else {
+        showToast(`Task ID: ${id}`, "info");
+    }
+}
+
+function viewTaskLogs(taskId, source) {
+    const drawer = document.getElementById("logDrawer");
+    if (drawer && drawer.classList.contains("collapsed")) {
+        toggleDrawer();
+    }
+    appendTerminalLog(`--- Đang theo dõi tiến trình [${taskId}] ${source || ''} ---`, "info");
+    const body = document.getElementById("drawerConsoleBody");
+    if (body) body.scrollTop = body.scrollHeight;
+}
+
+async function stopActiveTask(taskId, source) {
+    const confirmed = confirm(`Xác nhận dừng tiến trình di chuyển cho ${source || taskId}?\n\nLưu ý: Thư đã chuyển sang máy chủ đích sẽ được giữ nguyên vẹn an toàn 100%.`);
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`/api/tasks/stop/${encodeURIComponent(taskId)}`, { method: "POST" });
+        if (res.ok) {
+            showToast(`Đã gửi lệnh dừng tiến trình ${taskId}`, "warning");
+            appendTerminalLog(`[TASK STOPPED] Đã gửi lệnh dừng tác vụ ${taskId} (${source})`, "warning");
+            loadActiveTasks();
+        } else {
+            showToast("Không thể gửi lệnh dừng tiến trình", "error");
+        }
+    } catch (e) {
+        showToast(`Lỗi: ${e.message}`, "error");
+    }
+}
+
+async function deleteActiveTask(taskId) {
+    try {
+        const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, { method: "DELETE" });
+        if (res.ok) {
+            showToast("Đã gỡ tiến trình khỏi danh sách giám sát", "info");
+            loadActiveTasks();
+        }
+    } catch (e) {
+        showToast(`Lỗi: ${e.message}`, "error");
+    }
+}
+
+async function clearCompletedTasks() {
+    try {
+        const res = await fetch("/api/tasks/clear-completed", { method: "POST" });
+        if (res.ok) {
+            const data = await res.json();
+            showToast(`Đã dọn dẹp ${data.cleared_count || 0} tiến trình đã kết thúc`, "success");
+            loadActiveTasks();
+        }
+    } catch (e) {
+        showToast(`Lỗi: ${e.message}`, "error");
+    }
+}
+
 function initActiveTasksTab() {
     const btnMin = document.getElementById("btnMinimizeProgress");
     if (btnMin) {
@@ -1177,6 +1256,38 @@ function initActiveTasksTab() {
     const btnRefresh = document.getElementById("btnRefreshTasks");
     if (btnRefresh) {
         btnRefresh.addEventListener("click", loadActiveTasks);
+    }
+
+    const btnClearCompleted = document.getElementById("btnClearCompletedTasks");
+    if (btnClearCompleted) {
+        btnClearCompleted.addEventListener("click", clearCompletedTasks);
+    }
+
+    const btnQuickNew = document.getElementById("btnQuickNewTask");
+    if (btnQuickNew) {
+        btnQuickNew.addEventListener("click", () => {
+            switchToTab("singleTab");
+        });
+    }
+
+    // Status Filter Pills
+    const filterPills = document.querySelectorAll("#taskStatusFilters .filter-pill");
+    filterPills.forEach(pill => {
+        pill.addEventListener("click", () => {
+            filterPills.forEach(p => p.classList.remove("active"));
+            pill.classList.add("active");
+            currentTaskFilter = pill.getAttribute("data-filter") || "all";
+            renderActiveTasksCards(cachedActiveTasks);
+        });
+    });
+
+    // Real-time search filter
+    const searchInput = document.getElementById("taskFilterSearchInput");
+    if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+            taskSearchTerm = e.target.value.trim().toLowerCase();
+            renderActiveTasksCards(cachedActiveTasks);
+        });
     }
 }
 
@@ -1217,9 +1328,47 @@ async function loadActiveTasks() {
         const res = await fetch("/api/tasks/active");
         if (!res.ok) return;
         const tasks = await res.json();
+        cachedActiveTasks = tasks;
 
-        // 1. Update Active Tasks Badge in Sidebar
+        // 1. Calculate Aggregate Metrics
         const runningTasks = tasks.filter(t => t.status === "RUNNING");
+        const completedTasks = tasks.filter(t => t.status === "COMPLETED");
+        const failedOrStoppedTasks = tasks.filter(t => ["FAILED", "STOPPED", "PARTIAL"].includes(t.status));
+
+        let totalSuccess = 0;
+        let totalSkipped = 0;
+        let totalFailed = 0;
+        tasks.forEach(t => {
+            totalSuccess += (t.success || 0);
+            totalSkipped += (t.skipped || 0);
+            totalFailed += (t.failed || 0);
+        });
+
+        // 2. Update Header Metric Cards
+        const elRunning = document.getElementById("statTotalRunning");
+        const elActiveWorkers = document.getElementById("metricActiveWorkers");
+        const elSuccess = document.getElementById("statTotalSuccess");
+        const elSkipped = document.getElementById("statTotalSkipped");
+        const elFailed = document.getElementById("statTotalFailed");
+
+        if (elRunning) elRunning.textContent = runningTasks.length;
+        if (elActiveWorkers) elActiveWorkers.textContent = `${runningTasks.length} tác vụ`;
+        if (elSuccess) elSuccess.textContent = totalSuccess.toLocaleString();
+        if (elSkipped) elSkipped.textContent = totalSkipped.toLocaleString();
+        if (elFailed) elFailed.textContent = totalFailed.toLocaleString();
+
+        // 3. Update Filter Counts
+        const cntAll = document.getElementById("filterCountAll");
+        const cntRun = document.getElementById("filterCountRunning");
+        const cntComp = document.getElementById("filterCountCompleted");
+        const cntFail = document.getElementById("filterCountFailed");
+
+        if (cntAll) cntAll.textContent = tasks.length;
+        if (cntRun) cntRun.textContent = runningTasks.length;
+        if (cntComp) cntComp.textContent = completedTasks.length;
+        if (cntFail) cntFail.textContent = failedOrStoppedTasks.length;
+
+        // 4. Update Active Tasks Badge in Sidebar
         const badge = document.getElementById("activeTasksBadge");
         if (badge) {
             if (runningTasks.length > 0) {
@@ -1230,7 +1379,7 @@ async function loadActiveTasks() {
             }
         }
 
-        // 2. Update Floating Widget only if minimized in THIS tab
+        // 5. Update Floating Widget only if minimized in THIS tab
         const floatWidget = document.getElementById("floatingTaskWidget");
         const singleContainer = document.getElementById("singleProgressContainer");
         const isSingleOpen = singleContainer && singleContainer.style.display !== "none";
@@ -1268,90 +1417,268 @@ async function loadActiveTasks() {
             }
         }
 
-        // 3. Render Active Tasks Grid
-        const container = document.getElementById("activeTasksList");
-        if (!container) return;
-
-        if (tasks.length === 0) {
-            container.innerHTML = `
-                <div class="card" style="text-align: center; color: var(--text-muted); padding: 30px;">
-                    Hiện không có tiến trình nào đang chạy ngầm.
-                </div>
-            `;
-            return;
-        }
-
-        const reversedTasks = [...tasks].reverse();
-        container.innerHTML = "";
-
-        reversedTasks.forEach(t => {
-            const card = document.createElement("div");
-            card.className = "card task-card";
-
-            let statusBadge = `<span class="badge badge-neutral"><span class="status-dot"></span> Đang chạy</span>`;
-            if (t.status === "COMPLETED") {
-                statusBadge = `<span class="badge badge-neutral" style="color:var(--text-primary); border-color:var(--text-primary);">Hoàn thành</span>`;
-            } else if (t.status === "FAILED") {
-                statusBadge = `<span class="badge badge-neutral" style="color:var(--danger-text); border-color:var(--danger-text);">Lỗi</span>`;
-            }
-
-            const pct = (t.percent || 0).toFixed(1);
-
-            card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                            ${statusBadge}
-                            <span style="font-size: 11px; color: var(--text-dim);">${t.started_at || ''}</span>
-                        </div>
-                        <h4 style="font-size: 14px; margin: 0; font-family: 'JetBrains Mono', monospace;">
-                            ${t.source} ➔ ${t.dest}
-                        </h4>
-                    </div>
-                    <span class="badge badge-neutral" style="font-weight: 700;">${pct}%</span>
-                </div>
-
-                <div class="progress-bar-container" style="margin-bottom: 12px; height: 6px;">
-                    <div class="progress-bar-fill" style="width: ${pct}%;"></div>
-                </div>
-
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-                    <strong>Thư mục:</strong> <code>${t.current_folder || 'Đang kết nối...'}</code>
-                </div>
-
-                <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 12px;">
-                    <div class="stat-mini">
-                        <span class="stat-mini-label">THÀNH CÔNG</span>
-                        <span class="stat-mini-value" style="font-size: 16px;">${t.success || 0}</span>
-                    </div>
-                    <div class="stat-mini">
-                        <span class="stat-mini-label">BỎ QUA</span>
-                        <span class="stat-mini-value" style="font-size: 16px;">${t.skipped || 0}</span>
-                    </div>
-                    <div class="stat-mini">
-                        <span class="stat-mini-label">LỖI</span>
-                        <span class="stat-mini-value" style="font-size: 16px; color: var(--danger-text);">${t.failed || 0}</span>
-                    </div>
-                </div>
-
-                ${t.status === "COMPLETED" && t.html_report ? `
-                    <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 12px;">
-                        <a href="${t.html_report}" target="_blank" class="btn btn-primary btn-sm">Xem Báo Cáo</a>
-                        ${t.csv_report ? `<a href="/api/reports/download/${t.csv_report}" download class="btn btn-secondary btn-sm text-danger">Tải CSV Lỗi</a>` : ''}
-                    </div>
-                ` : ''}
-
-                ${t.status === "FAILED" && t.error_message ? `
-                    <div style="font-size: 12px; color: var(--danger-text); background: rgba(239, 68, 68, 0.08); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2);">
-                        ${t.error_message}
-                    </div>
-                ` : ''}
-            `;
-            container.appendChild(card);
-        });
+        // 6. Render Active Tasks Grid
+        renderActiveTasksCards(tasks);
     } catch (e) {
         console.error("Error loading active tasks:", e);
     }
+}
+
+function renderActiveTasksCards(tasks) {
+    const container = document.getElementById("activeTasksList");
+    if (!container) return;
+
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = `
+            <div class="tasks-empty-card">
+                <div class="tasks-empty-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                </div>
+                <h3>Hiện không có tiến trình nào đang chạy ngầm</h3>
+                <p>Hệ thống đang rảnh rỗi và sẵn sàng xử lý các tác vụ mới. Bạn có thể bắt đầu di chuyển một tài khoản hoặc nạp danh sách CSV.</p>
+                <div class="tasks-empty-actions">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="switchToTab('singleTab')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                        <span>Di Chuyển 1 Email</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="switchToTab('batchTab')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>Di Chuyển Hàng Loạt (CSV)</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Filter by Tab and Search Term
+    let filtered = [...tasks];
+    if (currentTaskFilter === "RUNNING") {
+        filtered = filtered.filter(t => t.status === "RUNNING");
+    } else if (currentTaskFilter === "COMPLETED") {
+        filtered = filtered.filter(t => t.status === "COMPLETED");
+    } else if (currentTaskFilter === "FAILED_STOPPED") {
+        filtered = filtered.filter(t => ["FAILED", "STOPPED", "PARTIAL"].includes(t.status));
+    }
+
+    if (taskSearchTerm) {
+        filtered = filtered.filter(t =>
+            (t.source && t.source.toLowerCase().includes(taskSearchTerm)) ||
+            (t.dest && t.dest.toLowerCase().includes(taskSearchTerm)) ||
+            (t.task_id && t.task_id.toLowerCase().includes(taskSearchTerm)) ||
+            (t.current_folder && t.current_folder.toLowerCase().includes(taskSearchTerm))
+        );
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="tasks-empty-card">
+                <div class="tasks-empty-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                <h3>Không tìm thấy tiến trình phù hợp</h3>
+                <p>Không có tác vụ nào khớp với bộ lọc "${currentTaskFilter}" hoặc từ khóa tìm kiếm "${taskSearchTerm}".</p>
+            </div>
+        `;
+        return;
+    }
+
+    const reversedTasks = [...filtered].reverse();
+    container.innerHTML = "";
+
+    reversedTasks.forEach(t => {
+        const card = document.createElement("div");
+
+        let statusClass = "status-border-running";
+        let statusBadge = `<span class="badge badge-neutral" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);"><span class="live-pulse-dot" style="background:#3b82f6;"></span> ĐANG CHẠY</span>`;
+
+        if (t.status === "COMPLETED") {
+            statusClass = "status-border-completed";
+            statusBadge = `<span class="badge badge-neutral" style="background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3); font-weight:700;">✓ HOÀN TẤT</span>`;
+        } else if (t.status === "PARTIAL") {
+            statusClass = "status-border-partial";
+            statusBadge = `<span class="badge badge-neutral" style="background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); font-weight:700;">⚠ MỘT PHẦN</span>`;
+        } else if (t.status === "FAILED") {
+            statusClass = "status-border-failed";
+            statusBadge = `<span class="badge badge-neutral" style="background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3); font-weight:700;">✕ THẤT BẠI</span>`;
+        } else if (t.status === "STOPPED" || t.status === "STOPPING") {
+            statusClass = "status-border-stopped";
+            statusBadge = `<span class="badge badge-neutral" style="background:rgba(107,114,128,0.2); color:#9ca3af; border:1px solid rgba(107,114,128,0.4); font-weight:700;">⏹ ĐÃ DỪNG</span>`;
+        }
+
+        card.className = `task-card-pro ${statusClass}`;
+
+        const pct = (t.percent || 0).toFixed(1);
+        const durationFormatted = formatSeconds(t.duration_sec || 0);
+        const speedFormatted = t.msg_rate ? `${t.msg_rate} thư/s` : (t.status === "RUNNING" ? "Đang tính..." : "");
+
+        const totalItems = (t.success || 0) + (t.skipped || 0) + (t.failed || 0);
+
+        card.innerHTML = `
+            <!-- Card Header -->
+            <div class="task-pro-header">
+                <div class="task-pro-header-left">
+                    ${statusBadge}
+                    <span class="task-id-badge" onclick="copyTaskId('${t.task_id}')" title="Nhấp để sao chép Task ID">
+                        #${t.task_id.length > 18 ? t.task_id.substring(0, 18) + '...' : t.task_id}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </span>
+                </div>
+                <div class="task-pro-header-right">
+                    <span class="task-time-pill" title="Thời gian khởi động">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        ${t.started_at || ''}
+                    </span>
+                    <span class="task-duration-badge" title="Thời gian thực thi">
+                        ⏱️ ${durationFormatted}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Route Visual -->
+            <div class="task-route-container">
+                <div class="task-route-node" title="Tài khoản nguồn: ${t.source}">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    <span class="task-route-email">${t.source}</span>
+                </div>
+                <div class="task-route-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </div>
+                <div class="task-route-node" title="Tài khoản đích: ${t.dest}">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    <span class="task-route-email">${t.dest}</span>
+                </div>
+            </div>
+
+            <!-- Live Progress Bar & Speed -->
+            <div class="task-progress-box">
+                <div class="task-progress-meta">
+                    <span class="task-folder-tag" title="Thư mục: ${t.current_folder || 'Đang kết nối...'}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        ${t.current_folder || 'Đang kết nối...'}
+                    </span>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        ${speedFormatted ? `<span class="task-speed-badge">⚡ ${speedFormatted}</span>` : ''}
+                        <span class="task-pct-value">${pct}%</span>
+                    </div>
+                </div>
+
+                <div class="task-progress-track">
+                    <div class="task-progress-fill ${t.status === 'RUNNING' ? 'running-shimmer' : ''}" style="width: ${pct}%;"></div>
+                </div>
+            </div>
+
+            <!-- 4-Pillar Count Metrics -->
+            <div class="task-counts-grid">
+                <div class="task-count-item">
+                    <span class="task-count-label">THÀNH CÔNG</span>
+                    <span class="task-count-value text-success">${(t.success || 0).toLocaleString()}</span>
+                </div>
+                <div class="task-count-item">
+                    <span class="task-count-label">BỎ QUA</span>
+                    <span class="task-count-value text-info">${(t.skipped || 0).toLocaleString()}</span>
+                </div>
+                <div class="task-count-item">
+                    <span class="task-count-label">LỖI</span>
+                    <span class="task-count-value ${t.failed > 0 ? 'text-danger' : 'text-muted'}">${(t.failed || 0).toLocaleString()}</span>
+                </div>
+                <div class="task-count-item">
+                    <span class="task-count-label">ĐÃ XỬ LÝ</span>
+                    <span class="task-count-value text-primary">${totalItems.toLocaleString()}</span>
+                </div>
+            </div>
+
+            <!-- Error Notification if any -->
+            ${t.error_message ? `
+                <div class="task-error-box">
+                    <strong>Thông báo lỗi:</strong> ${t.error_message}
+                </div>
+            ` : ''}
+
+            <!-- Actions Footer -->
+            <div class="task-pro-actions">
+                <div class="task-actions-left">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="viewTaskLogs('${t.task_id}', '${t.source}')">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="4 17 10 11 4 5"></polyline>
+                            <line x1="12" y1="19" x2="20" y2="19"></line>
+                        </svg>
+                        <span>Logs</span>
+                    </button>
+
+                    ${t.html_report ? `
+                        <a href="${t.html_report}" target="_blank" class="btn btn-primary btn-sm">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                            </svg>
+                            <span>Báo Cáo</span>
+                        </a>
+                    ` : ''}
+
+                    ${t.csv_report ? `
+                        <a href="/api/reports/download/${t.csv_report}" download class="btn btn-secondary btn-sm" title="Tải file CSV chi tiết lỗi/kết quả">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            <span>Tải CSV</span>
+                        </a>
+                    ` : ''}
+                </div>
+
+                <div class="task-actions-right">
+                    ${t.status === "RUNNING" ? `
+                        <button type="button" class="btn btn-secondary btn-sm text-danger" onclick="stopActiveTask('${t.task_id}', '${t.source}')" title="Dừng tiến trình này một cách an toàn">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            </svg>
+                            <span>Dừng Lại</span>
+                        </button>
+                    ` : `
+                        <button type="button" class="btn btn-secondary btn-sm text-muted" onclick="deleteActiveTask('${t.task_id}')" title="Xóa tác vụ khỏi danh sách">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            <span>Xóa</span>
+                        </button>
+                    `}
+                </div>
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
 }
 
 // Sessions & Archive Tab Logic

@@ -296,6 +296,9 @@ async def inspect_mailbox(req: Dict[str, Any]):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+STOP_REQUESTED_TASKS: Set[str] = set()
+
+
 def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.AbstractEventLoop):
     """Background worker executing the migration, updating ACTIVE_TASKS, and pushing SSE events."""
     service = MigrationService(
@@ -306,6 +309,7 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
     if req.force_remigrate:
         service.state_db.clear_account_state(req.source.username)
 
+    start_ts = time.time()
     ACTIVE_TASKS[task_id] = {
         "task_id": task_id,
         "source": req.source.username,
@@ -316,7 +320,11 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
         "success": 0,
         "skipped": 0,
         "failed": 0,
+        "total_messages": 0,
         "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "start_timestamp": start_ts,
+        "duration_sec": 0,
+        "msg_rate": 0.0,
         "html_report": None,
         "csv_report": None,
         "error_message": None,
@@ -326,10 +334,16 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
         orig_migrate_folder = service.migrator.migrate_folder
 
         def custom_migrate_folder(*args, **kwargs):
+            if task_id in STOP_REQUESTED_TASKS or ACTIVE_TASKS.get(task_id, {}).get("status") in ("STOPPING", "STOPPED"):
+                raise Exception("TASK_STOPPED_BY_USER")
+
             src_folder = kwargs.get("src_folder") or args[4]
             user_cb = kwargs.get("on_progress")
 
             def wrapped_progress(done, total):
+                if task_id in STOP_REQUESTED_TASKS or ACTIVE_TASKS.get(task_id, {}).get("status") in ("STOPPING", "STOPPED"):
+                    raise Exception("TASK_STOPPED_BY_USER")
+
                 if user_cb:
                     user_cb(done, total)
                 pct = round((done / (total or 1)) * 100, 1)
@@ -337,10 +351,15 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
                 task_data = ACTIVE_TASKS.get(task_id, {})
                 task_data["percent"] = pct
                 task_data["current_folder"] = src_folder
+                if total and total > 0:
+                    task_data["total_messages"] = total
                 summary = service.state_db.get_migration_summary(kwargs.get("migration_id", 0)) if kwargs.get("migration_id") else {}
                 task_data["success"] = summary.get("migrated_messages", done)
                 task_data["skipped"] = summary.get("skipped_messages", 0)
                 task_data["failed"] = summary.get("failed_messages", 0)
+                elapsed = max(time.time() - start_ts, 0.1)
+                task_data["duration_sec"] = round(elapsed, 1)
+                task_data["msg_rate"] = round((task_data["success"] + task_data["skipped"]) / elapsed, 1)
 
                 broadcast_task_event(task_id, {
                     "type": "progress",
@@ -351,6 +370,8 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
                     "success": task_data["success"],
                     "skipped": task_data["skipped"],
                     "failed": task_data["failed"],
+                    "msg_rate": task_data["msg_rate"],
+                    "duration_sec": task_data["duration_sec"],
                 }, loop)
 
             kwargs["on_progress"] = wrapped_progress
@@ -359,15 +380,20 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
         service.migrator.migrate_folder = custom_migrate_folder
         res = service.migrate_account(req.source, req.dest, force_remigrate=req.force_remigrate)
 
+        final_duration = round(max(time.time() - start_ts, 0.1), 1)
+        final_rate = round((res["success"] + res["skipped"]) / final_duration, 1)
         report_url = f"/api/reports/view/{res['migration_id']}"
         csv_name = Path(res['csv_report']).name if res.get("csv_report") else None
+        final_status = "COMPLETED" if res.get("failed", 0) == 0 else "PARTIAL"
 
         ACTIVE_TASKS[task_id].update({
-            "status": "COMPLETED",
+            "status": final_status,
             "percent": 100.0,
             "success": res["success"],
             "skipped": res["skipped"],
             "failed": res["failed"],
+            "duration_sec": final_duration,
+            "msg_rate": final_rate,
             "html_report": report_url,
             "csv_report": f"/reports/{csv_name}" if csv_name else None,
         })
@@ -377,24 +403,45 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
             "task_id": task_id,
             "source": req.source.username,
             "percent": 100,
+            "status": final_status,
             "success": res["success"],
             "skipped": res["skipped"],
             "failed": res["failed"],
+            "duration_sec": final_duration,
+            "msg_rate": final_rate,
             "html_report": report_url,
             "csv_report": f"/reports/{csv_name}" if csv_name else None,
         }, loop)
 
     except Exception as e:
-        ACTIVE_TASKS[task_id].update({
-            "status": "FAILED",
-            "error_message": str(e),
-        })
-        broadcast_task_event(task_id, {
-            "type": "error",
-            "task_id": task_id,
-            "source": req.source.username,
-            "message": str(e),
-        }, loop)
+        final_duration = round(max(time.time() - start_ts, 0.1), 1)
+        is_stopped = str(e) == "TASK_STOPPED_BY_USER" or task_id in STOP_REQUESTED_TASKS
+
+        if is_stopped:
+            ACTIVE_TASKS[task_id].update({
+                "status": "STOPPED",
+                "duration_sec": final_duration,
+                "error_message": "Tiến trình đã được dừng an toàn theo yêu cầu của quản trị viên.",
+            })
+            broadcast_task_event(task_id, {
+                "type": "stopped",
+                "task_id": task_id,
+                "source": req.source.username,
+                "duration_sec": final_duration,
+                "message": "Tiến trình đã dừng theo yêu cầu.",
+            }, loop)
+        else:
+            ACTIVE_TASKS[task_id].update({
+                "status": "FAILED",
+                "duration_sec": final_duration,
+                "error_message": str(e),
+            })
+            broadcast_task_event(task_id, {
+                "type": "error",
+                "task_id": task_id,
+                "source": req.source.username,
+                "message": str(e),
+            }, loop)
 
 
 def run_batch_migration_worker(batch_id: str, req: BatchMigrateRequest, loop: asyncio.AbstractEventLoop):
@@ -493,8 +540,94 @@ async def start_batch_migration(req: BatchMigrateRequest, background_tasks: Back
 
 @app.get("/api/tasks/active")
 async def get_active_tasks():
-    """Returns all current active and recent background tasks."""
-    return list(ACTIVE_TASKS.values())
+    """Returns all current active and recent background tasks with dynamic duration and rate."""
+    now = time.time()
+    result = []
+    for t in ACTIVE_TASKS.values():
+        item = dict(t)
+        if item.get("status") == "RUNNING" and item.get("start_timestamp"):
+            elapsed = max(now - item["start_timestamp"], 0.1)
+            item["duration_sec"] = round(elapsed, 1)
+            item["msg_rate"] = round((item.get("success", 0) + item.get("skipped", 0)) / elapsed, 1)
+        result.append(item)
+    return result
+
+
+@app.post("/api/tasks/stop/{task_id}")
+async def stop_task(task_id: str):
+    """Signals a running background task to stop gracefully."""
+    STOP_REQUESTED_TASKS.add(task_id)
+    if task_id in ACTIVE_TASKS:
+        ACTIVE_TASKS[task_id]["status"] = "STOPPING"
+        ACTIVE_TASKS[task_id]["error_message"] = "Đang dừng tiến trình..."
+    return {"status": "ok", "message": f"Đã gửi tín hiệu dừng tiến trình {task_id}"}
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: str):
+    """Removes a finished/failed task from active tasks list."""
+    if task_id in ACTIVE_TASKS:
+        del ACTIVE_TASKS[task_id]
+    STOP_REQUESTED_TASKS.discard(task_id)
+    return {"status": "ok", "message": f"Đã xóa tiến trình {task_id}"}
+
+
+@app.post("/api/tasks/clear-completed")
+async def clear_completed_tasks():
+    """Cleans up completed, stopped, and failed tasks from active tasks monitor."""
+    to_clear = [
+        tid for tid, t in ACTIVE_TASKS.items()
+        if t.get("status") in ("COMPLETED", "FAILED", "STOPPED", "PARTIAL")
+    ]
+    for tid in to_clear:
+        del ACTIVE_TASKS[tid]
+        STOP_REQUESTED_TASKS.discard(tid)
+    return {"status": "ok", "cleared_count": len(to_clear)}
+
+
+@app.post("/api/tasks/seed-demo")
+async def seed_demo_tasks():
+    """Generates realistic demo tasks for visual preview and operational testing."""
+    now = time.time()
+    ACTIVE_TASKS["demo_task_1"] = {
+        "task_id": "task_1729302199_a1b2",
+        "source": "ceo@company-old.com",
+        "dest": "ceo@company-new.com",
+        "status": "RUNNING",
+        "percent": 68.4,
+        "current_folder": "INBOX/Projects 2026",
+        "success": 1420,
+        "skipped": 85,
+        "failed": 3,
+        "total_messages": 2200,
+        "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "start_timestamp": now - 145.0,
+        "duration_sec": 145.2,
+        "msg_rate": 10.4,
+        "html_report": None,
+        "csv_report": None,
+        "error_message": None,
+    }
+    ACTIVE_TASKS["demo_task_2"] = {
+        "task_id": "task_1729301100_c3d4",
+        "source": "sales@oldcorp.vn",
+        "dest": "sales@newcorp.vn",
+        "status": "COMPLETED",
+        "percent": 100.0,
+        "current_folder": "Sent Items",
+        "success": 3560,
+        "skipped": 412,
+        "failed": 0,
+        "total_messages": 3972,
+        "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "start_timestamp": now - 320.0,
+        "duration_sec": 320.0,
+        "msg_rate": 12.4,
+        "html_report": "/api/reports/view/1",
+        "csv_report": "report_demo.csv",
+        "error_message": None,
+    }
+    return {"status": "ok", "seeded": 2}
 
 
 @app.get("/api/migrate/stream")
