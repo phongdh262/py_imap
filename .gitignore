@@ -43,7 +43,7 @@ venv.bak/
 
 # Docker volume data & generated reports
 data/
-reports/
+/reports/
 prometheus_data/
 grafana_data/
 loki_data/

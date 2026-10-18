@@ -155,13 +155,16 @@ class FolderMapper:
         source_role: FolderRole,
         source_delim: str,
         dest_delim: str,
-        dest_canonical_map: Dict[FolderRole, str]
+        dest_canonical_map: Dict[FolderRole, str],
+        dest_prefix: str = "",
     ) -> str:
         """
         Calculates destination folder name:
         1. If source folder is mapped to a canonical role (e.g., SENT), map to destination's known role folder.
-        2. Adapt hierarchy delimiter (e.g. Projects/2025 -> Projects.2025).
-        3. Apply Vietnamese accent stripping if sanitize_accents=True.
+        2. Clean up provider-specific namespace tags (e.g. '[Gmail]/Quan trọng' -> 'Quan trọng').
+        3. Adapt hierarchy delimiter (e.g. Projects/2025 -> Projects.2025) and escape literal dots.
+        4. Apply destination personal namespace prefix (e.g. 'INBOX.' on Dovecot / cPanel).
+        5. Apply Vietnamese accent stripping if sanitize_accents=True.
         """
         # User custom override
         if source_folder in self.custom_mappings:
@@ -172,10 +175,25 @@ class FolderMapper:
         elif source_role == FolderRole.INBOX:
             return "INBOX"
         else:
-            # General hierarchical folder: translate delimiter
-            target = source_folder
+            # General hierarchical folder
+            clean_target = source_folder
+            # Strip [Gmail]/ or [Gmail]. prefixes for cleaner target structure
+            if clean_target.lower().startswith("[gmail]/") or clean_target.lower().startswith("[gmail]."):
+                clean_target = clean_target[8:]
+
             if source_delim != dest_delim:
-                target = source_folder.replace(source_delim, dest_delim)
+                # If destination delimiter is '.' and source had literal '.', replace literal '.' with '_'
+                if dest_delim == "." and "." in clean_target:
+                    parts = clean_target.split(source_delim)
+                    safe_parts = [p.replace(".", "_") for p in parts]
+                    clean_target = source_delim.join(safe_parts)
+                target = clean_target.replace(source_delim, dest_delim)
+            else:
+                target = clean_target
+
+            # Apply destination namespace prefix (e.g., 'INBOX.' or 'INBOX/')
+            if dest_prefix and not target.startswith(dest_prefix) and target.upper() != "INBOX":
+                target = f"{dest_prefix}{target}"
 
         # Sanitize accents if requested
         if self.sanitize_accents:

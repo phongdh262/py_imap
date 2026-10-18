@@ -97,10 +97,18 @@ class MigrationService:
                     src_creds.username, dst_creds.username, summary.total_messages
                 )
 
-                # 3. Inspect destination folder hierarchy for role mapping
+                # 3. Inspect destination folder hierarchy for role mapping and namespace prefix
                 dst_folders = dst_client.client.list_folders()
                 dst_canonical_map: Dict[FolderRole, str] = {}
                 dest_delim = "/"
+                dest_prefix = ""
+
+                try:
+                    ns = dst_client.client.namespace()
+                    if ns and ns.personal and len(ns.personal) > 0:
+                        dest_prefix = ns.personal[0][0] or ""
+                except Exception:
+                    dest_prefix = ""
 
                 for flags, delimiter, raw_name in dst_folders:
                     dest_delim = delimiter.decode("latin-1") if isinstance(delimiter, bytes) else str(delimiter)
@@ -108,6 +116,11 @@ class MigrationService:
                     role = self.mapper.identify_role(folder_name, flags)
                     if role != FolderRole.CUSTOM and role not in dst_canonical_map:
                         dst_canonical_map[role] = folder_name
+                    if not dest_prefix:
+                        if folder_name.startswith("INBOX."):
+                            dest_prefix = "INBOX."
+                        elif folder_name.startswith("INBOX/"):
+                            dest_prefix = "INBOX/"
 
                 # 4. Migrate each non-excluded selectable folder
                 migrated_msgs_counter = 0
@@ -124,6 +137,7 @@ class MigrationService:
                         source_delim=folder.delimiter,
                         dest_delim=dest_delim,
                         dest_canonical_map=dst_canonical_map,
+                        dest_prefix=dest_prefix,
                     )
 
                     console.print(f"📦 Migrating folder: [cyan]{folder.name}[/cyan] ➔ [green]{target_name}[/green] ({folder.messages_count} msgs)")

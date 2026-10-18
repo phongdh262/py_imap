@@ -66,7 +66,7 @@ class EmailMigrator:
         skipped_count = 0
 
         # 1. Ensure destination folder exists
-        self._ensure_dest_folder(dst_client, dst_folder)
+        dst_folder = self._ensure_dest_folder(dst_client, dst_folder)
 
         # 2. Select source folder readonly
         src_client.select_folder(src_folder, readonly=True)
@@ -167,10 +167,20 @@ class EmailMigrator:
                         )
                     continue
 
-                # Append to destination
+                # Append to destination with automatic namespace self-healing
                 try:
                     append_flags = [f for f in flags if f.lower() not in (b"\\recent",)]
-                    dst_client.append(dst_folder, raw_body, flags=append_flags, msg_time=internal_date)
+                    try:
+                        dst_client.append(dst_folder, raw_body, flags=append_flags, msg_time=internal_date)
+                    except Exception as append_err:
+                        err_str = str(append_err).lower()
+                        if "nonexistent namespace" in err_str or "prefixed with: inbox" in err_str:
+                            prefix = "INBOX." if ("." in dst_folder or "/" not in dst_folder) else "INBOX/"
+                            fallback = dst_folder if dst_folder.startswith(prefix) else f"{prefix}{dst_folder}"
+                            dst_folder = self._ensure_dest_folder(dst_client, fallback)
+                            dst_client.append(dst_folder, raw_body, flags=append_flags, msg_time=internal_date)
+                        else:
+                            raise append_err
 
                     success_count += 1
                     MESSAGES_MIGRATED_TOTAL.labels(source_account=src_account, folder=src_folder).inc()
@@ -198,15 +208,27 @@ class EmailMigrator:
 
         return success_count, failed_count, skipped_count
 
-    def _ensure_dest_folder(self, dst_client: IMAPClient, folder_name: str):
-        """Creates the destination folder if it does not exist yet."""
+    def _ensure_dest_folder(self, dst_client: IMAPClient, folder_name: str) -> str:
+        """Creates destination folder if missing, handling Dovecot/cPanel namespace prefixing automatically."""
         if folder_name.upper() == "INBOX":
-            return
+            return "INBOX"
 
         try:
-            exists = dst_client.folder_exists(folder_name)
-            if not exists:
+            if not dst_client.folder_exists(folder_name):
                 dst_client.create_folder(folder_name)
                 logger.info("Created missing destination folder", folder=folder_name)
+            return folder_name
         except Exception as e:
+            err_msg = str(e).lower()
+            if "nonexistent namespace" in err_msg or "prefixed with: inbox" in err_msg:
+                prefix = "INBOX." if ("." in folder_name or "/" not in folder_name) else "INBOX/"
+                fallback = folder_name if folder_name.startswith(prefix) else f"{prefix}{folder_name}"
+                try:
+                    if not dst_client.folder_exists(fallback):
+                        dst_client.create_folder(fallback)
+                        logger.info("Created missing destination folder with namespace prefix", folder=fallback)
+                    return fallback
+                except Exception as inner_e:
+                    logger.debug("Fallback folder creation error", folder=fallback, error=str(inner_e))
             logger.debug("Folder existence check/creation note", folder=folder_name, error=str(e))
+            return folder_name

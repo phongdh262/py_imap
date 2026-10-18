@@ -4,8 +4,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from src.core.folder_mapper import FolderMapper
 from src.core.imap_client import IMAPClientWrapper
-from src.core.models import AccountCredentials
+from src.core.models import AccountCredentials, FolderRole
 from src.core.throttler import ProviderThrottler
 from src.reports.reporter import MigrationReporter
 from src.storage.state_db import StateDatabase
@@ -73,8 +74,64 @@ class RetryEngine:
         still_failed_count = 0
 
         with IMAPClientWrapper(src_creds) as src_client, IMAPClientWrapper(dst_creds) as dst_client:
+            # Detect destination namespace and folders
+            dst_folders = dst_client.client.list_folders()
+            dst_canonical_map: Dict[FolderRole, str] = {}
+            dest_delim = "/"
+            dest_prefix = ""
+
+            try:
+                ns = dst_client.client.namespace()
+                if ns and ns.personal and len(ns.personal) > 0:
+                    dest_prefix = ns.personal[0][0] or ""
+            except Exception:
+                dest_prefix = ""
+
+            mapper = FolderMapper()
+            for flags, delimiter, raw_name in dst_folders:
+                dest_delim = delimiter.decode("latin-1") if isinstance(delimiter, bytes) else str(delimiter)
+                folder_name = mapper.decode_folder_name(raw_name)
+                role = mapper.identify_role(folder_name, flags)
+                if role != FolderRole.CUSTOM and role not in dst_canonical_map:
+                    dst_canonical_map[role] = folder_name
+                if not dest_prefix:
+                    if folder_name.startswith("INBOX."):
+                        dest_prefix = "INBOX."
+                    elif folder_name.startswith("INBOX/"):
+                        dest_prefix = "INBOX/"
+
+            def ensure_dst_folder(fname: str) -> str:
+                if fname.upper() == "INBOX":
+                    return "INBOX"
+                try:
+                    if not dst_client.client.folder_exists(fname):
+                        dst_client.client.create_folder(fname)
+                    return fname
+                except Exception as ex:
+                    msg = str(ex).lower()
+                    if "nonexistent namespace" in msg or "prefixed with: inbox" in msg:
+                        pfx = "INBOX." if ("." in fname or "/" not in fname) else "INBOX/"
+                        fb = fname if fname.startswith(pfx) else f"{pfx}{fname}"
+                        try:
+                            if not dst_client.client.folder_exists(fb):
+                                dst_client.client.create_folder(fb)
+                            return fb
+                        except Exception:
+                            pass
+                    return fname
+
             for folder, items in folder_groups.items():
-                console.print(f"🔄 Đang thử lại [cyan]{len(items)}[/cyan] thư trong thư mục: [yellow]{folder}[/yellow]...")
+                target_folder = mapper.map_folder_name(
+                    source_folder=folder,
+                    source_role=mapper.identify_role(folder, []),
+                    source_delim="/",
+                    dest_delim=dest_delim,
+                    dest_canonical_map=dst_canonical_map,
+                    dest_prefix=dest_prefix,
+                )
+                target_folder = ensure_dst_folder(target_folder)
+
+                console.print(f"🔄 Đang thử lại [cyan]{len(items)}[/cyan] thư: [yellow]{folder}[/yellow] ➔ [green]{target_folder}[/green]...")
 
                 try:
                     src_client.client.select_folder(folder, readonly=True)
@@ -100,8 +157,18 @@ class RetryEngine:
                         internal_date = msg_data.get(b"INTERNALDATE")
                         size = msg_data.get(b"RFC822.SIZE", len(raw_body))
 
-                        # Upload to destination
-                        dst_client.client.append(folder, raw_body, flags=flags, msg_time=internal_date)
+                        # Upload to destination with self-healing namespace
+                        try:
+                            dst_client.client.append(target_folder, raw_body, flags=flags, msg_time=internal_date)
+                        except Exception as app_ex:
+                            app_err = str(app_ex).lower()
+                            if "nonexistent namespace" in app_err or "prefixed with: inbox" in app_err:
+                                pfx = "INBOX." if ("." in target_folder or "/" not in target_folder) else "INBOX/"
+                                fb = target_folder if target_folder.startswith(pfx) else f"{pfx}{target_folder}"
+                                target_folder = ensure_dst_folder(fb)
+                                dst_client.client.append(target_folder, raw_body, flags=flags, msg_time=internal_date)
+                            else:
+                                raise app_ex
 
                         # Update State DB: from FAILED to SUCCESS
                         self._mark_item_recovered(migration_id, item["folder"], uid, size)
