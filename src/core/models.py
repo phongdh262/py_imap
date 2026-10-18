@@ -17,7 +17,7 @@ class AccountCredentials(BaseModel):
     password: Optional[str] = None
     auth_type: AuthType = AuthType.PLAIN
     oauth2_token: Optional[str] = None
-    timeout: int = 30
+    timeout: int = 60
 
 
 class FolderRole(str, Enum):

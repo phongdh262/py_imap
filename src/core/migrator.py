@@ -117,21 +117,31 @@ class EmailMigrator:
             chunk_uids = uids[i:i + self.batch_size]
             self.throttler.throttle_batch()
 
-            try:
-                # Fetch message body, flags, and internal date
-                fetch_results = src_client.fetch(chunk_uids, ["RFC822", "FLAGS", "INTERNALDATE", "RFC822.SIZE"])
-            except Exception as e:
-                logger.error(
-                    "Failed to fetch batch from source",
-                    source_account=src_account,
-                    folder=src_folder,
-                    error_code="BATCH_FETCH_FAILED",
-                    error_detail=str(e),
-                )
-                failed_count += len(chunk_uids)
-                MESSAGES_FAILED_TOTAL.labels(
-                    source_account=src_account, folder=src_folder, error_type="FETCH_ERROR"
-                ).inc(len(chunk_uids))
+            # Fetch with auto-retry on transient timeout/network drops
+            fetch_results = None
+            for fetch_attempt in range(1, 3):
+                try:
+                    fetch_results = src_client.fetch(chunk_uids, ["RFC822", "FLAGS", "INTERNALDATE", "RFC822.SIZE"])
+                    break
+                except Exception as e:
+                    if fetch_attempt < 2 and any(k in str(e).lower() for k in ("timeout", "connection", "reset", "broken")):
+                        logger.warning("Batch fetch attempt %d timed out/interrupted, retrying in 2s...", fetch_attempt)
+                        time.sleep(2)
+                        continue
+                    logger.error(
+                        "Failed to fetch batch from source",
+                        source_account=src_account,
+                        folder=src_folder,
+                        error_code="BATCH_FETCH_FAILED",
+                        error_detail=str(e),
+                    )
+                    failed_count += len(chunk_uids)
+                    MESSAGES_FAILED_TOTAL.labels(
+                        source_account=src_account, folder=src_folder, error_type="FETCH_ERROR"
+                    ).inc(len(chunk_uids))
+                    break
+
+            if not fetch_results:
                 continue
 
             # Stream each message into destination
@@ -257,20 +267,27 @@ class EmailMigrator:
                     )
                     continue
 
-                # Append to destination with automatic namespace self-healing
+                # Append to destination with automatic namespace self-healing & auto-retry
                 try:
                     append_flags = [f for f in flags if f.lower() not in (b"\\recent",)]
-                    try:
-                        dst_client.append(dst_folder, raw_body, flags=append_flags, msg_time=internal_date)
-                    except Exception as append_err:
-                        err_str = str(append_err).lower()
-                        if "nonexistent namespace" in err_str or "prefixed with: inbox" in err_str:
-                            prefix = "INBOX." if ("." in dst_folder or "/" not in dst_folder) else "INBOX/"
-                            fallback = dst_folder if dst_folder.startswith(prefix) else f"{prefix}{dst_folder}"
-                            dst_folder = self._ensure_dest_folder(dst_client, fallback)
+                    for append_attempt in range(1, 3):
+                        try:
                             dst_client.append(dst_folder, raw_body, flags=append_flags, msg_time=internal_date)
-                        else:
-                            raise append_err
+                            break
+                        except Exception as append_err:
+                            err_str = str(append_err).lower()
+                            if "nonexistent namespace" in err_str or "prefixed with: inbox" in err_str:
+                                prefix = "INBOX." if ("." in dst_folder or "/" not in dst_folder) else "INBOX/"
+                                fallback = dst_folder if dst_folder.startswith(prefix) else f"{prefix}{dst_folder}"
+                                dst_folder = self._ensure_dest_folder(dst_client, fallback)
+                                dst_client.append(dst_folder, raw_body, flags=append_flags, msg_time=internal_date)
+                                break
+                            elif append_attempt < 2 and any(k in err_str for k in ("timeout", "timed out", "connection", "reset", "broken")):
+                                logger.warning("Append attempt %d timed out/interrupted, retrying in 2s...", append_attempt)
+                                time.sleep(2)
+                                continue
+                            else:
+                                raise append_err
 
                     success_count += 1
                     if message_id:

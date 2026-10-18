@@ -378,6 +378,7 @@ function initSingleAccountTab() {
 
     // 4. Start Single Migration (Prompt Confirmation Modal)
     document.getElementById("btnStartSingleMigrate").addEventListener("click", () => {
+        const socketTimeout = parseInt(localStorage.getItem("setting_socket_timeout") || document.getElementById("settingSocketTimeout")?.value) || 60;
         const payload = {
             source: {
                 host: document.getElementById("srcHost").value.trim(),
@@ -385,6 +386,7 @@ function initSingleAccountTab() {
                 ssl: document.getElementById("srcSsl").value === "true",
                 username: document.getElementById("srcUser").value.trim(),
                 password: document.getElementById("srcPass").value.trim(),
+                timeout: socketTimeout,
             },
             dest: {
                 host: document.getElementById("dstHost").value.trim(),
@@ -392,11 +394,12 @@ function initSingleAccountTab() {
                 ssl: document.getElementById("dstSsl").value === "true",
                 username: document.getElementById("dstUser").value.trim(),
                 password: document.getElementById("dstPass").value.trim(),
+                timeout: socketTimeout,
             },
-            batch_size: parseInt(document.getElementById("settingBatchSize").value) || 50,
-            batch_delay_ms: parseInt(document.getElementById("settingBatchDelay").value) || 50,
-            sanitize_accents: document.getElementById("settingSanitizeAccents").checked,
-            force_remigrate: document.getElementById("forceRemigrateSingle") ? document.getElementById("forceRemigrateSingle").checked : false,
+            batch_size: parseInt(localStorage.getItem("setting_batch_size") || document.getElementById("settingBatchSize")?.value) || 50,
+            batch_delay_ms: parseInt(localStorage.getItem("setting_batch_delay") || document.getElementById("settingBatchDelay")?.value) || 50,
+            sanitize_accents: document.getElementById("settingSanitizeAccents") ? document.getElementById("settingSanitizeAccents").checked : false,
+            force_remigrate: document.getElementById("forceRemigrateSingle") ? document.getElementById("forceRemigrateSingle").checked : true,
         };
 
         if (!payload.source.username || !payload.source.password || !payload.dest.username || !payload.dest.password) {
@@ -1974,6 +1977,15 @@ function initSettingsTab() {
     if (savedAutoInbox !== null && document.getElementById("settingAutoInboxPrefix")) {
         document.getElementById("settingAutoInboxPrefix").checked = savedAutoInbox === "true";
     }
+    const savedTimeout = localStorage.getItem("setting_socket_timeout");
+    if (savedTimeout && document.getElementById("settingSocketTimeout")) {
+        document.getElementById("settingSocketTimeout").value = savedTimeout;
+    }
+    const savedMaxErrors = localStorage.getItem("setting_max_errors");
+    if (savedMaxErrors && document.getElementById("settingMaxErrors")) {
+        document.getElementById("settingMaxErrors").value = savedMaxErrors;
+    }
+
     const savedSkipTrash = localStorage.getItem("setting_skip_trash");
     if (savedSkipTrash !== null && document.getElementById("settingSkipTrashSpam")) {
         document.getElementById("settingSkipTrashSpam").checked = savedSkipTrash === "true";
@@ -1991,6 +2003,8 @@ function initSettingsTab() {
             const delay = document.getElementById("settingBatchDelay")?.value;
             const batchSize = document.getElementById("settingBatchSize")?.value;
             const maxMsgSize = document.getElementById("settingMaxMsgSize")?.value;
+            const timeout = document.getElementById("settingSocketTimeout")?.value;
+            const maxErrors = document.getElementById("settingMaxErrors")?.value;
             const sanitizeAccents = document.getElementById("settingSanitizeAccents")?.checked;
             const autoInbox = document.getElementById("settingAutoInboxPrefix")?.checked;
             const skipTrash = document.getElementById("settingSkipTrashSpam")?.checked;
@@ -2000,6 +2014,8 @@ function initSettingsTab() {
             if (delay) localStorage.setItem("setting_batch_delay", delay);
             if (batchSize) localStorage.setItem("setting_batch_size", batchSize);
             if (maxMsgSize) localStorage.setItem("setting_max_msg_size", maxMsgSize);
+            if (timeout) localStorage.setItem("setting_socket_timeout", timeout);
+            if (maxErrors) localStorage.setItem("setting_max_errors", maxErrors);
             localStorage.setItem("setting_sanitize_accents", sanitizeAccents);
             localStorage.setItem("setting_auto_inbox", autoInbox);
             localStorage.setItem("setting_skip_trash", skipTrash);
@@ -2047,6 +2063,8 @@ function initSettingsTab() {
             localStorage.removeItem("setting_batch_delay");
             localStorage.removeItem("setting_batch_size");
             localStorage.removeItem("setting_max_msg_size");
+            localStorage.removeItem("setting_socket_timeout");
+            localStorage.removeItem("setting_max_errors");
             localStorage.removeItem("setting_sanitize_accents");
             localStorage.removeItem("setting_auto_inbox");
             localStorage.removeItem("setting_skip_trash");
@@ -2056,6 +2074,8 @@ function initSettingsTab() {
             if (document.getElementById("settingBatchDelay")) document.getElementById("settingBatchDelay").value = "50";
             if (document.getElementById("settingBatchSize")) document.getElementById("settingBatchSize").value = "50";
             if (document.getElementById("settingMaxMsgSize")) document.getElementById("settingMaxMsgSize").value = "50";
+            if (document.getElementById("settingSocketTimeout")) document.getElementById("settingSocketTimeout").value = "60";
+            if (document.getElementById("settingMaxErrors")) document.getElementById("settingMaxErrors").value = "50";
             if (document.getElementById("settingSanitizeAccents")) document.getElementById("settingSanitizeAccents").checked = false;
             if (document.getElementById("settingAutoInboxPrefix")) document.getElementById("settingAutoInboxPrefix").checked = true;
             if (document.getElementById("settingSkipTrashSpam")) document.getElementById("settingSkipTrashSpam").checked = true;

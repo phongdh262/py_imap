@@ -1309,6 +1309,28 @@
                                 <input type="number" id="settingMaxMsgSize" value="50" min="10" max="150">
                                 <small class="helper-text">Bỏ qua thư vượt kích thước.</small>
                             </div>
+
+                            <div class="form-group">
+                                <label>Thời Gian Chờ Socket Timeout (giây)</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    </span>
+                                    <input type="number" id="settingSocketTimeout" value="60" min="30" max="600">
+                                </div>
+                                <small class="helper-text">Thời gian chờ phản hồi IMAP (Mặc định 60s). Tăng lên 120s - 300s khi tải thư lớn/file đính kèm nặng hoặc mạng quốc tế chậm.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Ngưỡng Thư Lỗi Cho Phép (Max Errors)</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                    </span>
+                                    <input type="number" id="settingMaxErrors" value="50" min="10" max="1000">
+                                </div>
+                                <small class="helper-text">Mặc định 50 lỗi. Tiến trình luôn tự động bỏ qua thư lỗi và tiếp tục đồng bộ các thư khác mà không dừng đột ngột.</small>
+                            </div>
                         </div>
                     </div>
 
