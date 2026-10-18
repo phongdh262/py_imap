@@ -1,6 +1,6 @@
 from enum import Enum
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field, computed_field
 
 
 class AuthType(str, Enum):
@@ -41,6 +41,18 @@ class FolderInfo(BaseModel):
     is_excluded: bool = False
     mapped_target: Optional[str] = None
 
+    @computed_field
+    @property
+    def size_mb(self) -> float:
+        return round(self.size_bytes / (1024 * 1024), 2)
+
+    @computed_field
+    @property
+    def destination_folder(self) -> str:
+        if self.is_excluded:
+            return "(Loại trừ)"
+        return self.mapped_target or (self.role.value if self.role != FolderRole.CUSTOM else self.name)
+
 
 class MailboxSummary(BaseModel):
     account: str
@@ -50,10 +62,26 @@ class MailboxSummary(BaseModel):
     quota_used_bytes: Optional[int] = None
     folders: List[FolderInfo] = Field(default_factory=list)
 
+    @computed_field
     @property
     def total_size_mb(self) -> float:
         return round(self.total_size_bytes / (1024 * 1024), 2)
 
+    @computed_field
     @property
     def total_size_gb(self) -> float:
         return round(self.total_size_bytes / (1024 * 1024 * 1024), 3)
+
+    @computed_field
+    @property
+    def quota(self) -> Optional[Dict[str, Any]]:
+        if self.quota_limit_bytes and self.quota_limit_bytes > 0:
+            usage_mb = round((self.quota_used_bytes or 0) / (1024 * 1024), 1)
+            limit_mb = round(self.quota_limit_bytes / (1024 * 1024), 1)
+            pct = round((usage_mb / limit_mb) * 100, 1)
+            return {
+                "percent": pct,
+                "usage_mb": usage_mb,
+                "limit_mb": limit_mb,
+            }
+        return None

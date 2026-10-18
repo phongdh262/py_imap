@@ -136,8 +136,7 @@ function initSingleAccountTab() {
     // 1. Test Source Password
     document.getElementById("btnTestSrcPass").addEventListener("click", async () => {
         const btn = document.getElementById("btnTestSrcPass");
-        btn.disabled = true;
-        btn.textContent = "Đang kiểm tra...";
+        const hint = document.getElementById("srcHintText");
 
         const payload = {
             host: document.getElementById("srcHost").value.trim(),
@@ -146,6 +145,20 @@ function initSingleAccountTab() {
             username: document.getElementById("srcUser").value.trim(),
             password: document.getElementById("srcPass").value.trim(),
         };
+
+        if (!payload.username || !payload.password) {
+            if (hint) {
+                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">Vui lòng nhập Email và Mật khẩu nguồn!</span>`;
+            }
+            showToast("Vui lòng nhập Email và Mật khẩu nguồn!", "error");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Đang kiểm tra kết nối...";
+        if (hint) {
+            hint.innerHTML = `<span style="color:var(--text-muted);">Đang kết nối IMAP SSL và thử đăng nhập...</span>`;
+        }
 
         appendTerminalLog(`[AUTH CHECK] Kiểm tra xác thực nguồn: ${payload.username} @ ${payload.host}...`, "info");
 
@@ -157,26 +170,40 @@ function initSingleAccountTab() {
             });
             const data = await res.json();
             if (data.is_valid) {
+                btn.textContent = `✓ Hợp Lệ (${data.latency_ms}ms)`;
+                if (hint) {
+                    hint.innerHTML = `<span style="color:#16a34a; font-weight:600;">✓ Mật khẩu chính xác! Độ trễ IMAP: ${data.latency_ms}ms</span>`;
+                }
                 showToast(`Mật khẩu Nguồn hợp lệ (${data.latency_ms}ms)`, "success");
                 appendTerminalLog(`[AUTH OK] Nguồn ${payload.username} hợp lệ, Latency: ${data.latency_ms}ms`, "success");
             } else {
-                showToast(`Thất bại: ${data.provider_hint || data.error_reason}`, "error");
-                appendTerminalLog(`[AUTH FAILED] Nguồn ${payload.username} thất bại: ${data.provider_hint || data.error_reason}`, "error");
+                const reason = data.provider_hint || data.error_reason || (data.detail || "Sai mật khẩu hoặc chưa bật IMAP");
+                btn.textContent = "✗ Không Hợp Lệ";
+                if (hint) {
+                    hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">✗ Thất bại: ${reason}</span>`;
+                }
+                showToast(`Thất bại: ${reason}`, "error");
+                appendTerminalLog(`[AUTH FAILED] Nguồn ${payload.username} thất bại: ${reason}`, "error");
             }
         } catch (e) {
+            btn.textContent = "✗ Lỗi Kết Nối";
+            if (hint) {
+                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">✗ Lỗi: ${e.message}</span>`;
+            }
             showToast(`Lỗi kết nối máy chủ: ${e.message}`, "error");
             appendTerminalLog(`[ERROR] Không thể kết nối máy chủ: ${e.message}`, "error");
         } finally {
             btn.disabled = false;
-            btn.textContent = "Kiểm Tra Mật Khẩu";
+            setTimeout(() => {
+                btn.textContent = "Kiểm Tra Mật Khẩu";
+            }, 4000);
         }
     });
 
     // 2. Test Destination Password
     document.getElementById("btnTestDstPass").addEventListener("click", async () => {
         const btn = document.getElementById("btnTestDstPass");
-        btn.disabled = true;
-        btn.textContent = "Đang kiểm tra...";
+        const hint = document.getElementById("dstHintText");
 
         const payload = {
             host: document.getElementById("dstHost").value.trim(),
@@ -185,6 +212,20 @@ function initSingleAccountTab() {
             username: document.getElementById("dstUser").value.trim(),
             password: document.getElementById("dstPass").value.trim(),
         };
+
+        if (!payload.username || !payload.password) {
+            if (hint) {
+                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">Vui lòng nhập Email và Mật khẩu đích!</span>`;
+            }
+            showToast("Vui lòng nhập Email và Mật khẩu đích!", "error");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Đang kiểm tra kết nối...";
+        if (hint) {
+            hint.innerHTML = `<span style="color:var(--text-muted);">Đang kết nối IMAP SSL và thử đăng nhập...</span>`;
+        }
 
         appendTerminalLog(`[AUTH CHECK] Kiểm tra xác thực đích: ${payload.username} @ ${payload.host}...`, "info");
 
@@ -196,18 +237,33 @@ function initSingleAccountTab() {
             });
             const data = await res.json();
             if (data.is_valid) {
+                btn.textContent = `✓ Hợp Lệ (${data.latency_ms}ms)`;
+                if (hint) {
+                    hint.innerHTML = `<span style="color:#16a34a; font-weight:600;">✓ Mật khẩu chính xác! Độ trễ IMAP: ${data.latency_ms}ms</span>`;
+                }
                 showToast(`Mật khẩu Đích hợp lệ (${data.latency_ms}ms)`, "success");
                 appendTerminalLog(`[AUTH OK] Đích ${payload.username} hợp lệ, Latency: ${data.latency_ms}ms`, "success");
             } else {
-                showToast(`Thất bại: ${data.provider_hint || data.error_reason}`, "error");
-                appendTerminalLog(`[AUTH FAILED] Đích ${payload.username} thất bại: ${data.provider_hint || data.error_reason}`, "error");
+                const reason = data.provider_hint || data.error_reason || (data.detail || "Sai mật khẩu hoặc chưa bật IMAP");
+                btn.textContent = "✗ Không Hợp Lệ";
+                if (hint) {
+                    hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">✗ Thất bại: ${reason}</span>`;
+                }
+                showToast(`Thất bại: ${reason}`, "error");
+                appendTerminalLog(`[AUTH FAILED] Đích ${payload.username} thất bại: ${reason}`, "error");
             }
         } catch (e) {
+            btn.textContent = "✗ Lỗi Kết Nối";
+            if (hint) {
+                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">✗ Lỗi: ${e.message}</span>`;
+            }
             showToast(`Lỗi kết nối máy chủ: ${e.message}`, "error");
             appendTerminalLog(`[ERROR] Không thể kết nối máy chủ: ${e.message}`, "error");
         } finally {
             btn.disabled = false;
-            btn.textContent = "Kiểm Tra Đăng Nhập Đích";
+            setTimeout(() => {
+                btn.textContent = "Kiểm Tra Đăng Nhập Đích";
+            }, 4000);
         }
     });
 
@@ -225,6 +281,13 @@ function initSingleAccountTab() {
             password: document.getElementById("srcPass").value.trim(),
         };
 
+        if (!payload.username || !payload.password) {
+            showToast("Vui lòng nhập Email và Mật khẩu nguồn để quét!", "error");
+            btn.disabled = false;
+            btn.textContent = "Quét Dung Lượng & Cây Thư Mục";
+            return;
+        }
+
         appendTerminalLog(`[INSPECT] Bắt đầu quét hộp thư nguồn ${payload.username}...`, "info");
 
         try {
@@ -239,8 +302,11 @@ function initSingleAccountTab() {
             }
 
             renderInspectionResults(data);
-            showToast(`Đã quét xong: ${data.total_size_mb} MB (${data.total_messages} thư)`, "success");
-            appendTerminalLog(`[INSPECT DONE] Tổng: ${data.total_size_mb} MB trên ${data.folders.length} thư mục`, "success");
+            const totalMb = data.total_size_mb != null
+                ? data.total_size_mb
+                : (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
+            showToast(`Đã quét xong: ${totalMb} MB (${data.total_messages || 0} thư)`, "success");
+            appendTerminalLog(`[INSPECT DONE] Tổng: ${totalMb} MB trên ${(data.folders || []).length} thư mục`, "success");
         } catch (e) {
             showToast(`Lỗi quét dung lượng: ${e.message}`, "error");
             appendTerminalLog(`[INSPECT ERROR] ${e.message}`, "error");
@@ -324,12 +390,20 @@ function renderInspectionResults(data) {
     container.style.display = "block";
     container.scrollIntoView({ behavior: "smooth" });
 
+    // Robust calculation for total MB
+    const totalMb = data.total_size_mb != null
+        ? data.total_size_mb
+        : (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
+
+    const totalMsgs = data.total_messages != null ? data.total_messages : 0;
+    const foldersCount = data.folders ? data.folders.length : 0;
+
     // Summary Badges
     const badgeContainer = document.getElementById("inspectionSummaryBadges");
     badgeContainer.innerHTML = `
-        <span class="badge badge-neutral">Tổng: ${data.total_size_mb} MB</span>
-        <span class="badge badge-neutral">${data.total_messages.toLocaleString()} Thư</span>
-        <span class="badge badge-neutral">${data.folders.length} Thư mục</span>
+        <span class="badge badge-neutral">Tổng: ${totalMb} MB</span>
+        <span class="badge badge-neutral">${totalMsgs.toLocaleString()} Thư</span>
+        <span class="badge badge-neutral">${foldersCount} Thư mục</span>
     `;
 
     // Quota details
@@ -338,7 +412,7 @@ function renderInspectionResults(data) {
     const quotaPct = document.getElementById("quotaPercentText");
     const quotaDetail = document.getElementById("quotaDetailText");
 
-    if (quota && quota.percent !== null) {
+    if (quota && quota.percent != null) {
         quotaFill.style.width = `${Math.min(quota.percent, 100)}%`;
         quotaPct.textContent = `${quota.percent}%`;
         quotaDetail.textContent = `Đã dùng ${quota.usage_mb} MB / ${quota.limit_mb} MB`;
@@ -352,18 +426,24 @@ function renderInspectionResults(data) {
     const tbody = document.getElementById("foldersTableBody");
     tbody.innerHTML = "";
 
-    data.folders.forEach(f => {
+    (data.folders || []).forEach(f => {
         const tr = document.createElement("tr");
         const roleBadge = f.role ? `<span class="badge badge-neutral">${f.role}</span>` : `<span class="text-dim">Mặc định</span>`;
+        
+        const folderMb = f.size_mb != null
+            ? f.size_mb
+            : (f.size_bytes ? (f.size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
+
+        const targetFolder = f.destination_folder || f.mapped_target || (f.role && f.role !== "CUSTOM" ? f.role : f.name);
         const mapStatus = f.is_excluded
             ? `<span class="badge badge-neutral">Loại trừ</span>`
-            : `<span class="text-primary">${f.destination_folder}</span>`;
+            : `<span class="text-primary">${targetFolder}</span>`;
 
         tr.innerHTML = `
             <td><strong>${f.name}</strong></td>
             <td>${roleBadge}</td>
-            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${f.messages_count.toLocaleString()}</td>
-            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${f.size_mb} MB</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${(f.messages_count || 0).toLocaleString()}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${folderMb} MB</td>
             <td style="text-align: center;">${mapStatus}</td>
         `;
         tbody.appendChild(tr);
@@ -378,7 +458,11 @@ function renderStorageDonutChart(summary) {
     const legend = document.getElementById("chartLegend");
     const centerSize = document.getElementById("donutCenterSize");
 
-    centerSize.textContent = `${summary.total_size_mb} MB`;
+    const totalMb = summary.total_size_mb != null
+        ? summary.total_size_mb
+        : (summary.total_size_bytes ? (summary.total_size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
+
+    centerSize.textContent = `${totalMb} MB`;
     svg.innerHTML = "";
     legend.innerHTML = "";
 

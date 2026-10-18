@@ -125,7 +125,16 @@ async def inspect_source_mailbox(creds: AccountCredentials):
     """Pre-flight inspection: returns mailbox size in MB/GB, quota, and folders."""
     try:
         summary: MailboxSummary = migration_service.inspect_source(creds)
-        return summary.model_dump()
+        data = summary.model_dump()
+        # Guarantee calculated fields are present
+        data["total_size_mb"] = summary.total_size_mb
+        data["total_size_gb"] = summary.total_size_gb
+        data["quota"] = summary.quota
+        for idx, f in enumerate(summary.folders):
+            if idx < len(data.get("folders", [])):
+                data["folders"][idx]["size_mb"] = f.size_mb
+                data["folders"][idx]["destination_folder"] = f.destination_folder
+        return data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
