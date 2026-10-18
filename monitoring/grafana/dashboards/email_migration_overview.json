@@ -1288,7 +1288,7 @@
           "refId": "A"
         }
       ],
-      "title": "Bảng Tra Cứu Chi Tiết Thư - Access Log (Tra cứu theo UID, Message-ID, Subject)",
+      "title": "Bảng Tra Cứu Chi Tiết Thư (Tra cứu theo UID, Message-ID, Subject)",
       "transformations": [
         {
           "id": "extractFields",
@@ -1327,6 +1327,7 @@
               "size_bytes": true,
               "skipped": true,
               "source_domain": true,
+              "source_folder": true,
               "timestamp": true,
               "transferred": true,
               "tsNs": true
