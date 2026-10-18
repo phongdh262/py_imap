@@ -563,7 +563,214 @@
             <section id="batchTab" class="tab-pane">
                 <div class="pane-header">
                     <h2>Chuyển Hàng Loạt (CSV)</h2>
-                    <p>Nhập danh sách tài khoản từ file CSV để chạy tự động theo hàng đợi.</p>
+                    <p>Chọn cấu hình máy chủ nguồn/đích chung và tải danh sách tài khoản (user/pass) từ file CSV để di chuyển tự động.</p>
+                </div>
+
+                <!-- 2-Column Server Config: Source & Dest -->
+                <div class="grid-2-cols" style="margin-bottom: 20px;">
+                    <!-- Source Server Config Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-source">
+                                <span class="status-dot" style="background:#818cf8; box-shadow:0 0 8px #818cf8;"></span>
+                                NGUỒN
+                            </span>
+                            <h3>Máy Chủ Nguồn</h3>
+                        </div>
+
+                        <div class="preset-label">Nhà cung cấp nguồn:</div>
+                        <div class="provider-chips">
+                            <button type="button" class="provider-chip active" data-target="batchSrc" data-provider="gmail">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+                                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.4 0 15.3c0 2.9.7 5.6 1.9 8l3.7-2.9z"/>
+                                    <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/>
+                                </svg>
+                                <span>Gmail</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchSrc" data-provider="outlook">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#0078D4">
+                                    <rect width="10" height="10" x="2" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="2" y="12" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="12" rx="1"/>
+                                </svg>
+                                <span>Outlook / M365</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchSrc" data-provider="yandex">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FC3F1D">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path fill="#fff" d="M13.5 6h-2.5c-2 0-3.3 1.2-3.3 3.2 0 1.5.8 2.5 2.1 3.2l-2.4 5.6h2.2l2.3-5.3h.6v5.3h2V6zm-1.5 5.2h-.9c-1 0-1.6-.6-1.6-1.6 0-1 .6-1.6 1.6-1.6h.9v3.2z"/>
+                                </svg>
+                                <span>Yandex</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchSrc" data-provider="cpanel">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FF6C2C">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                <span>cPanel</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchSrc" data-provider="custom">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+                                </svg>
+                                <span>Tùy biến</span>
+                            </button>
+                        </div>
+
+                        <div class="form-grid" style="margin-top: 16px;">
+                            <div class="form-group col-span-2">
+                                <label>Host IMAP Nguồn</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+                                            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+                                            <line x1="6" x2="6.01" y1="6" y2="6"/>
+                                            <line x1="6" x2="6.01" y1="18" y2="18"/>
+                                        </svg>
+                                    </span>
+                                    <input type="text" id="batchSrcHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Port</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
+                                        </svg>
+                                    </span>
+                                    <input type="number" id="batchSrcPort" value="993">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>SSL / TLS</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        </svg>
+                                    </span>
+                                    <select id="batchSrcSsl">
+                                        <option value="true" selected>SSL / TLS (Bắt buộc)</option>
+                                        <option value="false">STARTTLS / Plain</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Destination Server Config Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-dest">
+                                <span class="status-dot" style="background:#34d399; box-shadow:0 0 8px #34d399;"></span>
+                                ĐÍCH
+                            </span>
+                            <h3>Máy Chủ Đích</h3>
+                        </div>
+
+                        <div class="preset-label">Nhà cung cấp đích:</div>
+                        <div class="provider-chips">
+                            <button type="button" class="provider-chip active" data-target="batchDst" data-provider="cpanel">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FF6C2C">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                <span>cPanel</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchDst" data-provider="outlook">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#0078D4">
+                                    <rect width="10" height="10" x="2" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="2" y="12" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="12" rx="1"/>
+                                </svg>
+                                <span>Outlook / M365</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchDst" data-provider="gmail">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+                                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.4 0 15.3c0 2.9.7 5.6 1.9 8l3.7-2.9z"/>
+                                    <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/>
+                                </svg>
+                                <span>Gmail</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchDst" data-provider="yandex">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FC3F1D">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path fill="#fff" d="M13.5 6h-2.5c-2 0-3.3 1.2-3.3 3.2 0 1.5.8 2.5 2.1 3.2l-2.4 5.6h2.2l2.3-5.3h.6v5.3h2V6zm-1.5 5.2h-.9c-1 0-1.6-.6-1.6-1.6 0-1 .6-1.6 1.6-1.6h.9v3.2z"/>
+                                </svg>
+                                <span>Yandex</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="batchDst" data-provider="custom">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+                                </svg>
+                                <span>Tùy biến</span>
+                            </button>
+                        </div>
+
+                        <div class="form-grid" style="margin-top: 16px;">
+                            <div class="form-group col-span-2">
+                                <label>Host IMAP Đích</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+                                            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+                                            <line x1="6" x2="6.01" y1="6" y2="6"/>
+                                            <line x1="6" x2="6.01" y1="18" y2="18"/>
+                                        </svg>
+                                    </span>
+                                    <input type="text" id="batchDstHost" value="mail.yourdomain.com" placeholder="Ví dụ: mail.yourdomain.com">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Port</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
+                                        </svg>
+                                    </span>
+                                    <input type="number" id="batchDstPort" value="993">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>SSL / TLS</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        </svg>
+                                    </span>
+                                    <select id="batchDstSsl">
+                                        <option value="true" selected>SSL / TLS (Bắt buộc)</option>
+                                        <option value="false">STARTTLS / Plain</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Migration Options for Batch -->
+                <div class="card" style="margin-bottom: 20px;">
+                    <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                        <label class="checkbox-label" style="margin-bottom:0;">
+                            <input type="checkbox" id="batchForceRemigrate" checked>
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-text"><strong>Đồng bộ lại từ đầu</strong> (Bỏ qua cache kiểm tra trùng)</span>
+                        </label>
+                        <label class="checkbox-label" style="margin-bottom:0;">
+                            <input type="checkbox" id="batchSanitizeAccents">
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-text">Chuẩn hóa dấu tiếng Việt thư mục</span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Drag & Drop Zone -->
@@ -575,17 +782,22 @@
                             <line x1="12" x2="12" y1="3" y2="15"/>
                         </svg>
                     </div>
-                    <h3>Kéo thả file CSV vào đây</h3>
+                    <h3>Kéo thả file CSV danh sách tài khoản vào đây</h3>
+                    <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+                        File CSV gồm 4 cột: <code>source_user, source_password, dest_user, dest_password</code>
+                    </p>
                     <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">Chọn file từ máy</button>
-                    <a href="/config/accounts.example.csv" download class="example-link">Tải file mẫu (CSV)</a>
+                    <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 12px;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">Chọn file từ máy</button>
+                        <a href="/config/accounts.example.csv" download class="example-link">Tải file mẫu CSV (4 cột)</a>
+                    </div>
                 </div>
 
                 <!-- CSV Preview & Action Bar -->
                 <div id="csvPreviewSection" style="display: none; margin-top: 26px;">
                     <div class="action-bar-row">
                         <div class="action-info">
-                            Đã nạp <strong id="csvTotalCount">0</strong> tài khoản
+                            Đã nạp <strong id="csvTotalCount">0</strong> tài khoản từ CSV
                         </div>
                         <div class="action-buttons">
                             <button type="button" class="btn btn-secondary" id="btnCheckAllPasswords">
@@ -598,7 +810,7 @@
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polygon points="5 3 19 12 5 21 5 3"/>
                                 </svg>
-                                <span>Bắt Đầu Di Chuyển</span>
+                                <span>Bắt Đầu Di Chuyển Hàng Loạt</span>
                             </button>
                         </div>
                     </div>
@@ -608,13 +820,13 @@
                             <table class="data-table" id="csvTable">
                                 <thead>
                                     <tr>
-                                        <th style="text-align: center; width: 60px;">STT</th>
+                                        <th style="text-align: center; width: 50px;">STT</th>
                                         <th>Email Nguồn</th>
-                                        <th>Host Nguồn</th>
                                         <th>Email Đích</th>
-                                        <th>Host Đích</th>
-                                        <th style="text-align: center;">Kết Nối</th>
-                                        <th style="text-align: center;">Trạng Thái</th>
+                                        <th>Máy Chủ Nguồn Áp Dụng</th>
+                                        <th>Máy Chủ Đích Áp Dụng</th>
+                                        <th style="text-align: center; width: 130px;">Kết Nối</th>
+                                        <th style="text-align: center; width: 100px;">Trạng Thái</th>
                                     </tr>
                                 </thead>
                                 <tbody id="csvTableBody"></tbody>

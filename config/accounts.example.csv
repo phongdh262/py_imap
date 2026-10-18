@@ -1,3 +1,4 @@
-source_host,source_port,source_ssl,source_user,source_password,dest_host,dest_port,dest_ssl,dest_user,dest_password
-imap.gmail.com,993,true,user1@gmail.com,app_password_here,mail.mycpanel.com,993,true,user1@mycpanel.com,cpanel_pass_here
-imap.yandex.com,993,true,sale@yandex.ru,app_password_here,outlook.office365.com,993,true,sale@company.onmicrosoft.com,oauth2_or_pass
+source_user,source_password,dest_user,dest_password
+user1@gmail.com,app_password_here,user1@mycpanel.com,cpanel_pass_here
+sale@yandex.ru,app_password_here,sale@company.onmicrosoft.com,dest_pass_here
+admin@olddomain.com,old_pass_123,admin@newdomain.com,new_pass_456

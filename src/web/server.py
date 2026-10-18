@@ -104,10 +104,22 @@ class SingleMigrateRequest(BaseModel):
 
 
 class BatchCheckRequest(BaseModel):
+    source_host: Optional[str] = None
+    source_port: Optional[int] = 993
+    source_ssl: Optional[bool] = True
+    dest_host: Optional[str] = None
+    dest_port: Optional[int] = 993
+    dest_ssl: Optional[bool] = True
     accounts: List[Dict[str, Any]]
 
 
 class BatchMigrateRequest(BaseModel):
+    source_host: Optional[str] = None
+    source_port: Optional[int] = 993
+    source_ssl: Optional[bool] = True
+    dest_host: Optional[str] = None
+    dest_port: Optional[int] = 993
+    dest_ssl: Optional[bool] = True
     accounts: List[Dict[str, Any]]
     sanitize_accents: bool = False
     batch_delay_ms: int = 50
@@ -198,15 +210,27 @@ async def check_csv_passwords(req: BatchCheckRequest):
     """Checks credentials for all accounts in CSV in parallel."""
     creds_list = []
     for row in req.accounts:
-        creds_list.append(
-            AccountCredentials(
-                host=row.get("source_host", "").strip(),
-                port=int(row.get("source_port", 993)),
-                ssl=str(row.get("source_ssl", "true")).lower() in ("true", "1"),
-                username=row.get("source_user", "").strip(),
-                password=row.get("source_password", "").strip(),
-            )
+        src_host = (row.get("source_host") or req.source_host or "").strip()
+        src_port = int(row.get("source_port") or req.source_port or 993)
+        src_ssl_val = row.get("source_ssl")
+        src_ssl = (
+            str(src_ssl_val).lower() in ("true", "1")
+            if src_ssl_val is not None
+            else (req.source_ssl if req.source_ssl is not None else True)
         )
+        src_user = (row.get("source_user") or row.get("source_email") or "").strip()
+        src_pass = (row.get("source_password") or row.get("source_pass") or "").strip()
+
+        if src_user and src_host:
+            creds_list.append(
+                AccountCredentials(
+                    host=src_host,
+                    port=src_port,
+                    ssl=src_ssl,
+                    username=src_user,
+                    password=src_pass,
+                )
+            )
     results = auth_checker.check_multiple(creds_list, max_workers=8)
     return [
         {
@@ -377,33 +401,56 @@ def run_batch_migration_worker(batch_id: str, req: BatchMigrateRequest, loop: as
     """Processes CSV accounts queue in background, updating ACTIVE_TASKS for each."""
     for idx, row in enumerate(req.accounts):
         sub_task_id = f"{batch_id}_{idx + 1}"
+        src_user = (row.get("source_user") or row.get("source_email") or "").strip()
+        dst_user = (row.get("dest_user") or row.get("dest_email") or "").strip()
         try:
+            src_host = (row.get("source_host") or req.source_host or "").strip()
+            src_port = int(row.get("source_port") or req.source_port or 993)
+            src_ssl_val = row.get("source_ssl")
+            src_ssl = (
+                str(src_ssl_val).lower() in ("true", "1")
+                if src_ssl_val is not None
+                else (req.source_ssl if req.source_ssl is not None else True)
+            )
+            src_pass = (row.get("source_password") or row.get("source_pass") or "").strip()
+
+            dst_host = (row.get("dest_host") or req.dest_host or "").strip()
+            dst_port = int(row.get("dest_port") or req.dest_port or 993)
+            dst_ssl_val = row.get("dest_ssl")
+            dst_ssl = (
+                str(dst_ssl_val).lower() in ("true", "1")
+                if dst_ssl_val is not None
+                else (req.dest_ssl if req.dest_ssl is not None else True)
+            )
+            dst_pass = (row.get("dest_password") or row.get("dest_pass") or "").strip()
+
             src = AccountCredentials(
-                host=row.get("source_host", "").strip(),
-                port=int(row.get("source_port", 993)),
-                ssl=str(row.get("source_ssl", "true")).lower() in ("true", "1"),
-                username=row.get("source_user", "").strip(),
-                password=row.get("source_password", "").strip(),
+                host=src_host,
+                port=src_port,
+                ssl=src_ssl,
+                username=src_user,
+                password=src_pass,
             )
             dst = AccountCredentials(
-                host=row.get("dest_host", "").strip(),
-                port=int(row.get("dest_port", 993)),
-                ssl=str(row.get("dest_ssl", "true")).lower() in ("true", "1"),
-                username=row.get("dest_user", "").strip(),
-                password=row.get("dest_password", "").strip(),
+                host=dst_host,
+                port=dst_port,
+                ssl=dst_ssl,
+                username=dst_user,
+                password=dst_pass,
             )
             single_req = SingleMigrateRequest(
                 source=src,
                 dest=dst,
                 sanitize_accents=req.sanitize_accents,
                 batch_delay_ms=req.batch_delay_ms,
+                force_remigrate=req.force_remigrate,
             )
             run_migration_worker(sub_task_id, single_req, loop)
         except Exception as e:
             ACTIVE_TASKS[sub_task_id] = {
                 "task_id": sub_task_id,
-                "source": row.get("source_user", "Unknown"),
-                "dest": row.get("dest_user", "Unknown"),
+                "source": src_user or "Unknown",
+                "dest": dst_user or "Unknown",
                 "status": "FAILED",
                 "percent": 0.0,
                 "current_folder": "-",

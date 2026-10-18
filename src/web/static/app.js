@@ -106,10 +106,24 @@ function initProviderChips() {
 }
 
 function applyProviderPreset(target, provider) {
-    const hostInput = document.getElementById(`${target}Host`);
-    const portInput = document.getElementById(`${target}Port`);
-    const sslSelect = document.getElementById(`${target}Ssl`);
-    const hintText = document.getElementById(`${target}HintText`);
+    let hostInput, portInput, sslSelect, hintText, userInput;
+    if (target === "batchSrc") {
+        hostInput = document.getElementById("batchSrcHost");
+        portInput = document.getElementById("batchSrcPort");
+        sslSelect = document.getElementById("batchSrcSsl");
+    } else if (target === "batchDst") {
+        hostInput = document.getElementById("batchDstHost");
+        portInput = document.getElementById("batchDstPort");
+        sslSelect = document.getElementById("batchDstSsl");
+    } else {
+        hostInput = document.getElementById(`${target}Host`);
+        portInput = document.getElementById(`${target}Port`);
+        sslSelect = document.getElementById(`${target}Ssl`);
+        hintText = document.getElementById(`${target}HintText`);
+        userInput = document.getElementById(`${target}User`) ? document.getElementById(`${target}User`).value.trim() : "";
+    }
+
+    if (!hostInput || !portInput || !sslSelect) return;
 
     if (provider === "gmail") {
         hostInput.value = "imap.gmail.com";
@@ -127,9 +141,8 @@ function applyProviderPreset(target, provider) {
         sslSelect.value = "true";
         if (hintText) hintText.textContent = "Lưu ý Yandex: Tạo Mật khẩu ứng dụng tại Yandex ID > Security";
     } else if (provider === "cpanel") {
-        const userInput = document.getElementById(`${target}User`).value.trim();
-        let domain = "cpanel-domain.com";
-        if (userInput.includes("@")) {
+        let domain = "yourdomain.com";
+        if (userInput && userInput.includes("@")) {
             domain = userInput.split("@")[1];
         }
         hostInput.value = `mail.${domain}`;
@@ -138,6 +151,10 @@ function applyProviderPreset(target, provider) {
         if (hintText) hintText.textContent = `cPanel: Mặc định mail.${domain} (Port 993 SSL)`;
     } else if (provider === "custom") {
         if (hintText) hintText.textContent = "";
+    }
+
+    if (target.startsWith("batch") && typeof parsedCsvData !== "undefined" && parsedCsvData.length > 0) {
+        renderCsvPreview();
     }
 }
 
@@ -717,41 +734,72 @@ function initDropZone() {
         }
     });
 
-    // Check all passwords in parallel
-    document.getElementById("btnCheckAllPasswords").addEventListener("click", async () => {
-        const btn = document.getElementById("btnCheckAllPasswords");
-        btn.disabled = true;
-        btn.textContent = "Đang kiểm tra đồng thời...";
-        appendTerminalLog(`[BATCH CHECK] Kiểm tra mật khẩu cho ${parsedCsvData.length} tài khoản...`, "info");
-
-        try {
-            const res = await fetch("/api/check-csv", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ accounts: parsedCsvData }),
+    // Re-render preview when batch server inputs change
+    ["batchSrcHost", "batchSrcPort", "batchDstHost", "batchDstPort"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("input", () => {
+                if (parsedCsvData.length > 0) renderCsvPreview();
             });
-            const results = await res.json();
-
-            results.forEach((r, idx) => {
-                const cell = document.getElementById(`csvAuthCell_${idx}`);
-                if (cell) {
-                    if (r.is_valid) {
-                        cell.innerHTML = `<span class="badge badge-neutral" style="color:var(--text-primary);">HỢP LỆ (${r.latency_ms}ms)</span>`;
-                    } else {
-                        cell.innerHTML = `<span class="badge badge-neutral" style="color:var(--danger-text);" title="${r.provider_hint || r.error_reason}">THẤT BẠI</span>`;
-                    }
-                }
-            });
-
-            showToast("Hoàn tất kiểm tra mật khẩu toàn bộ danh sách CSV!", "success");
-            appendTerminalLog(`[BATCH CHECK DONE] Đã kiểm tra xong toàn bộ CSV`, "success");
-        } catch (e) {
-            showToast(`Lỗi kiểm tra CSV: ${e.message}`, "error");
-        } finally {
-            btn.disabled = false;
-            btn.textContent = "Kiểm Tra Toàn Bộ Mật Khẩu";
         }
     });
+
+    // Check all passwords in parallel
+    const btnCheck = document.getElementById("btnCheckAllPasswords");
+    if (btnCheck) {
+        btnCheck.addEventListener("click", async () => {
+            if (parsedCsvData.length === 0) {
+                showToast("Vui lòng tải file CSV danh sách tài khoản trước!", "error");
+                return;
+            }
+
+            const srcHost = document.getElementById("batchSrcHost") ? document.getElementById("batchSrcHost").value.trim() : "";
+            const srcPort = document.getElementById("batchSrcPort") ? parseInt(document.getElementById("batchSrcPort").value) : 993;
+            const srcSsl = document.getElementById("batchSrcSsl") ? document.getElementById("batchSrcSsl").value === "true" : true;
+
+            if (!srcHost) {
+                showToast("Vui lòng nhập Host máy chủ nguồn!", "error");
+                return;
+            }
+
+            btnCheck.disabled = true;
+            btnCheck.textContent = "Đang kiểm tra...";
+            appendTerminalLog(`[BATCH CHECK] Kiểm tra xác thực cho ${parsedCsvData.length} tài khoản qua máy chủ ${srcHost}:${srcPort}...`, "info");
+
+            try {
+                const res = await fetch("/api/check-csv", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        source_host: srcHost,
+                        source_port: srcPort,
+                        source_ssl: srcSsl,
+                        accounts: parsedCsvData,
+                    }),
+                });
+                const results = await res.json();
+
+                results.forEach((r, idx) => {
+                    const cell = document.getElementById(`csvAuthCell_${idx}`);
+                    if (cell) {
+                        if (r.is_valid) {
+                            cell.innerHTML = `<span class="badge badge-success" style="color:#10b981; font-weight:600;">HỢP LỆ (${r.latency_ms}ms)</span>`;
+                        } else {
+                            cell.innerHTML = `<span class="badge badge-danger" style="color:var(--danger-text); font-weight:600;" title="${r.provider_hint || r.error_reason}">THẤT BẠI</span>`;
+                        }
+                    }
+                });
+
+                showToast("Hoàn tất kiểm tra kết nối toàn bộ danh sách CSV!", "success");
+                appendTerminalLog(`[BATCH CHECK DONE] Đã kiểm tra xong toàn bộ danh sách CSV`, "success");
+            } catch (e) {
+                showToast(`Lỗi kiểm tra CSV: ${e.message}`, "error");
+            } finally {
+                btnCheck.disabled = false;
+                btnCheck.textContent = "Kiểm Tra Kết Nối";
+            }
+        });
+    }
 
     // Start Batch Migration
     const btnBatch = document.getElementById("btnStartBatchMigrate");
@@ -761,20 +809,45 @@ function initDropZone() {
                 showToast("Chưa có danh sách tài khoản CSV!", "error");
                 return;
             }
-            btnBatch.disabled = true;
-            btnBatch.textContent = "Đang khởi tạo hàng đợi...";
 
-            const sanitizeAccents = document.getElementById("sanitizeAccents") ? document.getElementById("sanitizeAccents").checked : false;
-            const batchDelay = document.getElementById("batchDelayInput") ? parseInt(document.getElementById("batchDelayInput").value) : 50;
+            const srcHost = document.getElementById("batchSrcHost") ? document.getElementById("batchSrcHost").value.trim() : "";
+            const srcPort = document.getElementById("batchSrcPort") ? parseInt(document.getElementById("batchSrcPort").value) : 993;
+            const srcSsl = document.getElementById("batchSrcSsl") ? document.getElementById("batchSrcSsl").value === "true" : true;
+
+            const dstHost = document.getElementById("batchDstHost") ? document.getElementById("batchDstHost").value.trim() : "";
+            const dstPort = document.getElementById("batchDstPort") ? parseInt(document.getElementById("batchDstPort").value) : 993;
+            const dstSsl = document.getElementById("batchDstSsl") ? document.getElementById("batchDstSsl").value === "true" : true;
+
+            if (!srcHost) {
+                showToast("Vui lòng nhập Host máy chủ nguồn!", "error");
+                return;
+            }
+            if (!dstHost) {
+                showToast("Vui lòng nhập Host máy chủ đích!", "error");
+                return;
+            }
+
+            btnBatch.disabled = true;
+            btnBatch.textContent = "Đang khởi tạo...";
+
+            const forceRemigrate = document.getElementById("batchForceRemigrate") ? document.getElementById("batchForceRemigrate").checked : true;
+            const sanitizeAccents = document.getElementById("batchSanitizeAccents") ? document.getElementById("batchSanitizeAccents").checked : false;
 
             try {
                 const res = await fetch("/api/migrate/batch", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
+                        source_host: srcHost,
+                        source_port: srcPort,
+                        source_ssl: srcSsl,
+                        dest_host: dstHost,
+                        dest_port: dstPort,
+                        dest_ssl: dstSsl,
                         accounts: parsedCsvData,
                         sanitize_accents: sanitizeAccents,
-                        batch_delay_ms: batchDelay,
+                        batch_delay_ms: 50,
+                        force_remigrate: forceRemigrate,
                     }),
                 });
                 const data = await res.json();
@@ -792,7 +865,7 @@ function initDropZone() {
                 appendTerminalLog(`[BATCH ERROR] ${err.message}`, "error");
             } finally {
                 btnBatch.disabled = false;
-                btnBatch.textContent = "Bắt Đầu Di Chuyển Toàn Bộ CSV";
+                btnBatch.textContent = "Bắt Đầu Di Chuyển Hàng Loạt";
             }
         });
     }
@@ -809,46 +882,82 @@ function handleCsvFile(file) {
 
 function parseCsvText(text) {
     const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-    if (lines.length < 2) {
+    if (lines.length < 1) {
         showToast("File CSV rỗng hoặc không có dữ liệu!", "error");
         return;
     }
 
-    const headers = lines[0].split(",").map(h => h.trim());
+    const rawHeaders = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ""));
     parsedCsvData = [];
 
-    for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(",").map(c => c.trim());
+    // Detect if first line is a header
+    const isHeaderLine = rawHeaders.some(h =>
+        h.includes("user") || h.includes("email") || h.includes("pass") || h.includes("source") || h.includes("dest")
+    );
+
+    const startIndex = isHeaderLine ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+        const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ""));
         if (cols.length >= 4) {
-            const rowObj = {};
-            headers.forEach((h, idx) => {
-                rowObj[h] = cols[idx] || "";
-            });
-            parsedCsvData.push(rowObj);
+            let rowObj = {};
+            if (isHeaderLine && rawHeaders.includes("source_user") && rawHeaders.includes("dest_user")) {
+                rawHeaders.forEach((h, idx) => {
+                    rowObj[h] = cols[idx] || "";
+                });
+            } else if (isHeaderLine && rawHeaders.includes("source_host") && cols.length >= 10) {
+                rawHeaders.forEach((h, idx) => {
+                    rowObj[h] = cols[idx] || "";
+                });
+            } else {
+                rowObj = {
+                    source_user: cols[0],
+                    source_password: cols[1],
+                    dest_user: cols[2],
+                    dest_password: cols[3],
+                };
+            }
+            if (rowObj.source_user && rowObj.dest_user) {
+                parsedCsvData.push(rowObj);
+            }
         }
+    }
+
+    if (parsedCsvData.length === 0) {
+        showToast("Không tìm thấy dòng tài khoản hợp lệ trong file CSV! (Cần 4 cột: user nguồn, pass nguồn, user đích, pass đích)", "error");
+        return;
     }
 
     renderCsvPreview();
     showToast(`Đã nạp ${parsedCsvData.length} tài khoản từ file CSV!`, "success");
-    appendTerminalLog(`[CSV LOADED] Đã nạp thành công ${parsedCsvData.length} dòng từ file CSV`, "info");
+    appendTerminalLog(`[CSV LOADED] Đã nạp thành công ${parsedCsvData.length} tài khoản từ file CSV`, "info");
 }
 
 function renderCsvPreview() {
     const section = document.getElementById("csvPreviewSection");
+    if (!section) return;
     section.style.display = "block";
     document.getElementById("csvTotalCount").textContent = parsedCsvData.length;
+
+    const srcHost = document.getElementById("batchSrcHost") ? document.getElementById("batchSrcHost").value.trim() : "imap.gmail.com";
+    const srcPort = document.getElementById("batchSrcPort") ? document.getElementById("batchSrcPort").value.trim() : "993";
+    const dstHost = document.getElementById("batchDstHost") ? document.getElementById("batchDstHost").value.trim() : "mail.yourdomain.com";
+    const dstPort = document.getElementById("batchDstPort") ? document.getElementById("batchDstPort").value.trim() : "993";
 
     const tbody = document.getElementById("csvTableBody");
     tbody.innerHTML = "";
 
     parsedCsvData.forEach((row, idx) => {
+        const displaySrc = `${row.source_host || srcHost}:${row.source_port || srcPort}`;
+        const displayDst = `${row.dest_host || dstHost}:${row.dest_port || dstPort}`;
+
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td>${idx + 1}</td>
+            <td style="text-align: center;">${idx + 1}</td>
             <td><strong>${row.source_user || ''}</strong></td>
-            <td><code>${row.source_host || ''}</code></td>
             <td><strong>${row.dest_user || ''}</strong></td>
-            <td><code>${row.dest_host || ''}</code></td>
+            <td><code>${displaySrc}</code></td>
+            <td><code>${displayDst}</code></td>
             <td id="csvAuthCell_${idx}" style="text-align: center;"><span class="badge badge-neutral">Chưa test</span></td>
             <td id="csvMigrateCell_${idx}" style="text-align: center;"><span class="badge badge-neutral">Chờ</span></td>
         `;
