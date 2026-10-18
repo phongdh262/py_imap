@@ -30,8 +30,18 @@ scrape_configs:
             folder: folder
             error_code: error_code
             error_detail: error_detail
+            action: action
+            status: status
+            uid: uid
+            message_id: message_id
+            subject: subject
+            sender: sender
+            size_str: size_str
+            size_bytes: size_bytes
       - labels:
           level:
+          status:
+          action:
           source_domain:
           dest_domain:
           source_account:

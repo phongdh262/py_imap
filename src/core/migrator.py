@@ -170,7 +170,11 @@ class EmailMigrator:
                 except Exception:
                     message_id, subject, sender, date_str = None, "", "", ""
 
-                msg_hash = StateDatabase.compute_message_hash(message_id, date_str, subject, size)
+                # Helper for human-readable size
+                size_str = f"{size / 1024:.1f} KB" if size < 1048576 else f"{size / 1048576:.2f} MB"
+                safe_subject = (subject[:60] + "...") if len(subject) > 60 else (subject or "(No Subject)")
+                safe_sender = (sender[:40] + "...") if len(sender) > 40 else (sender or "")
+                safe_msg_id = message_id or f"UID-{uid}"
 
                 # DEDUPLICATION & RECONCILIATION LOGIC:
                 # 1. If message is PHYSICALLY ON DESTINATION right now:
@@ -179,6 +183,21 @@ class EmailMigrator:
                     skipped_count += 1
                     if migration_id:
                         self.state_db.record_skipped(migration_id)
+                    logger.info(
+                        f"- [{src_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> SKIPPED (Already exists on destination)",
+                        action="SKIP",
+                        status="SKIPPED",
+                        source_account=src_account,
+                        dest_account=dst_account,
+                        folder=src_folder,
+                        target_folder=dst_folder,
+                        uid=uid,
+                        message_id=message_id or "",
+                        subject=subject,
+                        sender=sender,
+                        size_bytes=size,
+                        size_str=size_str,
+                    )
                     continue
 
                 # 2. If destination check was empty/unavailable (e.g. brand new folder or server query failed),
@@ -188,6 +207,21 @@ class EmailMigrator:
                         skipped_count += 1
                         if migration_id:
                             self.state_db.record_skipped(migration_id)
+                        logger.info(
+                            f"- [{src_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> SKIPPED (Recorded in migration state DB)",
+                            action="SKIP",
+                            status="SKIPPED",
+                            source_account=src_account,
+                            dest_account=dst_account,
+                            folder=src_folder,
+                            target_folder=dst_folder,
+                            uid=uid,
+                            message_id=message_id or "",
+                            subject=subject,
+                            sender=sender,
+                            size_bytes=size,
+                            size_str=size_str,
+                        )
                         continue
 
                 # Validation: size limit exceeded
@@ -202,6 +236,23 @@ class EmailMigrator:
                         self.state_db.record_failure(
                             migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, err_code, err_detail
                         )
+                    logger.error(
+                        f"! [{src_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> FAILED ({err_code})",
+                        action="FAIL",
+                        status="FAILED",
+                        source_account=src_account,
+                        dest_account=dst_account,
+                        folder=src_folder,
+                        target_folder=dst_folder,
+                        uid=uid,
+                        message_id=message_id or "",
+                        subject=subject,
+                        sender=sender,
+                        size_bytes=size,
+                        size_str=size_str,
+                        error_code=err_code,
+                        error_detail=err_detail,
+                    )
                     continue
 
                 # Append to destination with automatic namespace self-healing
@@ -230,6 +281,22 @@ class EmailMigrator:
                             migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size
                         )
 
+                    logger.info(
+                        f"+ [{src_folder} -> {dst_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | From: {safe_sender} | Subj: {safe_subject} -> OK",
+                        action="TRANSFER",
+                        status="SUCCESS",
+                        source_account=src_account,
+                        dest_account=dst_account,
+                        folder=src_folder,
+                        target_folder=dst_folder,
+                        uid=uid,
+                        message_id=message_id or "",
+                        subject=subject,
+                        sender=sender,
+                        size_bytes=size,
+                        size_str=size_str,
+                    )
+
                 except Exception as e:
                     failed_count += 1
                     err_code = "APPEND_FAILED"
@@ -241,6 +308,23 @@ class EmailMigrator:
                         self.state_db.record_failure(
                             migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, err_code, err_detail
                         )
+                    logger.error(
+                        f"! [{src_folder} -> {dst_folder}:{uid}] {size_str} | MsgID: {safe_msg_id} | Subj: {safe_subject} -> FAILED ({err_detail})",
+                        action="FAIL",
+                        status="FAILED",
+                        source_account=src_account,
+                        dest_account=dst_account,
+                        folder=src_folder,
+                        target_folder=dst_folder,
+                        uid=uid,
+                        message_id=message_id or "",
+                        subject=subject,
+                        sender=sender,
+                        size_bytes=size,
+                        size_str=size_str,
+                        error_code=err_code,
+                        error_detail=err_detail,
+                    )
 
             if on_progress:
                 on_progress(success_count + failed_count + skipped_count, total_messages)

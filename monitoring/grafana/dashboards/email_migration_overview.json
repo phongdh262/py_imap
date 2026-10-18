@@ -889,13 +889,13 @@
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
-        "prettifyLogMessage": true,
+        "prettifyLogMessage": false,
         "showCommonLabels": false,
         "showLabels": true,
         "sortOrder": "Descending",
         "wrapLogMessage": true
       },
-      "title": "Real-time Migration Audit & Error Logs (Loki Stream)",
+      "title": "Nhật Ký Chuyển Thư Thời Gian Thực (imapsync Terminal Stream)",
       "type": "logs",
       "targets": [
         {
@@ -903,8 +903,8 @@
             "type": "loki",
             "uid": "Loki"
           },
-          "editorMode": "builder",
-          "expr": "{job=\"email_migrator\"} | json | source_account =~ \".*@$domain\" | source_account =~ \"$account\" | level =~ \"$log_level\"",
+          "editorMode": "code",
+          "expr": "{job=\"email_migrator\"} | json | source_account =~ \".*@$domain\" | source_account =~ \"$account\" | level =~ \"$log_level\" | status =~ \"$status\" |~ \"(?i)$search\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -929,7 +929,56 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "level"
+              "options": "status"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "SUCCESS": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "SUCCESS"
+                      },
+                      "SKIPPED": {
+                        "color": "yellow",
+                        "index": 1,
+                        "text": "SKIPPED"
+                      },
+                      "FAILED": {
+                        "color": "red",
+                        "index": 2,
+                        "text": "FAILED"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "uid"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "size_str"
             },
             "properties": [
               {
@@ -941,24 +990,60 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "source_account"
+              "options": "folder"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 200
+                "value": 130
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "folder"
+              "options": "message_id"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 150
+                "value": 240
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "subject"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "source_account"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "dest_account"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
               }
             ]
           },
@@ -970,7 +1055,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 140
+                "value": 130
               }
             ]
           }
@@ -1000,7 +1085,7 @@
           }
         ]
       },
-      "title": "Bảng Chi Tiết Sự Kiện & Lỗi Di Chuyển Theo Domain (Audit Table)",
+      "title": "Bảng Tra Cứu Chi Tiết Thư - Access Log (Tra cứu theo UID, Message-ID, Subject)",
       "type": "table",
       "targets": [
         {
@@ -1009,7 +1094,7 @@
             "uid": "Loki"
           },
           "editorMode": "code",
-          "expr": "{job=\"email_migrator\"} | json | source_account =~ \".*@$domain\" | source_account =~ \"$account\" | level =~ \"$log_level\"",
+          "expr": "{job=\"email_migrator\"} | json | source_account =~ \".*@$domain\" | source_account =~ \"$account\" | level =~ \"$log_level\" | status =~ \"$status\" |~ \"(?i)$search\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -1138,6 +1223,65 @@
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "includeAll": true,
+        "label": "Trạng Thái (Status)",
+        "multi": false,
+        "name": "status",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "SUCCESS",
+            "value": "SUCCESS"
+          },
+          {
+            "selected": false,
+            "text": "SKIPPED",
+            "value": "SKIPPED"
+          },
+          {
+            "selected": false,
+            "text": "FAILED",
+            "value": "FAILED"
+          }
+        ],
+        "query": "SUCCESS,SKIPPED,FAILED",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "label": "Tìm Kiếm (UID / MsgID / Tiêu đề)",
+        "name": "search",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
       }
     ]
   }
