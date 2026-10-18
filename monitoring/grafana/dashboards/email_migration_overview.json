@@ -1107,13 +1107,13 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "status"
+              "id": "byRegexp",
+              "options": "/^(status|Trạng Thái)$/"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 100
+                "value": 110
               },
               {
                 "id": "mappings",
@@ -1144,32 +1144,32 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "uid"
+              "id": "byRegexp",
+              "options": "/^(uid|UID)$/"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 80
+                "value": 85
               }
             ]
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "size_str"
+              "id": "byRegexp",
+              "options": "/^(size_str|Dung Lượng)$/"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 90
+                "value": 105
               }
             ]
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "folder"
+              "id": "byRegexp",
+              "options": "/^(folder|Thư Mục)$/"
             },
             "properties": [
               {
@@ -1180,8 +1180,20 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "message_id"
+              "id": "byRegexp",
+              "options": "/^(target_folder|Đích Đến)$/"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/^(message_id|Message-ID)$/"
             },
             "properties": [
               {
@@ -1192,20 +1204,20 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "subject"
+              "id": "byRegexp",
+              "options": "/^(subject|Tiêu Đề)$/"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 250
+                "value": 260
               }
             ]
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "source_account"
+              "id": "byRegexp",
+              "options": "/^(source_account|Tài Khoản Nguồn)$/"
             },
             "properties": [
               {
@@ -1216,8 +1228,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "dest_account"
+              "id": "byRegexp",
+              "options": "/^(dest_account|Tài Khoản Đích)$/"
             },
             "properties": [
               {
@@ -1228,13 +1240,13 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "error_code"
+              "id": "byRegexp",
+              "options": "/^(error_detail|Chi Tiết Lỗi)$/"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 130
+                "value": 180
               }
             ]
           }
@@ -1260,11 +1272,65 @@
         "sortBy": [
           {
             "desc": true,
-            "displayName": "Time"
+            "displayName": "Thời Gian"
           }
         ]
       },
       "title": "Bảng Tra Cứu Chi Tiết Thư - Access Log (Tra cứu theo UID, Message-ID, Subject)",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Line": true,
+              "labels": true,
+              "id": true,
+              "job": true,
+              "env": true,
+              "logger": true,
+              "level": true,
+              "timestamp": true,
+              "source_domain": true,
+              "dest_domain": true,
+              "action": true,
+              "size_bytes": true,
+              "error_code": true
+            },
+            "indexByName": {
+              "Time": 0,
+              "status": 1,
+              "uid": 2,
+              "size_str": 3,
+              "folder": 4,
+              "target_folder": 5,
+              "message_id": 6,
+              "subject": 7,
+              "source_account": 8,
+              "dest_account": 9,
+              "error_detail": 10
+            },
+            "renameByName": {
+              "Time": "Thời Gian",
+              "status": "Trạng Thái",
+              "uid": "UID",
+              "size_str": "Dung Lượng",
+              "folder": "Thư Mục",
+              "target_folder": "Đích Đến",
+              "message_id": "Message-ID",
+              "subject": "Tiêu Đề",
+              "source_account": "Tài Khoản Nguồn",
+              "dest_account": "Tài Khoản Đích",
+              "error_detail": "Chi Tiết Lỗi"
+            }
+          }
+        }
+      ],
       "type": "table",
       "targets": [
         {
