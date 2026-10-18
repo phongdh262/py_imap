@@ -2,11 +2,12 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import secrets
 from typing import Any, Dict, List, Optional
 
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -14,7 +15,14 @@ from src.core.auth_checker import AuthChecker
 from src.core.models import AccountCredentials, MailboxSummary
 from src.core.service import MigrationService
 from src.reports.reporter import MigrationReporter
-from src.security.auth import verify_admin
+from src.security.auth import (
+    AdminSecurity,
+    COOKIE_NAME,
+    SESSION_MAX_AGE_SECONDS,
+    create_session_token,
+    verify_session_token,
+    verify_admin,
+)
 from src.security.headers import SecurityHeadersMiddleware
 from src.security.path_guard import PathSecurity
 from src.storage.state_db import StateDatabase
@@ -58,6 +66,11 @@ auth_checker = AuthChecker()
 progress_event_queue: asyncio.Queue = asyncio.Queue()
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
 class SingleMigrateRequest(BaseModel):
     source: AccountCredentials
     dest: AccountCredentials
@@ -67,6 +80,58 @@ class SingleMigrateRequest(BaseModel):
 
 class BatchCheckRequest(BaseModel):
     accounts: List[Dict[str, Any]]
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def serve_login(request: Request):
+    """Serves the login page. Redirects to '/' if already authenticated."""
+    session_cookie = request.cookies.get(COOKIE_NAME)
+    if session_cookie and verify_session_token(session_cookie):
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
+    login_file = TEMPLATES_DIR / "login.html"
+    if not login_file.exists():
+        raise HTTPException(status_code=404, detail="login.html not found")
+    return HTMLResponse(content=login_file.read_text(encoding="utf-8"))
+
+
+@app.post("/api/login")
+async def api_login(req: LoginRequest, request: Request, response: Response):
+    """Authenticates admin credentials, handles brute-force protection, and sets session cookie."""
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    AdminSecurity.check_brute_force(client_ip)
+
+    expected_user, expected_pwd = AdminSecurity.get_admin_credentials()
+    user_match = secrets.compare_digest(req.username.strip().encode("utf-8"), expected_user.encode("utf-8"))
+    pwd_match = secrets.compare_digest(req.password.encode("utf-8"), expected_pwd.encode("utf-8"))
+
+    if not (user_match and pwd_match):
+        AdminSecurity.record_failure(client_ip)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Tên người dùng hoặc mật khẩu không chính xác",
+        )
+
+    AdminSecurity.record_success(client_ip)
+    token = create_session_token(req.username.strip())
+
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        max_age=SESSION_MAX_AGE_SECONDS,
+        httponly=True,
+        samesite="lax",
+        path="/",
+    )
+    return {"success": True, "redirect": "/"}
+
+
+@app.get("/logout")
+async def logout():
+    """Logs out admin by clearing the session cookie and redirecting to /login."""
+    redirect = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    redirect.delete_cookie(key=COOKIE_NAME, path="/")
+    return redirect
 
 
 @app.get("/", response_class=HTMLResponse)

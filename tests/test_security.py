@@ -103,6 +103,43 @@ class TestSecurityFeatures(unittest.TestCase):
         res_wrong = client.get("/test", auth=("testadmin", "wrongpassword"))
         self.assertEqual(res_wrong.status_code, 401)
 
+    def test_session_cookie_and_login_flow(self):
+        from src.web.server import app
+
+        os.environ["ENABLE_WEB_AUTH"] = "true"
+        os.environ["ADMIN_USERNAME"] = "testadmin"
+        os.environ["ADMIN_PASSWORD"] = "testpass123"
+
+        client = TestClient(app, follow_redirects=False)
+
+        # 1. Unauthenticated GET /login -> 200 OK HTML
+        res_login_page = client.get("/login")
+        self.assertEqual(res_login_page.status_code, 200)
+        self.assertIn("Py-IMAP Control Center", res_login_page.text)
+
+        # 2. Login with bad credentials -> 401
+        res_bad = client.post("/api/login", json={"username": "testadmin", "password": "wrong"})
+        self.assertEqual(res_bad.status_code, 401)
+
+        # 3. Login with correct credentials -> 200 and set-cookie
+        res_good = client.post("/api/login", json={"username": "testadmin", "password": "testpass123"})
+        self.assertEqual(res_good.status_code, 200)
+        self.assertIn("admin_session", res_good.cookies)
+
+        # 4. Access protected root / with session cookie
+        res_root = client.get("/", cookies=res_good.cookies)
+        self.assertEqual(res_root.status_code, 200)
+
+        # 5. Accessing /login with active session redirects to /
+        res_already_logged = client.get("/login", cookies=res_good.cookies)
+        self.assertEqual(res_already_logged.status_code, 303)
+        self.assertEqual(res_already_logged.headers.get("Location"), "/")
+
+        # 6. Logout clears cookie and redirects to /login
+        res_logout = client.get("/logout")
+        self.assertEqual(res_logout.status_code, 303)
+        self.assertEqual(res_logout.headers.get("Location"), "/login")
+
 
 if __name__ == "__main__":
     unittest.main()
