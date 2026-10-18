@@ -5,6 +5,17 @@ from pathlib import Path
 import structlog
 
 
+def domain_injector(logger, name, event_dict):
+    """Automatically extracts and injects source_domain and dest_domain for Loki/Grafana partitioning."""
+    src = event_dict.get("source_account") or event_dict.get("account")
+    if src and "@" in str(src):
+        event_dict["source_domain"] = str(src).split("@")[-1].lower()
+    dst = event_dict.get("dest_account")
+    if dst and "@" in str(dst):
+        event_dict["dest_domain"] = str(dst).split("@")[-1].lower()
+    return event_dict
+
+
 def setup_logging(log_dir: str = None, log_filename: str = "app.json.log"):
     """
     Sets up dual-target logging:
@@ -49,13 +60,10 @@ def setup_logging(log_dir: str = None, log_filename: str = "app.json.log"):
         file_handler.setFormatter(logging.Formatter("%(message)s"))
         root_logger.addHandler(file_handler)
 
-    def custom_dual_renderer(logger, name, event_dict):
-        # We can let structlog format JSON for file handlers and pretty for console
-        return event_dict
-
     # Configure structlog
     structlog.configure(
         processors=[
+            domain_injector,
             structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,

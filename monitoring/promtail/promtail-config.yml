@@ -24,12 +24,16 @@ scrape_configs:
             level: level
             event: event
             source_account: source_account
+            source_domain: source_domain
             dest_account: dest_account
+            dest_domain: dest_domain
             folder: folder
             error_code: error_code
             error_detail: error_detail
       - labels:
           level:
+          source_domain:
+          dest_domain:
           source_account:
           folder:
           error_code:

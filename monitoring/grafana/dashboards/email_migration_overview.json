@@ -84,7 +84,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(email_migration_messages_migrated_total) or vector(0)",
+          "expr": "sum(email_migration_messages_migrated_total{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
           "legendFormat": "Migrated",
           "range": true,
           "refId": "A"
@@ -148,7 +148,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(email_migration_messages_failed_total) or vector(0)",
+          "expr": "sum(email_migration_messages_failed_total{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
           "legendFormat": "Failed",
           "range": true,
           "refId": "A"
@@ -208,7 +208,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(email_migration_bytes_transferred_total) or vector(0)",
+          "expr": "sum(email_migration_bytes_transferred_total{source_account=~\".*@$domain\", source_account=~\"$account\"}) or vector(0)",
           "legendFormat": "Transferred",
           "range": true,
           "refId": "A"
@@ -354,7 +354,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "((sum(email_auth_checks_total{status=\"success\"}) or vector(0)) / (sum(email_auth_checks_total) or vector(1))) * 100",
+          "expr": "((sum(email_auth_checks_total{status=\"success\", account=~\".*@$domain\", account=~\"$account\"}) or vector(0)) / (sum(email_auth_checks_total{account=~\".*@$domain\", account=~\"$account\"}) or vector(1))) * 100",
           "legendFormat": "Pass Rate",
           "refId": "A"
         }
@@ -413,7 +413,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(email_auth_checks_total{status=\"success\"}) or vector(0)",
+          "expr": "sum(email_auth_checks_total{status=\"success\", account=~\".*@$domain\", account=~\"$account\"}) or vector(0)",
           "legendFormat": "Valid Accounts",
           "refId": "A"
         }
@@ -476,7 +476,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(email_auth_checks_total{status=\"failed\"}) or vector(0)",
+          "expr": "sum(email_auth_checks_total{status=\"failed\", account=~\".*@$domain\", account=~\"$account\"}) or vector(0)",
           "legendFormat": "Failed Accounts",
           "refId": "A"
         }
@@ -582,7 +582,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "email_account_auth_status",
+          "expr": "email_account_auth_status{account=~\".*@$domain\", account=~\"$account\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "{{account}} ({{host}})",
@@ -656,7 +656,7 @@
             "type": "prometheus",
             "uid": "Prometheus"
           },
-          "expr": "sum(rate(email_migration_messages_migrated_total[15s]))",
+          "expr": "sum(rate(email_migration_messages_migrated_total{source_account=~\".*@$domain\", source_account=~\"$account\"}[15s]))",
           "legendFormat": "Overall Speed",
           "refId": "A"
         },
@@ -665,7 +665,7 @@
             "type": "prometheus",
             "uid": "Prometheus"
           },
-          "expr": "sum by (source_account) (rate(email_migration_messages_migrated_total[15s]))",
+          "expr": "sum by (source_account) (rate(email_migration_messages_migrated_total{source_account=~\".*@$domain\", source_account=~\"$account\"}[15s]))",
           "legendFormat": "{{source_account}}",
           "refId": "B"
         }
@@ -723,7 +723,7 @@
             "type": "prometheus",
             "uid": "Prometheus"
           },
-          "expr": "sum(rate(email_migration_bytes_transferred_total[15s]))",
+          "expr": "sum(rate(email_migration_bytes_transferred_total{source_account=~\".*@$domain\", source_account=~\"$account\"}[15s]))",
           "legendFormat": "Bandwidth",
           "refId": "A"
         }
@@ -801,7 +801,7 @@
             "type": "prometheus",
             "uid": "Prometheus"
           },
-          "expr": "email_migration_account_progress_percent",
+          "expr": "email_migration_account_progress_percent{source_account=~\".*@$domain\", source_account=~\"$account\"}",
           "legendFormat": "{{source_account}} ➔ {{dest_account}}",
           "refId": "A"
         }
@@ -856,7 +856,7 @@
             "type": "prometheus",
             "uid": "Prometheus"
           },
-          "expr": "sum by (error_type) (email_migration_messages_failed_total)",
+          "expr": "sum by (error_type) (email_migration_messages_failed_total{source_account=~\".*@$domain\", source_account=~\"$account\"})",
           "legendFormat": "{{error_type}}",
           "refId": "A"
         }
@@ -895,7 +895,7 @@
         "sortOrder": "Descending",
         "wrapLogMessage": true
       },
-      "title": "Real-time Migration Audit & Error Logs",
+      "title": "Real-time Migration Audit & Error Logs (Loki Stream)",
       "type": "logs",
       "targets": [
         {
@@ -904,7 +904,112 @@
             "uid": "Loki"
           },
           "editorMode": "builder",
-          "expr": "{job=\"email_migrator\"}",
+          "expr": "{job=\"email_migrator\"} | json | source_account =~ \".*@$domain\" | source_account =~ \"$account\" | level =~ \"$log_level\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "level"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "source_account"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "folder"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "error_code"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 140
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "id": 10,
+      "options": {
+        "footer": {
+          "countRows": true,
+          "fields": "",
+          "reducer": [
+            "count"
+          ],
+          "show": true
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Time"
+          }
+        ]
+      },
+      "title": "Bảng Chi Tiết Sự Kiện & Lỗi Di Chuyển Theo Domain (Audit Table)",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "editorMode": "code",
+          "expr": "{job=\"email_migrator\"} | json | source_account =~ \".*@$domain\" | source_account =~ \"$account\" | level =~ \"$log_level\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -936,5 +1041,104 @@
   "timezone": "browser",
   "title": "Email Migration Control Center",
   "uid": "email-migration-overview",
-  "version": 1
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
+        "definition": "label_values(email_account_auth_status, account)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Tên miền (Domain)",
+        "multi": false,
+        "name": "domain",
+        "options": [],
+        "query": {
+          "query": "label_values(email_account_auth_status, account)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/.*@(?<text>[a-zA-Z0-9.-]+)/",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
+        "definition": "label_values(email_account_auth_status{account=~\".*@$domain\"}, account)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Tài khoản Email",
+        "multi": false,
+        "name": "account",
+        "options": [],
+        "query": {
+          "query": "label_values(email_account_auth_status{account=~\".*@$domain\"}, account)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "includeAll": true,
+        "label": "Mức độ Log",
+        "multi": false,
+        "name": "log_level",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "INFO",
+            "value": "info"
+          },
+          {
+            "selected": false,
+            "text": "WARNING",
+            "value": "warning"
+          },
+          {
+            "selected": false,
+            "text": "ERROR",
+            "value": "error"
+          }
+        ],
+        "query": "info,warning,error",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  }
 }
