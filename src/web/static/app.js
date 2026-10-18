@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSingleAccountTab();
     initDropZone();
     initAuthCheckTab();
+    initScanStorageTab();
     initSettingsTab();
     initActiveTasksTab();
     initSessionsTab();
@@ -136,20 +137,32 @@ function applyProviderPreset(target, provider) {
 
     if (!hostInput || !portInput || !sslSelect) return;
 
+    const setSslState = (isSsl) => {
+        if (sslSelect.tagName === "SELECT") {
+            if (sslSelect.querySelector('option[value="ssl"]')) {
+                sslSelect.value = isSsl ? "ssl" : "none";
+            } else {
+                sslSelect.value = isSsl ? "true" : "false";
+            }
+        } else if (sslSelect.type === "checkbox") {
+            sslSelect.checked = isSsl;
+        }
+    };
+
     if (provider === "gmail") {
         hostInput.value = "imap.gmail.com";
         portInput.value = 993;
-        sslSelect.value = "true";
+        setSslState(true);
         if (hintText) hintText.textContent = "Lưu ý Gmail: Bật 2FA và tạo Mật khẩu ứng dụng (16 ký tự)";
     } else if (provider === "outlook") {
         hostInput.value = "outlook.office365.com";
         portInput.value = 993;
-        sslSelect.value = "true";
+        setSslState(true);
         if (hintText) hintText.textContent = "Lưu ý Microsoft 365: Dùng App Password hoặc bật IMAP trong Exchange";
     } else if (provider === "yandex") {
         hostInput.value = "imap.yandex.com";
         portInput.value = 993;
-        sslSelect.value = "true";
+        setSslState(true);
         if (hintText) hintText.textContent = "Lưu ý Yandex: Tạo Mật khẩu ứng dụng tại Yandex ID > Security";
     } else if (provider === "cpanel") {
         let domain = "yourdomain.com";
@@ -158,7 +171,7 @@ function applyProviderPreset(target, provider) {
         }
         hostInput.value = `mail.${domain}`;
         portInput.value = 993;
-        sslSelect.value = "true";
+        setSslState(true);
         if (hintText) hintText.textContent = `cPanel: Mặc định mail.${domain} (Port 993 SSL)`;
     } else if (provider === "custom") {
         if (hintText) hintText.textContent = "";
@@ -1940,7 +1953,8 @@ function setupPasswordToggles() {
     [
         { inputId: "srcPass", btnId: "toggleSrcPass" },
         { inputId: "dstPass", btnId: "toggleDstPass" },
-        { inputId: "singleAuthPass", btnId: "toggleSingleAuthPass" }
+        { inputId: "singleAuthPass", btnId: "toggleSingleAuthPass" },
+        { inputId: "scanSinglePass", btnId: "toggleScanSinglePass" }
     ].forEach(({ inputId, btnId }) => {
         const input = document.getElementById(inputId);
         const btn = document.getElementById(btnId);
@@ -2429,4 +2443,586 @@ function initSettingsTab() {
         });
     }
 }
+
+// --------------------------------------------------------------------------
+// STANDALONE MAILBOX STORAGE & FOLDERS SCANNER (SINGLE & BATCH CSV)
+// --------------------------------------------------------------------------
+let lastSingleScanFolders = [];
+let currentSingleScannedCreds = null;
+window.lastBatchScanResults = [];
+
+function initScanStorageTab() {
+    // 1. Single Account Scan Form
+    const scanSingleForm = document.getElementById("scanSingleForm");
+    const btnRunSingleScan = document.getElementById("btnRunSingleScan");
+    const singleResultCard = document.getElementById("singleScanResultContainer");
+    const singleFolderSearch = document.getElementById("singleScanFolderSearch");
+    const btnTransferFromScan = document.getElementById("btnTransferFromScan");
+    const btnCloseSingleScan = document.getElementById("btnCloseSingleScan");
+
+    if (scanSingleForm) {
+        scanSingleForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const host = document.getElementById("scanSingleHost")?.value.trim();
+            const port = parseInt(document.getElementById("scanSinglePort")?.value) || 993;
+            const sslVal = document.getElementById("scanSingleSsl")?.value;
+            const ssl = (sslVal === "ssl" || sslVal === "true");
+            const username = document.getElementById("scanSingleUser")?.value.trim();
+            const password = document.getElementById("scanSinglePass")?.value;
+
+            if (!host || !username || !password) {
+                showToast("Vui lòng điền đầy đủ máy chủ IMAP, tài khoản và mật khẩu", "error");
+                return;
+            }
+
+            btnRunSingleScan.disabled = true;
+            const origHtml = btnRunSingleScan.innerHTML;
+            btnRunSingleScan.innerHTML = `
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                    <path d="M12 2a10 10 0 0 1 10 10"/>
+                </svg>
+                <span>Đang kết nối & quét cấu trúc thư mục...</span>
+            `;
+
+            try {
+                const resp = await fetch("/api/inspect", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ host, port, ssl, username, password })
+                });
+
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    throw new Error(errData.detail || `Lỗi máy chủ (${resp.status})`);
+                }
+
+                const data = await resp.json();
+                currentSingleScannedCreds = { host, port, ssl, username, password };
+                lastSingleScanFolders = data.folders || [];
+
+                // Title and sub
+                const titleEl = document.getElementById("singleScanResultTitle");
+                const subEl = document.getElementById("singleScanResultSub");
+                if (titleEl) titleEl.textContent = `Kết Quả Khảo Sát: ${data.account || username}`;
+                if (subEl) subEl.textContent = `Máy chủ: ${host}:${port} • Giao thức: ${ssl ? 'SSL/TLS' : 'Plaintext'}`;
+
+                // Aggregate metrics
+                const totalMsgs = data.total_messages || lastSingleScanFolders.reduce((s, f) => s + (f.messages || 0), 0);
+                const totalMb = data.total_size_mb || (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
+                const totalGb = data.total_size_gb || (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024 * 1024)).toFixed(2) : "0.00");
+
+                const totalMsgsEl = document.getElementById("singleScanTotalMsgs");
+                if (totalMsgsEl) totalMsgsEl.textContent = Number(totalMsgs).toLocaleString();
+
+                const totalSizeEl = document.getElementById("singleScanTotalSize");
+                if (totalSizeEl) totalSizeEl.textContent = `${totalMb} MB`;
+
+                const totalSizeGbEl = document.getElementById("singleScanTotalSizeGb");
+                const avgKb = Number(totalMsgs) > 0 ? (parseFloat(totalMb) * 1024 / Number(totalMsgs)).toFixed(1) : 0;
+                if (totalSizeGbEl) totalSizeGbEl.textContent = `${totalGb} GB (${avgKb} KB/thư)`;
+
+                const foldersCountEl = document.getElementById("singleScanFoldersCount");
+                if (foldersCountEl) foldersCountEl.textContent = lastSingleScanFolders.length;
+
+                // Quota calculation
+                const quotaPctEl = document.getElementById("singleScanQuotaPct");
+                const quotaTextEl = document.getElementById("singleScanQuotaText");
+                const quotaBarWrap = document.getElementById("singleScanQuotaBarWrap");
+                const quotaBarFill = document.getElementById("singleScanQuotaBarFill");
+                const quotaBarLabel = document.getElementById("singleScanQuotaBarLabel");
+
+                if (data.quota && data.quota.limit > 0) {
+                    const usedMb = (data.quota.used / (1024 * 1024)).toFixed(1);
+                    const limitMb = (data.quota.limit / (1024 * 1024)).toFixed(1);
+                    const pct = Math.min(Math.round((data.quota.used / data.quota.limit) * 100), 100);
+
+                    if (quotaPctEl) quotaPctEl.textContent = `${pct}%`;
+                    if (quotaTextEl) quotaTextEl.textContent = `${usedMb} MB / ${limitMb} MB`;
+
+                    if (quotaBarWrap) quotaBarWrap.style.display = "block";
+                    if (quotaBarFill) {
+                        quotaBarFill.style.width = `${pct}%`;
+                        quotaBarFill.style.background = pct > 90 ? "#f43f5e" : pct > 75 ? "#fbbf24" : "#10b981";
+                    }
+                    if (quotaBarLabel) quotaBarLabel.textContent = `${pct}% (${usedMb} MB / ${limitMb} MB)`;
+                } else {
+                    if (quotaPctEl) quotaPctEl.textContent = "Không giới hạn";
+                    if (quotaTextEl) quotaTextEl.textContent = "Không áp dụng hạn ngạch hoặc server không hỗ trợ QUOTA";
+                    if (quotaBarWrap) quotaBarWrap.style.display = "none";
+                }
+
+                // Render folders table
+                renderSingleScanFoldersTable(lastSingleScanFolders, parseFloat(totalMb));
+
+                // Display container
+                if (singleResultCard) {
+                    singleResultCard.style.display = "block";
+                    singleResultCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+
+                showToast(`Khảo sát thành công: ${lastSingleScanFolders.length} thư mục, ${totalMsgs} thư!`, "success");
+            } catch (err) {
+                showToast(`Khảo sát thất bại: ${err.message}`, "error");
+            } finally {
+                btnRunSingleScan.disabled = false;
+                btnRunSingleScan.innerHTML = origHtml;
+            }
+        });
+    }
+
+    // Single folder search filter
+    if (singleFolderSearch) {
+        singleFolderSearch.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = lastSingleScanFolders.filter(f => f.name.toLowerCase().includes(query) || (f.role && f.role.toLowerCase().includes(query)));
+            const totalMb = parseFloat(document.getElementById("singleScanTotalSize")?.textContent || "0");
+            renderSingleScanFoldersTable(filtered, totalMb);
+        });
+    }
+
+    // Transfer single scan credentials to migration tab
+    if (btnTransferFromScan) {
+        btnTransferFromScan.addEventListener("click", () => {
+            if (!currentSingleScannedCreds) {
+                showToast("Chưa có thông tin khảo sát để chuyển", "warning");
+                return;
+            }
+            const srcHost = document.getElementById("srcHost");
+            const srcPort = document.getElementById("srcPort");
+            const srcSsl = document.getElementById("srcSsl");
+            const srcUser = document.getElementById("srcUser");
+            const srcPass = document.getElementById("srcPass");
+
+            if (srcHost) srcHost.value = currentSingleScannedCreds.host;
+            if (srcPort) srcPort.value = currentSingleScannedCreds.port;
+            if (srcSsl) srcSsl.value = currentSingleScannedCreds.ssl ? "true" : "false";
+            if (srcUser) srcUser.value = currentSingleScannedCreds.username;
+            if (srcPass) srcPass.value = currentSingleScannedCreds.password;
+
+            switchToTab("singleTab");
+            showToast("Đã chuyển tài khoản nguồn sang Cấu hình Di chuyển!", "success");
+        });
+    }
+
+    if (btnCloseSingleScan) {
+        btnCloseSingleScan.addEventListener("click", () => {
+            if (singleResultCard) singleResultCard.style.display = "none";
+        });
+    }
+
+    // 2. Batch CSV Scan
+    const scanCsvDropZone = document.getElementById("scanCsvDropZone");
+    const scanCsvFileInput = document.getElementById("scanCsvFileInput");
+    const scanCsvPasteArea = document.getElementById("scanCsvPasteArea");
+    const btnDownloadScanSampleCsv = document.getElementById("btnDownloadScanSampleCsv");
+    const btnRunBatchScan = document.getElementById("btnRunBatchScan");
+    const batchResultCard = document.getElementById("batchScanResultContainer");
+    const btnExportScanCsv = document.getElementById("btnExportScanCsv");
+    const btnTransferBatchToMigrate = document.getElementById("btnTransferBatchToMigrate");
+    const btnCloseBatchScan = document.getElementById("btnCloseBatchScan");
+    const batchTableSearch = document.getElementById("batchScanTableSearch");
+
+    // CSV File Drag & Drop
+    if (scanCsvDropZone && scanCsvFileInput) {
+        scanCsvDropZone.addEventListener("click", () => scanCsvFileInput.click());
+
+        ["dragenter", "dragover"].forEach(name => {
+            scanCsvDropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                scanCsvDropZone.classList.add("dragover");
+            });
+        });
+
+        ["dragleave", "drop"].forEach(name => {
+            scanCsvDropZone.addEventListener(name, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                scanCsvDropZone.classList.remove("dragover");
+            });
+        });
+
+        scanCsvDropZone.addEventListener("drop", (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleScanCsvFile(files[0]);
+            }
+        });
+
+        scanCsvFileInput.addEventListener("change", (e) => {
+            if (e.target.files.length > 0) {
+                handleScanCsvFile(e.target.files[0]);
+            }
+        });
+    }
+
+    // Download Sample CSV
+    if (btnDownloadScanSampleCsv) {
+        btnDownloadScanSampleCsv.addEventListener("click", () => {
+            const sampleContent = "email,password\nnhanvien1@congty.com,MatKhau123@#\nnhanvien2@congty.com,MatKhau456@#\nnhanvien3@congty.com,MatKhau789@#\n";
+            const blob = new Blob([sampleContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "mau_khao_sat_dung_luong.csv";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Đã tải xuống file CSV mẫu!", "success");
+        });
+    }
+
+    // Run Batch Scan
+    if (btnRunBatchScan) {
+        btnRunBatchScan.addEventListener("click", async () => {
+            const rawText = scanCsvPasteArea?.value.trim() || "";
+            if (!rawText) {
+                showToast("Vui lòng tải lên file CSV hoặc dán danh sách tài khoản cần khảo sát", "error");
+                return;
+            }
+
+            const host = document.getElementById("scanBatchHost")?.value.trim();
+            const port = parseInt(document.getElementById("scanBatchPort")?.value) || 993;
+            const ssl = document.getElementById("scanBatchSsl")?.checked ?? true;
+
+            if (!host) {
+                showToast("Vui lòng nhập Máy chủ IMAP chung", "error");
+                return;
+            }
+
+            // Parse accounts from raw text
+            const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            let startIndex = 0;
+            const firstLine = lines[0].toLowerCase();
+            if (firstLine.includes("email") || firstLine.includes("user")) {
+                startIndex = 1;
+            }
+
+            const accounts = [];
+            for (let i = startIndex; i < lines.length; i++) {
+                const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ''));
+                if (cols.length >= 2 && cols[0]) {
+                    accounts.push({
+                        email: cols[0],
+                        password: cols[1]
+                    });
+                }
+            }
+
+            if (accounts.length === 0) {
+                showToast("Không tìm thấy dòng hợp lệ nào (định dạng email,password)", "error");
+                return;
+            }
+
+            btnRunBatchScan.disabled = true;
+            const origHtml = btnRunBatchScan.innerHTML;
+            btnRunBatchScan.innerHTML = `
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                    <path d="M12 2a10 10 0 0 1 10 10"/>
+                </svg>
+                <span>Đang khảo sát song song ${accounts.length} hòm thư...</span>
+            `;
+
+            try {
+                const resp = await fetch("/api/scan/batch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        source_host: host,
+                        source_port: port,
+                        source_ssl: ssl,
+                        accounts: accounts
+                    })
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.detail || `Lỗi máy chủ (${resp.status})`);
+                }
+
+                const results = await resp.json();
+                window.lastBatchScanResults = results;
+
+                // Update aggregate metrics
+                const totalAccounts = results.length;
+                const validAccounts = results.filter(r => r.is_valid).length;
+                const failedAccounts = results.filter(r => !r.is_valid).length;
+                const totalMsgs = results.reduce((s, r) => s + (r.total_messages || 0), 0);
+                const totalGb = results.reduce((s, r) => s + (parseFloat(r.total_size_gb) || 0), 0).toFixed(2);
+                const totalMb = results.reduce((s, r) => s + (parseFloat(r.total_size_mb) || 0), 0);
+                const avgMb = validAccounts > 0 ? (totalMb / validAccounts).toFixed(1) : "0";
+
+                const accEl = document.getElementById("batchScanTotalAccounts");
+                if (accEl) accEl.textContent = totalAccounts;
+                const validEl = document.getElementById("batchScanValidAccounts");
+                if (validEl) validEl.textContent = `${validAccounts} hợp lệ (${failedAccounts} lỗi)`;
+
+                const sizeEl = document.getElementById("batchScanTotalSize");
+                if (sizeEl) sizeEl.textContent = `${totalGb} GB`;
+                const avgEl = document.getElementById("batchScanAvgSize");
+                if (avgEl) avgEl.textContent = `Trung bình: ${avgMb} MB / hòm thư`;
+
+                const msgsEl = document.getElementById("batchScanTotalMsgs");
+                if (msgsEl) msgsEl.textContent = totalMsgs.toLocaleString();
+
+                const failedEl = document.getElementById("batchScanFailedAccounts");
+                if (failedEl) failedEl.textContent = failedAccounts;
+
+                // Render accounts table
+                renderBatchScanTable(results);
+
+                // Show container
+                if (batchResultCard) {
+                    batchResultCard.style.display = "block";
+                    batchResultCard.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+
+                showToast(`Đã hoàn tất khảo sát ${totalAccounts} tài khoản!`, "success");
+            } catch (err) {
+                showToast(`Lỗi khảo sát hàng loạt: ${err.message}`, "error");
+            } finally {
+                btnRunBatchScan.disabled = false;
+                btnRunBatchScan.innerHTML = origHtml;
+            }
+        });
+    }
+
+    // Filter batch table
+    if (batchTableSearch) {
+        batchTableSearch.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = (window.lastBatchScanResults || []).filter(r => (r.account || "").toLowerCase().includes(query));
+            renderBatchScanTable(filtered);
+        });
+    }
+
+    // Export batch scan CSV
+    if (btnExportScanCsv) {
+        btnExportScanCsv.addEventListener("click", () => {
+            if (!window.lastBatchScanResults || window.lastBatchScanResults.length === 0) {
+                showToast("Chưa có dữ liệu để xuất CSV", "warning");
+                return;
+            }
+            let csv = "Email,Trang_Thai,Tong_So_Thu,Dung_Luong_MB,Dung_Luong_GB,So_Thu_Muc,Han_Ngach_Quota,Ghi_Chu_Loi\n";
+            window.lastBatchScanResults.forEach(r => {
+                const status = r.is_valid ? "Hop_Le" : "Loi";
+                const msgs = r.total_messages || 0;
+                const mb = r.total_size_mb || 0;
+                const gb = r.total_size_gb || 0;
+                const fCount = r.folders_count || 0;
+                const quota = r.quota ? `${r.quota.used}/${r.quota.limit}` : "Khong_Gioi_Han";
+                const err = (r.error_message || "").replace(/[\r\n,]/g, " ");
+                csv += `"${r.account}","${status}",${msgs},${mb},${gb},${fCount},"${quota}","${err}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `bao_cao_khao_sat_dung_luong_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Đã tải xuống file báo cáo khảo sát CSV!", "success");
+        });
+    }
+
+    // Transfer Batch Accounts to Migration Tab
+    if (btnTransferBatchToMigrate) {
+        btnTransferBatchToMigrate.addEventListener("click", () => {
+            const host = document.getElementById("scanBatchHost")?.value.trim();
+            const port = document.getElementById("scanBatchPort")?.value.trim();
+            const ssl = document.getElementById("scanBatchSsl")?.checked;
+
+            if (host && document.getElementById("batchSrcHost")) document.getElementById("batchSrcHost").value = host;
+            if (port && document.getElementById("batchSrcPort")) document.getElementById("batchSrcPort").value = port;
+            if (document.getElementById("batchSrcSsl")) document.getElementById("batchSrcSsl").value = ssl ? "true" : "false";
+
+            switchToTab("batchTab");
+            showToast("Đã chuyển cấu hình máy chủ sang Di Chuyển CSV! Vui lòng tải file CSV đích để bắt đầu.", "info");
+        });
+    }
+
+    if (btnCloseBatchScan) {
+        btnCloseBatchScan.addEventListener("click", () => {
+            if (batchResultCard) batchResultCard.style.display = "none";
+        });
+    }
+
+    // Modal close buttons
+    const btnCloseScanModal = document.getElementById("btnCloseScanModal");
+    const btnCloseScanModalFooter = document.getElementById("btnCloseScanModalFooter");
+    const modal = document.getElementById("scanFolderDetailModal");
+    const closeModal = () => modal?.classList.remove("open");
+
+    if (btnCloseScanModal) btnCloseScanModal.addEventListener("click", closeModal);
+    if (btnCloseScanModalFooter) btnCloseScanModalFooter.addEventListener("click", closeModal);
+    if (modal) {
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeModal();
+        });
+    }
+}
+
+function handleScanCsvFile(file) {
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+        showToast("Vui lòng tải lên tệp có định dạng .CSV", "error");
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target.result;
+        const pasteArea = document.getElementById("scanCsvPasteArea");
+        if (pasteArea) pasteArea.value = text;
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        showToast(`Đã nạp file CSV thành công (${lines.length} dòng)!`, "success");
+    };
+    reader.readAsText(file);
+}
+
+function renderSingleScanFoldersTable(folders, totalMb) {
+    const tbody = document.getElementById("singleScanFoldersTableBody");
+    if (!tbody) return;
+
+    if (!folders || folders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-dim);">Không tìm thấy thư mục nào phù hợp.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = folders.map((f, idx) => {
+        const fSizeMb = f.size_mb || (f.size_bytes ? (f.size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
+        const fraction = (totalMb > 0 && parseFloat(fSizeMb) > 0) ? Math.min(Math.round((parseFloat(fSizeMb) / totalMb) * 100), 100) : 0;
+
+        let roleBadge = `<span class="badge badge-neutral">${escapeHtml(f.role || 'Thư mục')}</span>`;
+        if (f.role === 'INBOX') roleBadge = `<span class="badge badge-primary">Hộp thư đến</span>`;
+        else if (f.role === 'Sent') roleBadge = `<span class="badge badge-success">Đã gửi</span>`;
+        else if (f.role === 'Trash') roleBadge = `<span class="badge badge-danger">Thùng rác</span>`;
+        else if (f.role === 'Spam' || f.role === 'Junk') roleBadge = `<span class="badge badge-warning">Spam/Rác</span>`;
+        else if (f.role === 'Drafts') roleBadge = `<span class="badge badge-neutral">Bản nháp</span>`;
+
+        return `
+            <tr>
+                <td style="text-align:center; color:var(--text-dim); font-size:12px;">${idx + 1}</td>
+                <td><strong>${escapeHtml(f.name)}</strong></td>
+                <td>${roleBadge}</td>
+                <td style="text-align:right; font-family:'JetBrains Mono', monospace; font-weight:600;">${(f.messages || 0).toLocaleString()}</td>
+                <td style="text-align:right; font-family:'JetBrains Mono', monospace; color:#38bdf8;">${fSizeMb} MB</td>
+                <td style="text-align:right;">
+                    <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                        <span class="mono-font" style="font-size:11.5px; color:var(--text-dim);">${fraction}%</span>
+                        <div style="width:40px; height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
+                            <div style="width:${fraction}%; height:100%; background:var(--primary);"></div>
+                        </div>
+                    </div>
+                </td>
+                <td style="text-align:center;">
+                    <span class="status-badge status-success" style="font-size:11px;">Khả dụng</span>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function renderBatchScanTable(list) {
+    const tbody = document.getElementById("batchScanTableBody");
+    if (!tbody) return;
+
+    if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-dim);">Không có tài khoản nào để hiển thị.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = list.map((r, idx) => {
+        let statusBadge = `<span class="badge badge-success" style="font-size:11.5px;"><span class="status-dot" style="background:#10b981;"></span> Sẵn sàng</span>`;
+        if (!r.is_valid) {
+            statusBadge = `<span class="badge badge-danger" style="font-size:11.5px;" title="${escapeHtml(r.error_message || '')}"><span class="status-dot" style="background:#f43f5e;"></span> Lỗi</span>`;
+        }
+
+        const mb = r.total_size_mb || (r.total_size_bytes ? (r.total_size_bytes / 1048576).toFixed(2) : "0.00");
+        const gb = r.total_size_gb || (r.total_size_bytes ? (r.total_size_bytes / 1073741824).toFixed(2) : "0.00");
+
+        let quotaText = `<span style="color:var(--text-dim); font-size:11.5px;">Không giới hạn</span>`;
+        if (r.quota && r.quota.limit > 0) {
+            const qPct = Math.round((r.quota.used / r.quota.limit) * 100);
+            quotaText = `<span class="badge ${qPct > 90 ? 'badge-danger' : 'badge-neutral'}" style="font-size:11px;">${qPct}% (${(r.quota.used / 1048576).toFixed(0)}/${(r.quota.limit / 1048576).toFixed(0)} MB)</span>`;
+        }
+
+        let actionHtml = `<span style="color:#fb7185; font-size:11.5px;" title="${escapeHtml(r.error_message || '')}">Không kết nối</span>`;
+        if (r.is_valid && r.folders && r.folders.length > 0) {
+            actionHtml = `<button type="button" class="btn btn-secondary btn-sm" onclick="openScanFolderModal(${idx})" style="font-size:11px; padding:3px 8px;">📂 Xem Thư Mục</button>`;
+        }
+
+        return `
+            <tr>
+                <td style="text-align:center; color:var(--text-dim); font-size:12px;">${idx + 1}</td>
+                <td><strong>${escapeHtml(r.account)}</strong></td>
+                <td>${statusBadge}</td>
+                <td style="text-align:right; font-family:'JetBrains Mono', monospace; font-weight:600; color:#34d399;">${(r.total_messages || 0).toLocaleString()}</td>
+                <td style="text-align:right;">
+                    <span class="mono-font" style="color:#38bdf8;">${mb} MB</span>
+                    <span style="font-size:11px; color:var(--text-dim);">(${gb} GB)</span>
+                </td>
+                <td style="text-align:center;">${quotaText}</td>
+                <td style="text-align:center;">
+                    <span class="badge badge-neutral" style="font-size:11.5px;">${r.folders_count || 0} mục</span>
+                </td>
+                <td style="text-align:center;">${actionHtml}</td>
+            </tr>
+        `;
+    }).join("");
+}
+
+window.openScanFolderModal = function(index) {
+    const item = window.lastBatchScanResults ? window.lastBatchScanResults[index] : null;
+    if (!item) return;
+
+    const modal = document.getElementById("scanFolderDetailModal");
+    const title = document.getElementById("scanModalAccountTitle");
+    const msgsEl = document.getElementById("scanModalTotalMsgs");
+    const sizeEl = document.getElementById("scanModalTotalSize");
+    const quotaEl = document.getElementById("scanModalQuota");
+    const tbody = document.getElementById("scanModalTableBody");
+
+    if (title) title.textContent = `Cấu Trúc Thư Mục: ${item.account}`;
+    if (msgsEl) msgsEl.textContent = Number(item.total_messages || 0).toLocaleString();
+    if (sizeEl) sizeEl.textContent = `${item.total_size_mb || 0} MB (${item.total_size_gb || 0} GB)`;
+    if (quotaEl) {
+        quotaEl.textContent = item.quota && item.quota.limit > 0
+            ? `${Math.round((item.quota.used / item.quota.limit) * 100)}% (${(item.quota.used / 1048576).toFixed(1)} / ${(item.quota.limit / 1048576).toFixed(1)} MB)`
+            : "Không giới hạn";
+    }
+
+    if (tbody) {
+        const folders = item.folders || [];
+        if (folders.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:var(--text-dim);">Không có thư mục nào.</td></tr>`;
+        } else {
+            tbody.innerHTML = folders.map((f, i) => {
+                const fSize = f.size_mb || (f.size_bytes ? (f.size_bytes / 1048576).toFixed(2) : "0.00");
+                let roleBadge = `<span class="badge badge-neutral">${escapeHtml(f.role || 'Thư mục')}</span>`;
+                if (f.role === 'INBOX') roleBadge = `<span class="badge badge-primary">Hộp thư đến</span>`;
+                else if (f.role === 'Sent') roleBadge = `<span class="badge badge-success">Đã gửi</span>`;
+                else if (f.role === 'Trash') roleBadge = `<span class="badge badge-danger">Thùng rác</span>`;
+                else if (f.role === 'Spam' || f.role === 'Junk') roleBadge = `<span class="badge badge-warning">Spam</span>`;
+                else if (f.role === 'Drafts') roleBadge = `<span class="badge badge-neutral">Bản nháp</span>`;
+
+                return `
+                    <tr>
+                        <td style="text-align:center; color:var(--text-dim); font-size:12px;">${i + 1}</td>
+                        <td><strong>${escapeHtml(f.name)}</strong></td>
+                        <td>${roleBadge}</td>
+                        <td style="text-align:right; font-family:'JetBrains Mono', monospace;">${(f.messages || 0).toLocaleString()}</td>
+                        <td style="text-align:right; font-family:'JetBrains Mono', monospace; color:#38bdf8;">${fSize} MB</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+    }
+
+    if (modal) modal.classList.add("open");
+};
 

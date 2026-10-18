@@ -245,6 +245,83 @@ async def check_csv_passwords(req: BatchCheckRequest):
     ]
 
 
+@app.post("/api/scan/batch")
+async def scan_batch_mailboxes(req: BatchCheckRequest):
+    """Scans and inspects folders, size, message counts, and quota for multiple accounts in parallel."""
+    def _inspect_one(row: Dict[str, Any]) -> Dict[str, Any]:
+        src_host = (row.get("source_host") or req.source_host or "").strip()
+        src_port = int(row.get("source_port") or req.source_port or 993)
+        src_ssl_val = row.get("source_ssl")
+        src_ssl = (
+            str(src_ssl_val).lower() in ("true", "1")
+            if src_ssl_val is not None
+            else (req.source_ssl if req.source_ssl is not None else True)
+        )
+        src_user = (row.get("source_user") or row.get("source_email") or row.get("email") or row.get("user") or "").strip()
+        src_pass = (row.get("source_password") or row.get("source_pass") or row.get("password") or row.get("pass") or "").strip()
+
+        if not (src_user and src_host):
+            return {
+                "account": src_user or "Unknown",
+                "host": src_host,
+                "is_valid": False,
+                "error_message": "Thiếu email hoặc thông tin máy chủ IMAP",
+                "total_messages": 0,
+                "total_size_mb": 0.0,
+                "total_size_gb": 0.0,
+                "total_size_bytes": 0,
+                "folders_count": 0,
+                "quota": None,
+                "folders": [],
+            }
+
+        creds = AccountCredentials(
+            host=src_host,
+            port=src_port,
+            ssl=src_ssl,
+            username=src_user,
+            password=src_pass,
+        )
+
+        try:
+            summary = migration_service.inspect_source(creds)
+            data = summary.model_dump()
+            data["host"] = src_host
+            data["is_valid"] = True
+            data["error_message"] = None
+            data["total_size_mb"] = summary.total_size_mb
+            data["total_size_gb"] = summary.total_size_gb
+            data["quota"] = summary.quota
+            data["folders_count"] = len(summary.folders)
+            for idx, f in enumerate(summary.folders):
+                if idx < len(data.get("folders", [])):
+                    data["folders"][idx]["size_mb"] = f.size_mb
+                    data["folders"][idx]["destination_folder"] = f.destination_folder
+            return data
+        except Exception as e:
+            return {
+                "account": src_user,
+                "host": src_host,
+                "is_valid": False,
+                "error_message": str(e),
+                "total_messages": 0,
+                "total_size_mb": 0.0,
+                "total_size_gb": 0.0,
+                "total_size_bytes": 0,
+                "folders_count": 0,
+                "quota": None,
+                "folders": [],
+            }
+
+    loop = asyncio.get_running_loop()
+    from concurrent.futures import ThreadPoolExecutor
+    workers = min(max(len(req.accounts), 1), 6)
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        results = await loop.run_in_executor(None, lambda: list(executor.map(_inspect_one, req.accounts)))
+
+    return results
+
+
 @app.post("/api/inspect")
 async def inspect_mailbox(req: Dict[str, Any]):
     """Pre-flight inspection: inspects source and optionally destination to provide full reconciliation."""

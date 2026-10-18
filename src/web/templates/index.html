@@ -112,6 +112,16 @@
                     </span>
                     <span>Kiểm Tra Mật Khẩu</span>
                 </button>
+                <button class="nav-item" data-tab="scanStorageTab" id="navScanStorage">
+                    <span class="nav-icon">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            <line x1="12" y1="11" x2="12" y2="17"></line>
+                            <line x1="9" y1="14" x2="15" y2="14"></line>
+                        </svg>
+                    </span>
+                    <span>Quét Thư Mục & Dung Lượng</span>
+                </button>
                 <button class="nav-item" data-tab="activeTasksTab" id="navActiveTasks">
                     <span class="nav-icon">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1196,6 +1206,426 @@
                 </div>
             </section>
 
+            <!-- TAB: Mailbox & Storage Scanner (Single & Batch CSV) -->
+            <section id="scanStorageTab" class="tab-pane">
+                <div class="pane-header">
+                    <h2>Quét Thư Mục & Dung Lượng Email</h2>
+                    <p>Khảo sát cấu trúc thư mục, thống kê số lượng thư, tổng dung lượng và hạn ngạch (quota) cho từng hòm thư hoặc danh sách file CSV.</p>
+                </div>
+
+                <div class="grid-2-cols" style="align-items: start; margin-bottom: 24px;">
+                    <!-- LEFT COLUMN: Single Mailbox Scan -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-source">
+                                <span class="status-dot" style="background:#06b6d4; box-shadow:0 0 8px #06b6d4;"></span>
+                                ĐƠN LẺ
+                            </span>
+                            <h3>Khảo Sát 1 Hộp Thư</h3>
+                        </div>
+
+                        <!-- Provider Presets Chips -->
+                        <div class="preset-label">Nhà cung cấp máy chủ:</div>
+                        <div class="provider-chips">
+                            <button type="button" class="provider-chip active" data-target="scanSingle" data-provider="gmail">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+                                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.4 0 15.3c0 2.9.7 5.6 1.9 8l3.7-2.9z"/>
+                                    <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/>
+                                </svg>
+                                <span>Gmail</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="scanSingle" data-provider="outlook">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#0078D4">
+                                    <rect width="10" height="10" x="2" y="2" rx="1"/><rect width="10" height="10" x="12" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="2" y="12" rx="1"/><rect width="10" height="10" x="12" y="12" rx="1"/>
+                                </svg>
+                                <span>Outlook</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="scanSingle" data-provider="yandex">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FC3F1D">
+                                    <circle cx="12" cy="12" r="10"/><path fill="#fff" d="M13.5 6h-2.5c-2 0-3.3 1.2-3.3 3.2 0 1.5.8 2.5 2.1 3.2l-2.4 5.6h2.2l2.3-5.3h.6v5.3h2V6zm-1.5 5.2h-.9c-1 0-1.6-.6-1.6-1.6 0-1 .6-1.6 1.6-1.6h.9v3.2z"/>
+                                </svg>
+                                <span>Yandex</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="scanSingle" data-provider="cpanel">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FF6C2C">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                <span>cPanel</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="scanSingle" data-provider="custom">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+                                </svg>
+                                <span>Tùy biến</span>
+                            </button>
+                        </div>
+
+                        <form id="scanSingleForm" class="form-grid" style="margin-top: 14px;">
+                            <div class="form-group">
+                                <label for="scanSingleHost">Máy chủ IMAP (Host)</label>
+                                <input type="text" id="scanSingleHost" value="imap.gmail.com" required placeholder="mail.yourdomain.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="scanSinglePort">Cổng (Port)</label>
+                                <input type="number" id="scanSinglePort" value="993" required>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label for="scanSingleSsl">Giao thức bảo mật</label>
+                                <select id="scanSingleSsl">
+                                    <option value="ssl" selected>SSL / TLS (Cổng 993 - Khuyên dùng)</option>
+                                    <option value="starttls">STARTTLS (Cổng 143)</option>
+                                    <option value="none">Không mã hóa (Plaintext 143)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label for="scanSingleUser">Tài khoản Email</label>
+                                <input type="email" id="scanSingleUser" required placeholder="user@domain.com">
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label for="scanSinglePass">Mật khẩu / App Password</label>
+                                <div class="input-icon-group has-action">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                    </span>
+                                    <input type="password" id="scanSinglePass" required placeholder="Nhập mật khẩu hoặc App Password">
+                                    <button type="button" class="input-action-btn" id="toggleScanSinglePass" title="Hiện/ẩn mật khẩu">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2" style="margin-top: 6px;">
+                                <button type="submit" class="btn btn-primary" id="btnRunSingleScan" style="width: 100%;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                    <span>Khảo Sát Thư Mục & Dung Lượng</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- RIGHT COLUMN: Batch CSV Mailbox Scan -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="badge badge-dest">
+                                <span class="status-dot" style="background:#10b981; box-shadow:0 0 8px #10b981;"></span>
+                                CSV HÀNG LOẠT
+                            </span>
+                            <h3>Khảo Sát Hàng Loạt (CSV)</h3>
+                        </div>
+
+                        <!-- Common Server Settings -->
+                        <div class="preset-label">Cấu hình máy chủ chung cho file CSV:</div>
+                        <div class="form-grid" style="margin-bottom: 14px;">
+                            <div class="form-group">
+                                <label for="scanBatchHost">Máy chủ IMAP (Host)</label>
+                                <input type="text" id="scanBatchHost" placeholder="imap.gmail.com" value="imap.gmail.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="scanBatchPort">Cổng</label>
+                                <input type="number" id="scanBatchPort" value="993">
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="scanBatchSsl" checked>
+                                    <span>Sử dụng kết nối bảo mật SSL/TLS</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- CSV Upload or Paste -->
+                        <div class="form-group">
+                            <label>Tải tệp CSV danh sách email:</label>
+                            <div class="file-drop-zone" id="scanCsvDropZone">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                                <p>Kéo thả tệp <strong>.CSV</strong> vào đây, hoặc <span class="browse-link">chọn từ máy tính</span></p>
+                                <input type="file" id="scanCsvFileInput" accept=".csv" style="display:none;">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 10px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <label for="scanCsvPasteArea" style="margin:0;">Hoặc dán danh sách (email,password):</label>
+                                <button type="button" class="btn btn-secondary btn-sm" id="btnDownloadScanSampleCsv" style="font-size:11px; padding:3px 8px;">
+                                    Tải CSV Mẫu
+                                </button>
+                            </div>
+                            <textarea id="scanCsvPasteArea" rows="4" placeholder="user1@domain.com,password123&#10;user2@domain.com,password456" style="font-family:'JetBrains Mono', monospace; font-size:12px;"></textarea>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 12px;">
+                            <button type="button" class="btn btn-primary" id="btnRunBatchScan" style="width: 100%;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                </svg>
+                                <span>Bắt Đầu Khảo Sát Hàng Loạt CSV</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SINGLE SCAN RESULTS CONTAINER -->
+                <div id="singleScanResultContainer" class="card" style="display: none; margin-bottom: 24px;">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="status-dot" style="background:#06b6d4; box-shadow:0 0 10px #06b6d4;"></span>
+                                <h3 id="singleScanResultTitle" style="font-size: 16px; margin: 0;">Kết Quả Khảo Sát Hộp Thư</h3>
+                            </div>
+                            <p id="singleScanResultSub" style="font-size: 12.5px; color: var(--text-muted); margin: 4px 0 0 0;">
+                                Chi tiết dung lượng và danh sách thư mục.
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-primary btn-sm" id="btnTransferFromScan" title="Chuyển ngay hộp thư này sang tab di chuyển">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                <span>Chuyển Sang Di Chuyển Ngay</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnCloseSingleScan" title="Đóng bảng kết quả">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4 Overview Metrics for Single Mailbox -->
+                    <div class="tasks-metrics-grid" style="margin-top: 16px;">
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-success-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                    <polyline points="22,6 12,13 2,6"/>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">TỔNG SỐ THƯ</span>
+                                <div class="metric-value-huge" id="singleScanTotalMsgs">0</div>
+                                <div class="metric-desc">Tất cả thư mục khả dụng</div>
+                            </div>
+                        </div>
+
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-running-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">TỔNG DUNG LƯỢNG</span>
+                                <div class="metric-value-huge text-info" id="singleScanTotalSize">0 MB</div>
+                                <div class="metric-desc" id="singleScanTotalSizeGb">0.00 GB</div>
+                            </div>
+                        </div>
+
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-skipped-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">SỐ THƯ MỤC</span>
+                                <div class="metric-value-huge" id="singleScanFoldersCount">0</div>
+                                <div class="metric-desc">Bao gồm thư mục con</div>
+                            </div>
+                        </div>
+
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-failed-icon" id="singleScanQuotaIcon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 14 14"></polyline>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">HẠN NGẠCH (QUOTA)</span>
+                                <div class="metric-value-huge" id="singleScanQuotaPct">N/A</div>
+                                <div class="metric-desc" id="singleScanQuotaText">Không giới hạn / Không hỗ trợ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quota Progress Bar (if available) -->
+                    <div id="singleScanQuotaBarWrap" style="display:none; margin-top:16px; background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:10px; padding:12px 16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:12px; font-weight:600; color:var(--text-primary);">Dung lượng sử dụng / Hạn ngạch</span>
+                            <span id="singleScanQuotaBarLabel" style="font-size:12px; font-weight:700; font-family:'JetBrains Mono',monospace;">0%</span>
+                        </div>
+                        <div class="progress-bar-container" style="height:8px; border-radius:6px;">
+                            <div id="singleScanQuotaBarFill" class="progress-bar-fill" style="width:0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Interactive Folders Table -->
+                    <div style="margin-top: 20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                            <h4 style="font-size:14px; margin:0;">Danh Sách Cấu Trúc Thư Mục</h4>
+                            <input type="text" id="singleScanFolderSearch" placeholder="Lọc thư mục..." style="width:200px; height:32px; font-size:12px;">
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="singleScanFoldersTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px; text-align:center;">#</th>
+                                        <th>Tên Thư Mục</th>
+                                        <th>Phân Loại</th>
+                                        <th style="text-align:right;">Số Lượng Thư</th>
+                                        <th style="text-align:right;">Dung Lượng</th>
+                                        <th style="text-align:right;">Tỷ Lệ</th>
+                                        <th style="text-align:center;">Trạng Thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="singleScanFoldersTableBody">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BATCH CSV SCAN RESULTS CONTAINER -->
+                <div id="batchScanResultContainer" class="card" style="display: none; margin-bottom: 24px;">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="status-dot" style="background:#10b981; box-shadow:0 0 10px #10b981;"></span>
+                                <h3 id="batchScanResultTitle" style="font-size: 16px; margin: 0;">Báo Cáo Khảo Sát Hàng Loạt (CSV)</h3>
+                            </div>
+                            <p style="font-size: 12.5px; color: var(--text-muted); margin: 4px 0 0 0;">
+                                Tổng kết dung lượng và tình trạng hòm thư toàn đoàn.
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnExportScanCsv">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                <span>Xuất Kết Quả CSV</span>
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" id="btnTransferBatchToMigrate">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                <span>Chuyển Sang Di Chuyển CSV</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnCloseBatchScan" title="Đóng bảng kết quả">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4 Aggregate Metrics for Batch Scan -->
+                    <div class="tasks-metrics-grid" style="margin-top: 16px;">
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-running-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">TỔNG TÀI KHOẢN</span>
+                                <div class="metric-value-huge" id="batchScanTotalAccounts">0</div>
+                                <div class="metric-desc" id="batchScanValidAccounts">0 hợp lệ</div>
+                            </div>
+                        </div>
+
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-success-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">TỔNG DUNG LƯỢNG TOÀN ĐOÀN</span>
+                                <div class="metric-value-huge text-success" id="batchScanTotalSize">0 GB</div>
+                                <div class="metric-desc" id="batchScanAvgSize">Trung bình: 0 MB / mail</div>
+                            </div>
+                        </div>
+
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-skipped-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                    <polyline points="22,6 12,13 2,6"/>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">TỔNG SỐ THƯ TOÀN ĐOÀN</span>
+                                <div class="metric-value-huge text-info" id="batchScanTotalMsgs">0</div>
+                                <div class="metric-desc">Tất cả thư mục</div>
+                            </div>
+                        </div>
+
+                        <div class="task-metric-card">
+                            <div class="metric-icon-box metric-failed-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                            </div>
+                            <div class="metric-info">
+                                <span class="metric-label">LỖI / THẤT BẠI</span>
+                                <div class="metric-value-huge text-danger" id="batchScanFailedAccounts">0</div>
+                                <div class="metric-desc">Sai pass hoặc ngắt kết nối</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Batch Accounts Table -->
+                    <div style="margin-top: 20px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                            <h4 style="font-size:14px; margin:0;">Bảng Chi Tiết Tài Khoản Đã Khảo Sát</h4>
+                            <input type="text" id="batchScanTableSearch" placeholder="Tìm theo email..." style="width:220px; height:32px; font-size:12px;">
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="batchScanTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width:40px; text-align:center;">#</th>
+                                        <th>Tài Khoản Email</th>
+                                        <th>Trạng Thái</th>
+                                        <th style="text-align:right;">Tổng Thư</th>
+                                        <th style="text-align:right;">Dung Lượng</th>
+                                        <th style="text-align:center;">Hạn Ngạch Quota</th>
+                                        <th style="text-align:center;">Số Thư Mục</th>
+                                        <th style="text-align:center;">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="batchScanTableBody">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- TAB: Active & Running Background Tasks -->
             <section id="activeTasksTab" class="tab-pane">
                 <!-- Header with Action Toolbar -->
@@ -1712,6 +2142,52 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="btnCloseSessionModalFooter">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Folders Breakdown Modal -->
+    <div id="scanFolderDetailModal" class="modal-backdrop">
+        <div class="modal-container" style="max-width: 680px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span id="scanModalAccountTitle">Cấu Trúc Thư Mục</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseScanModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="scanModalBody">
+                <div id="scanModalSummaryBar" style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+                    <div><strong>Tổng số thư:</strong> <span id="scanModalTotalMsgs" class="text-primary">-</span></div>
+                    <div><strong>Tổng dung lượng:</strong> <span id="scanModalTotalSize" class="text-info">-</span></div>
+                    <div><strong>Hạn ngạch Quota:</strong> <span id="scanModalQuota" class="text-success">-</span></div>
+                </div>
+                <div class="table-container" style="max-height: 380px; overflow-y:auto;">
+                    <table class="data-table" id="scanModalTable">
+                        <thead>
+                            <tr>
+                                <th style="width:36px; text-align:center;">#</th>
+                                <th>Tên Thư Mục</th>
+                                <th>Phân Loại</th>
+                                <th style="text-align:right;">Số Thư</th>
+                                <th style="text-align:right;">Dung Lượng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scanModalTableBody">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btnCloseScanModalFooter">Đóng</button>
             </div>
         </div>
     </div>
