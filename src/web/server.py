@@ -100,7 +100,7 @@ class SingleMigrateRequest(BaseModel):
     dest: AccountCredentials
     sanitize_accents: bool = False
     batch_delay_ms: int = 50
-    force_remigrate: bool = False
+    force_remigrate: bool = True
 
 
 class BatchCheckRequest(BaseModel):
@@ -111,7 +111,7 @@ class BatchMigrateRequest(BaseModel):
     accounts: List[Dict[str, Any]]
     sanitize_accents: bool = False
     batch_delay_ms: int = 50
-    force_remigrate: bool = False
+    force_remigrate: bool = True
 
 
 # In-memory Task State for Background Migrations
