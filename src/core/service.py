@@ -170,7 +170,6 @@ class MigrationService:
 
         logger.info(
             f"Here is py_imap 1.0.0 on host {hostname} PID is {pid}",
-            event=f"Here is py_imap 1.0.0 on host {hostname} PID is {pid}",
             action="SESSION_START",
             status="INFO",
             source_account=src_creds.username,
@@ -183,13 +182,11 @@ class MigrationService:
         )
         logger.info(
             f"Host1: IMAP server [{src_creds.host}] port [{src_creds.port}] user [{src_creds.username}]",
-            event=f"Host1: IMAP server [{src_creds.host}] port [{src_creds.port}] user [{src_creds.username}]",
             source_account=src_creds.username,
             dest_account=dst_creds.username,
         )
         logger.info(
             f"Host2: IMAP server [{dst_creds.host}] port [{dst_creds.port}] user [{dst_creds.username}]",
-            event=f"Host2: IMAP server [{dst_creds.host}] port [{dst_creds.port}] user [{dst_creds.username}]",
             source_account=src_creds.username,
             dest_account=dst_creds.username,
         )
@@ -198,13 +195,11 @@ class MigrationService:
             with IMAPClientWrapper(src_creds) as src_client, IMAPClientWrapper(dst_creds) as dst_client:
                 logger.info(
                     f"Host1: success login on [{src_creds.host}]",
-                    event=f"Host1: success login on [{src_creds.host}]",
                     source_account=src_creds.username,
                     dest_account=dst_creds.username,
                 )
                 logger.info(
                     f"Host2: success login on [{dst_creds.host}]",
-                    event=f"Host2: success login on [{dst_creds.host}]",
                     source_account=src_creds.username,
                     dest_account=dst_creds.username,
                 )
@@ -213,7 +208,6 @@ class MigrationService:
                 summary = inspector.inspect(src_client)
                 logger.info(
                     f"Host1: found {len(summary.folders)} folders.",
-                    event=f"Host1: found {len(summary.folders)} folders.",
                     source_account=src_creds.username,
                     dest_account=dst_creds.username,
                 )
@@ -343,7 +337,6 @@ class MigrationService:
 
                 logger.info(
                     stats_text,
-                    event=stats_text,
                     action="STATISTICS",
                     status="SUCCESS" if exit_code == 0 else "FAILED",
                     source_account=src_creds.username,
@@ -394,7 +387,6 @@ class MigrationService:
             err_line = f"failure: Error login [{str(e)}]\nExiting with return value {exit_code} ({exit_desc}) 1/50 nb_errors/max_errors"
             logger.error(
                 err_line,
-                event=err_line,
                 action="SESSION_FAIL",
                 status="FAILED",
                 source_account=src_creds.username,

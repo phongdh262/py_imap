@@ -187,7 +187,6 @@ class EmailMigrator:
                         self.state_db.record_skipped(migration_id)
                     logger.info(
                         f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
-                        event=f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
                         action="SKIP",
                         status="SKIPPED",
                         source_account=src_account,
@@ -212,7 +211,6 @@ class EmailMigrator:
                             self.state_db.record_skipped(migration_id)
                         logger.info(
                             f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2 cache) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
-                            event=f"msg {src_folder}/{uid} {{{size}}} skipped (already on host2 cache) | MsgID: {safe_msg_id} | Subj: {safe_subject}",
                             action="SKIP",
                             status="SKIPPED",
                             source_account=src_account,
@@ -242,7 +240,6 @@ class EmailMigrator:
                         )
                     logger.error(
                         f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_code}: {err_detail})",
-                        event=f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_code}: {err_detail})",
                         action="FAIL",
                         status="FAILED",
                         source_account=src_account,
@@ -288,7 +285,6 @@ class EmailMigrator:
 
                     logger.info(
                         f"msg {src_folder}/{uid} {{{size}}} copied to {dst_folder} | MsgID: {safe_msg_id} | Subj: {safe_subject}",
-                        event=f"msg {src_folder}/{uid} {{{size}}} copied to {dst_folder} | MsgID: {safe_msg_id} | Subj: {safe_subject}",
                         action="TRANSFER",
                         status="SUCCESS",
                         source_account=src_account,
@@ -316,7 +312,6 @@ class EmailMigrator:
                         )
                     logger.error(
                         f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_detail})",
-                        event=f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_detail})",
                         action="FAIL",
                         status="FAILED",
                         source_account=src_account,
