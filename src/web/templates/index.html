@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/app.css?v=2.4.0">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -1343,27 +1343,95 @@
                             </div>
                         </div>
 
-                        <!-- CSV Upload or Paste -->
-                        <div class="form-group">
-                            <label>Tải tệp CSV danh sách email:</label>
-                            <div class="file-drop-zone" id="scanCsvDropZone">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                </svg>
-                                <p>Kéo thả tệp <strong>.CSV</strong> vào đây, hoặc <span class="browse-link">chọn từ máy tính</span></p>
-                                <input type="file" id="scanCsvFileInput" accept=".csv" style="display:none;">
-                            </div>
-                        </div>
-
-                        <div class="form-group" style="margin-top: 10px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                                <label for="scanCsvPasteArea" style="margin:0;">Hoặc dán danh sách (email,password):</label>
-                                <button type="button" class="btn btn-secondary btn-sm" id="btnDownloadScanSampleCsv" style="font-size:11px; padding:3px 8px;">
-                                    Tải CSV Mẫu
+                        <!-- High-End Dual-Mode CSV Input Box -->
+                        <div class="csv-input-section">
+                            <!-- Switcher Tabs -->
+                            <div class="csv-mode-tabs">
+                                <button type="button" class="csv-tab-btn active" id="btnCsvTabUpload">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="17 8 12 3 7 8"></polyline>
+                                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                                    </svg>
+                                    <span>Tải Lên Tệp .CSV</span>
+                                </button>
+                                <button type="button" class="csv-tab-btn" id="btnCsvTabPaste">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                                    </svg>
+                                    <span>Nhập / Dán Nhanh</span>
+                                    <span class="badge badge-neutral" id="csvPasteCountBadge" style="display:none; font-size:10px; padding: 1px 6px;">0</span>
                                 </button>
                             </div>
-                            <textarea id="scanCsvPasteArea" rows="4" placeholder="user1@domain.com,password123&#10;user2@domain.com,password456" style="font-family:'JetBrains Mono', monospace; font-size:12px;"></textarea>
+
+                            <!-- Pane 1: File Drop Zone -->
+                            <div id="csvUploadPane" class="csv-tab-pane active">
+                                <div class="drop-zone scan-drop-zone" id="scanCsvDropZone">
+                                    <div class="drop-zone-icon scan-drop-icon">
+                                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                            <line x1="12" y1="18" x2="12" y2="12"></line>
+                                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                                        </svg>
+                                    </div>
+                                    <h4 class="drop-title">Kéo thả tệp <strong>.CSV</strong> vào đây</h4>
+                                    <p class="drop-subtitle">hoặc <span class="browse-link" style="color:var(--primary); font-weight:600; text-decoration:underline;">chọn từ máy tính</span></p>
+                                    <div class="drop-badges-row">
+                                        <span class="badge badge-neutral" style="font-size:11px;">Định dạng: email,password</span>
+                                    </div>
+                                    <input type="file" id="scanCsvFileInput" accept=".csv" style="display:none;">
+
+                                    <!-- Selected file indicator inside dropzone -->
+                                    <div id="scanFileLoadedBanner" class="file-loaded-banner" style="display:none;">
+                                        <div class="file-loaded-left">
+                                            <span class="file-loaded-icon">📄</span>
+                                            <div>
+                                                <strong id="scanFileName" class="file-name-text">filename.csv</strong>
+                                                <div id="scanFileMeta" class="file-meta-text">0 tài khoản đã nạp</div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn-clear-file" id="btnRemoveScanFile" title="Hủy chọn tệp này">✕</button>
+                                    </div>
+                                </div>
+
+                                <div class="csv-footer-links">
+                                    <span class="text-dim" style="font-size:11.5px;">Chưa có file mẫu?</span>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="btnDownloadScanSampleCsv">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="7 10 12 15 17 10"></polyline>
+                                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                                        </svg>
+                                        <span>Tải File Mẫu (email,password)</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Pane 2: Direct Paste Textarea -->
+                            <div id="csvPastePane" class="csv-tab-pane" style="display:none;">
+                                <div class="csv-paste-container">
+                                    <div class="csv-paste-toolbar">
+                                        <span class="csv-paste-label">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                            </svg>
+                                            Mỗi dòng 1 tài khoản (email, mật khẩu):
+                                        </span>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="btnDownloadScanSampleCsvPaste" style="font-size:11px; padding:3px 8px;">
+                                            Tải CSV Mẫu
+                                        </button>
+                                    </div>
+                                    <textarea id="scanCsvPasteArea" class="csv-editor-textarea" rows="6" placeholder="user1@domain.com,password123&#10;user2@domain.com,password456&#10;user3@domain.com,password789"></textarea>
+                                    <div class="csv-paste-footer">
+                                        <span id="scanCsvLiveCountText" class="csv-live-count">0 tài khoản hợp lệ</span>
+                                        <button type="button" class="btn-clear-text" id="btnClearScanPaste">Xóa nội dung</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group" style="margin-top: 12px;">
@@ -2192,6 +2260,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=2.4.0"></script>
 </body>
 </html>

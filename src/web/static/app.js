@@ -2611,11 +2611,21 @@ function initScanStorageTab() {
         });
     }
 
-    // 2. Batch CSV Scan
+    // 2. Batch CSV Scan - Dual Mode Tabs
+    const btnCsvTabUpload = document.getElementById("btnCsvTabUpload");
+    const btnCsvTabPaste = document.getElementById("btnCsvTabPaste");
+    const csvUploadPane = document.getElementById("csvUploadPane");
+    const csvPastePane = document.getElementById("csvPastePane");
     const scanCsvDropZone = document.getElementById("scanCsvDropZone");
     const scanCsvFileInput = document.getElementById("scanCsvFileInput");
     const scanCsvPasteArea = document.getElementById("scanCsvPasteArea");
     const btnDownloadScanSampleCsv = document.getElementById("btnDownloadScanSampleCsv");
+    const btnDownloadScanSampleCsvPaste = document.getElementById("btnDownloadScanSampleCsvPaste");
+    const btnRemoveScanFile = document.getElementById("btnRemoveScanFile");
+    const btnClearScanPaste = document.getElementById("btnClearScanPaste");
+    const scanFileLoadedBanner = document.getElementById("scanFileLoadedBanner");
+    const scanCsvLiveCountText = document.getElementById("scanCsvLiveCountText");
+    const csvPasteCountBadge = document.getElementById("csvPasteCountBadge");
     const btnRunBatchScan = document.getElementById("btnRunBatchScan");
     const batchResultCard = document.getElementById("batchScanResultContainer");
     const btnExportScanCsv = document.getElementById("btnExportScanCsv");
@@ -2623,9 +2633,64 @@ function initScanStorageTab() {
     const btnCloseBatchScan = document.getElementById("btnCloseBatchScan");
     const batchTableSearch = document.getElementById("batchScanTableSearch");
 
+    // Mode Switcher Tabs
+    if (btnCsvTabUpload && btnCsvTabPaste) {
+        btnCsvTabUpload.addEventListener("click", () => {
+            btnCsvTabUpload.classList.add("active");
+            btnCsvTabPaste.classList.remove("active");
+            if (csvUploadPane) csvUploadPane.style.display = "block";
+            if (csvPastePane) csvPastePane.style.display = "none";
+        });
+        btnCsvTabPaste.addEventListener("click", () => {
+            btnCsvTabPaste.classList.add("active");
+            btnCsvTabUpload.classList.remove("active");
+            if (csvPastePane) csvPastePane.style.display = "block";
+            if (csvUploadPane) csvUploadPane.style.display = "none";
+        });
+    }
+
+    const updateScanCsvCounts = () => {
+        const raw = scanCsvPasteArea?.value || "";
+        const accounts = parseAccountsFromCsvText(raw);
+        const count = accounts.length;
+        if (scanCsvLiveCountText) scanCsvLiveCountText.textContent = `${count} tài khoản hợp lệ`;
+        if (csvPasteCountBadge) {
+            csvPasteCountBadge.textContent = count;
+            csvPasteCountBadge.style.display = count > 0 ? "inline-flex" : "none";
+        }
+    };
+
+    if (scanCsvPasteArea) {
+        scanCsvPasteArea.addEventListener("input", updateScanCsvCounts);
+    }
+
+    if (btnClearScanPaste) {
+        btnClearScanPaste.addEventListener("click", () => {
+            if (scanCsvPasteArea) scanCsvPasteArea.value = "";
+            if (scanFileLoadedBanner) scanFileLoadedBanner.style.display = "none";
+            if (scanCsvFileInput) scanCsvFileInput.value = "";
+            updateScanCsvCounts();
+            showToast("Đã xóa nội dung danh sách!", "info");
+        });
+    }
+
+    if (btnRemoveScanFile) {
+        btnRemoveScanFile.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (scanCsvFileInput) scanCsvFileInput.value = "";
+            if (scanFileLoadedBanner) scanFileLoadedBanner.style.display = "none";
+            if (scanCsvPasteArea) scanCsvPasteArea.value = "";
+            updateScanCsvCounts();
+            showToast("Đã hủy tệp tải lên!", "info");
+        });
+    }
+
     // CSV File Drag & Drop
     if (scanCsvDropZone && scanCsvFileInput) {
-        scanCsvDropZone.addEventListener("click", () => scanCsvFileInput.click());
+        scanCsvDropZone.addEventListener("click", (e) => {
+            if (e.target.closest("#btnRemoveScanFile")) return;
+            scanCsvFileInput.click();
+        });
 
         ["dragenter", "dragover"].forEach(name => {
             scanCsvDropZone.addEventListener(name, (e) => {
@@ -2658,21 +2723,22 @@ function initScanStorageTab() {
     }
 
     // Download Sample CSV
-    if (btnDownloadScanSampleCsv) {
-        btnDownloadScanSampleCsv.addEventListener("click", () => {
-            const sampleContent = "email,password\nnhanvien1@congty.com,MatKhau123@#\nnhanvien2@congty.com,MatKhau456@#\nnhanvien3@congty.com,MatKhau789@#\n";
-            const blob = new Blob([sampleContent], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "mau_khao_sat_dung_luong.csv";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast("Đã tải xuống file CSV mẫu!", "success");
-        });
-    }
+    const downloadSample = () => {
+        const sampleContent = "email,password\nnhanvien1@congty.com,MatKhau123@#\nnhanvien2@congty.com,MatKhau456@#\nnhanvien3@congty.com,MatKhau789@#\n";
+        const blob = new Blob([sampleContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "mau_khao_sat_dung_luong.csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("Đã tải xuống file CSV mẫu!", "success");
+    };
+
+    if (btnDownloadScanSampleCsv) btnDownloadScanSampleCsv.addEventListener("click", downloadSample);
+    if (btnDownloadScanSampleCsvPaste) btnDownloadScanSampleCsvPaste.addEventListener("click", downloadSample);
 
     // Run Batch Scan
     if (btnRunBatchScan) {
@@ -2692,24 +2758,7 @@ function initScanStorageTab() {
                 return;
             }
 
-            // Parse accounts from raw text
-            const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-            let startIndex = 0;
-            const firstLine = lines[0].toLowerCase();
-            if (firstLine.includes("email") || firstLine.includes("user")) {
-                startIndex = 1;
-            }
-
-            const accounts = [];
-            for (let i = startIndex; i < lines.length; i++) {
-                const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ''));
-                if (cols.length >= 2 && cols[0]) {
-                    accounts.push({
-                        email: cols[0],
-                        password: cols[1]
-                    });
-                }
-            }
+            const accounts = parseAccountsFromCsvText(rawText);
 
             if (accounts.length === 0) {
                 showToast("Không tìm thấy dòng hợp lệ nào (định dạng email,password)", "error");
@@ -2868,6 +2917,29 @@ function initScanStorageTab() {
     }
 }
 
+function parseAccountsFromCsvText(rawText) {
+    if (!rawText) return [];
+    const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    let startIndex = 0;
+    if (lines.length > 0) {
+        const firstLine = lines[0].toLowerCase();
+        if (firstLine.includes("email") || firstLine.includes("user")) {
+            startIndex = 1;
+        }
+    }
+    const accounts = [];
+    for (let i = startIndex; i < lines.length; i++) {
+        const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ''));
+        if (cols.length >= 2 && cols[0]) {
+            accounts.push({
+                email: cols[0],
+                password: cols[1]
+            });
+        }
+    }
+    return accounts;
+}
+
 function handleScanCsvFile(file) {
     if (!file.name.toLowerCase().endsWith(".csv")) {
         showToast("Vui lòng tải lên tệp có định dạng .CSV", "error");
@@ -2878,8 +2950,25 @@ function handleScanCsvFile(file) {
         const text = e.target.result;
         const pasteArea = document.getElementById("scanCsvPasteArea");
         if (pasteArea) pasteArea.value = text;
-        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-        showToast(`Đã nạp file CSV thành công (${lines.length} dòng)!`, "success");
+        const accounts = parseAccountsFromCsvText(text);
+
+        // Update file loaded banner
+        const banner = document.getElementById("scanFileLoadedBanner");
+        const nameEl = document.getElementById("scanFileName");
+        const metaEl = document.getElementById("scanFileMeta");
+        if (nameEl) nameEl.textContent = file.name;
+        if (metaEl) metaEl.textContent = `${accounts.length} tài khoản (${(file.size / 1024).toFixed(1)} KB)`;
+        if (banner) banner.style.display = "flex";
+
+        const liveCount = document.getElementById("scanCsvLiveCountText");
+        const countBadge = document.getElementById("csvPasteCountBadge");
+        if (liveCount) liveCount.textContent = `${accounts.length} tài khoản hợp lệ`;
+        if (countBadge) {
+            countBadge.textContent = accounts.length;
+            countBadge.style.display = accounts.length > 0 ? "inline-flex" : "none";
+        }
+
+        showToast(`Đã nạp file "${file.name}" thành công (${accounts.length} tài khoản)!`, "success");
     };
     reader.readAsText(file);
 }
