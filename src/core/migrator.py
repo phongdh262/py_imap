@@ -170,6 +170,8 @@ class EmailMigrator:
                 except Exception:
                     message_id, subject, sender, date_str = None, "", "", ""
 
+                msg_hash = StateDatabase.compute_message_hash(message_id, date_str, subject, size)
+
                 # Helper for human-readable size
                 size_str = f"{size / 1024:.1f} KB" if size < 1048576 else f"{size / 1048576:.2f} MB"
                 safe_subject = (subject[:60] + "...") if len(subject) > 60 else (subject or "(No Subject)")
