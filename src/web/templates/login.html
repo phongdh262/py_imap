@@ -29,10 +29,13 @@
             width: 100%;
             max-width: 420px;
             background: var(--bg-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 2.25rem 2rem;
-            box-shadow: var(--card-shadow);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            box-shadow: var(--card-shadow-hover);
+            position: relative;
         }
 
         .login-brand {
@@ -44,16 +47,17 @@
         }
 
         .login-logo {
-            width: 48px;
-            height: 48px;
-            background: var(--badge-neutral-bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1rem;
-            color: var(--text-primary);
+            margin-bottom: 1.25rem;
+            color: #818cf8;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
         }
 
         .login-title {

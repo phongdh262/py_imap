@@ -3,29 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Py-IMAP Control Center | Email Migration</title>
+    <title>Py-IMAP Control Center | Enterprise Email Migration</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <!-- Top Navigation Bar -->
     <header class="top-nav">
-        <div class="brand">
+        <a href="/" class="brand">
             <div class="logo-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect width="20" height="16" x="2" y="4" rx="2"/>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="20" height="16" x="2" y="4" rx="3"/>
                     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                 </svg>
             </div>
             <div>
                 <div class="brand-title">Py-IMAP Control Center</div>
-                <div class="brand-sub">Hệ thống di chuyển Email doanh nghiệp</div>
+                <div class="brand-sub">Hệ thống di chuyển Email doanh nghiệp & Audit Log</div>
             </div>
-        </div>
+        </a>
         <div class="top-actions">
-            <!-- Minimalist Theme Switcher -->
+            <!-- Theme Switcher -->
             <div class="theme-switcher">
                 <button class="theme-btn active" data-theme="dark" title="Giao diện tối (Dark)">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -44,22 +44,31 @@
 
             <div class="status-indicator">
                 <span class="status-dot"></span>
-                <span>Prometheus</span>
+                <span>Prometheus & Loki</span>
             </div>
-            <a href="http://localhost:3000" target="_blank" class="btn btn-secondary btn-sm" id="grafanaBtn">
+
+            <a href="http://103.110.85.106:3000" target="_blank" class="btn btn-secondary btn-sm" id="grafanaBtn" title="Mở Grafana Dashboard giám sát chi tiết">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
                 <span>Grafana Dashboard</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
                 </svg>
-            <a href="/" target="_blank" class="btn btn-secondary btn-sm" id="btnNewBrowserTab" title="Mở một tab làm việc mới để tạo thêm tiến trình khác song song">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            </a>
+
+            <a href="/" target="_blank" class="btn btn-secondary btn-sm" id="btnNewBrowserTab" title="Mở một tab làm việc mới để tạo thêm tiến trình song song">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
                 <span>Mở Tab Mới</span>
             </a>
+
             <a href="/logout" class="btn btn-secondary btn-sm" id="logoutBtn" title="Đăng xuất khỏi phiên quản trị">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                     <polyline points="16 17 21 12 16 7"/>
                     <line x1="21" y1="12" x2="9" y2="12"/>
@@ -75,7 +84,7 @@
             <nav class="nav-menu">
                 <button class="nav-item active" data-tab="singleTab">
                     <span class="nav-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect width="20" height="16" x="2" y="4" rx="2"/>
                             <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                         </svg>
@@ -84,7 +93,7 @@
                 </button>
                 <button class="nav-item" data-tab="batchTab">
                     <span class="nav-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
                             <line x1="16" x2="8" y1="13" y2="13"/>
@@ -96,16 +105,16 @@
                 </button>
                 <button class="nav-item" data-tab="activeTasksTab" id="navActiveTasks">
                     <span class="nav-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                         </svg>
                     </span>
                     <span>Tiến Trình Đang Chạy</span>
-                    <span class="badge badge-neutral" id="activeTasksBadge" style="display:none; margin-left:auto; font-size:10px;">0</span>
+                    <span class="badge badge-neutral" id="activeTasksBadge" style="display:none; margin-left:auto; font-size:10.5px;">0</span>
                 </button>
                 <button class="nav-item" data-tab="sessionsTab">
                     <span class="nav-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"/>
                             <polyline points="12 6 12 12 16 14"/>
                         </svg>
@@ -114,7 +123,7 @@
                 </button>
                 <button class="nav-item" data-tab="settingsTab">
                     <span class="nav-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="3"/>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                         </svg>
@@ -125,11 +134,11 @@
 
             <div class="sidebar-footer">
                 <div class="system-stat">
-                    <span>Runtime:</span>
+                    <span>Runtime Engine:</span>
                     <strong>Python 3.12</strong>
                 </div>
                 <div class="system-stat">
-                    <span>Database:</span>
+                    <span>State Storage:</span>
                     <strong>SQLite WAL</strong>
                 </div>
             </div>
@@ -144,124 +153,323 @@
             <section id="singleTab" class="tab-pane active">
                 <div class="pane-header">
                     <h2>Di Chuyển Trực Tiếp 1 Hộp Thư</h2>
-                    <p>Quét dung lượng trước khi chuyển, kiểm tra mật khẩu ứng dụng và tự động map thư mục RFC 6154.</p>
+                    <p>Quét đối chiếu dung lượng nguồn & đích, kiểm tra mật khẩu ứng dụng và tự động đồng bộ chuẩn RFC 6154.</p>
                 </div>
 
                 <div class="grid-2-cols">
                     <!-- Source Account Card -->
                     <div class="card">
                         <div class="card-header">
-                            <span class="badge badge-neutral">NGUỒN (SOURCE)</span>
+                            <span class="badge badge-source">
+                                <span class="status-dot" style="background:#818cf8; box-shadow:0 0 8px #818cf8;"></span>
+                                NGUỒN (SOURCE)
+                            </span>
                             <h3>Hộp Thư Gốc Cần Chuyển Đi</h3>
                         </div>
 
-                        <!-- Provider Presets Chips -->
+                        <!-- Provider Presets Chips with Brand Icons -->
                         <div class="preset-label">Nhà cung cấp nguồn:</div>
                         <div class="provider-chips">
-                            <button type="button" class="provider-chip active" data-target="src" data-provider="gmail">Gmail</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="outlook">Outlook / M365</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="yandex">Yandex</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="cpanel">cPanel</button>
-                            <button type="button" class="provider-chip" data-target="src" data-provider="custom">Tùy biến</button>
+                            <button type="button" class="provider-chip active" data-target="src" data-provider="gmail">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+                                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.4 0 15.3c0 2.9.7 5.6 1.9 8l3.7-2.9z"/>
+                                    <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/>
+                                </svg>
+                                <span>Gmail</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="outlook">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#0078D4">
+                                    <rect width="10" height="10" x="2" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="2" y="12" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="12" rx="1"/>
+                                </svg>
+                                <span>Outlook / M365</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="yandex">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FC3F1D">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path fill="#fff" d="M13.5 6h-2.5c-2 0-3.3 1.2-3.3 3.2 0 1.5.8 2.5 2.1 3.2l-2.4 5.6h2.2l2.3-5.3h.6v5.3h2V6zm-1.5 5.2h-.9c-1 0-1.6-.6-1.6-1.6 0-1 .6-1.6 1.6-1.6h.9v3.2z"/>
+                                </svg>
+                                <span>Yandex</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="cpanel">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FF6C2C">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                <span>cPanel</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="src" data-provider="custom">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="21" x2="4" y2="14"/>
+                                    <line x1="4" y1="10" x2="4" y2="3"/>
+                                    <line x1="12" y1="21" x2="12" y2="12"/>
+                                    <line x1="12" y1="8" x2="12" y2="3"/>
+                                    <line x1="20" y1="21" x2="20" y2="16"/>
+                                    <line x1="20" y1="12" x2="20" y2="3"/>
+                                </svg>
+                                <span>Tùy biến</span>
+                            </button>
                         </div>
 
-                        <div class="form-grid" style="margin-top: 14px;">
+                        <div class="form-grid" style="margin-top: 16px;">
                             <div class="form-group col-span-2">
                                 <label>Host IMAP Nguồn</label>
-                                <input type="text" id="srcHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com">
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+                                            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+                                            <line x1="6" x2="6.01" y1="6" y2="6"/>
+                                            <line x1="6" x2="6.01" y1="18" y2="18"/>
+                                        </svg>
+                                    </span>
+                                    <input type="text" id="srcHost" value="imap.gmail.com" placeholder="Ví dụ: imap.gmail.com">
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Port</label>
-                                <input type="number" id="srcPort" value="993">
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="4" y1="9" x2="20" y2="9"/>
+                                            <line x1="4" y1="15" x2="20" y2="15"/>
+                                            <line x1="10" y1="3" x2="8" y2="21"/>
+                                            <line x1="16" y1="3" x2="14" y2="21"/>
+                                        </svg>
+                                    </span>
+                                    <input type="number" id="srcPort" value="993">
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>SSL / TLS</label>
-                                <select id="srcSsl">
-                                    <option value="true" selected>SSL / TLS (Bắt buộc)</option>
-                                    <option value="false">STARTTLS / Plain</option>
-                                </select>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        </svg>
+                                    </span>
+                                    <select id="srcSsl">
+                                        <option value="true" selected>SSL / TLS (Bắt buộc)</option>
+                                        <option value="false">STARTTLS / Plain</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-group col-span-2">
                                 <label>Email Nguồn</label>
-                                <input type="email" id="srcUser" placeholder="source@domain.com">
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect width="20" height="16" x="2" y="4" rx="2"/>
+                                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                                        </svg>
+                                    </span>
+                                    <input type="email" id="srcUser" placeholder="source@domain.com">
+                                </div>
                             </div>
                             <div class="form-group col-span-2">
                                 <label>Mật Khẩu Ứng Dụng (App Password)</label>
-                                <input type="password" id="srcPass" placeholder="Nhập App Password của Gmail/Yandex/Outlook">
+                                <div class="input-icon-group has-action">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                    </span>
+                                    <input type="password" id="srcPass" placeholder="Nhập App Password của Gmail/Yandex/Outlook">
+                                    <button type="button" class="input-action-btn" id="toggleSrcPass" title="Hiện/ẩn mật khẩu">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </button>
+                                </div>
                                 <small id="srcHintText" class="helper-text"></small>
                             </div>
                         </div>
                         <div class="card-footer">
-                            <button type="button" class="btn btn-secondary" id="btnTestSrcPass">Kiểm Tra Mật Khẩu</button>
-                            <button type="button" class="btn btn-secondary" id="btnInspectSrc">Quét Dung Lượng & Cây Thư Mục</button>
+                            <button type="button" class="btn btn-secondary" id="btnTestSrcPass">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                <span>Kiểm Tra Mật Khẩu</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="btnInspectSrc">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <span>Quét Dung Lượng & Cây Thư Mục</span>
+                            </button>
                         </div>
                     </div>
 
                     <!-- Destination Account Card -->
                     <div class="card">
                         <div class="card-header">
-                            <span class="badge badge-neutral">ĐÍCH (DESTINATION)</span>
+                            <span class="badge badge-dest">
+                                <span class="status-dot" style="background:#34d399; box-shadow:0 0 8px #34d399;"></span>
+                                ĐÍCH (DESTINATION)
+                            </span>
                             <h3>Hộp Thư Nhận Dữ Liệu</h3>
                         </div>
 
                         <!-- Provider Presets Chips -->
                         <div class="preset-label">Nhà cung cấp đích:</div>
                         <div class="provider-chips">
-                            <button type="button" class="provider-chip active" data-target="dst" data-provider="cpanel">cPanel</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="outlook">Outlook / M365</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="gmail">Gmail</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="yandex">Yandex</button>
-                            <button type="button" class="provider-chip" data-target="dst" data-provider="custom">Tùy biến</button>
+                            <button type="button" class="provider-chip active" data-target="dst" data-provider="cpanel">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FF6C2C">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                <span>cPanel</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="outlook">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#0078D4">
+                                    <rect width="10" height="10" x="2" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="2" rx="1"/>
+                                    <rect width="10" height="10" x="2" y="12" rx="1"/>
+                                    <rect width="10" height="10" x="12" y="12" rx="1"/>
+                                </svg>
+                                <span>Outlook / M365</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="gmail">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+                                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.4 0 15.3c0 2.9.7 5.6 1.9 8l3.7-2.9z"/>
+                                    <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/>
+                                </svg>
+                                <span>Gmail</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="yandex">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="#FC3F1D">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path fill="#fff" d="M13.5 6h-2.5c-2 0-3.3 1.2-3.3 3.2 0 1.5.8 2.5 2.1 3.2l-2.4 5.6h2.2l2.3-5.3h.6v5.3h2V6zm-1.5 5.2h-.9c-1 0-1.6-.6-1.6-1.6 0-1 .6-1.6 1.6-1.6h.9v3.2z"/>
+                                </svg>
+                                <span>Yandex</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-target="dst" data-provider="custom">
+                                <svg class="provider-chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="4" y1="21" x2="4" y2="14"/>
+                                    <line x1="4" y1="10" x2="4" y2="3"/>
+                                    <line x1="12" y1="21" x2="12" y2="12"/>
+                                    <line x1="12" y1="8" x2="12" y2="3"/>
+                                    <line x1="20" y1="21" x2="20" y2="16"/>
+                                    <line x1="20" y1="12" x2="20" y2="3"/>
+                                </svg>
+                                <span>Tùy biến</span>
+                            </button>
                         </div>
 
-                        <div class="form-grid" style="margin-top: 14px;">
+                        <div class="form-grid" style="margin-top: 16px;">
                             <div class="form-group col-span-2">
                                 <label>Host IMAP Đích</label>
-                                <input type="text" id="dstHost" value="mail.cpanel-domain.com" placeholder="Ví dụ: mail.domain.com">
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+                                            <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+                                            <line x1="6" x2="6.01" y1="6" y2="6"/>
+                                            <line x1="6" x2="6.01" y1="18" y2="18"/>
+                                        </svg>
+                                    </span>
+                                    <input type="text" id="dstHost" value="mail.cpanel-domain.com" placeholder="Ví dụ: mail.domain.com">
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Port</label>
-                                <input type="number" id="dstPort" value="993">
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="4" y1="9" x2="20" y2="9"/>
+                                            <line x1="4" y1="15" x2="20" y2="15"/>
+                                            <line x1="10" y1="3" x2="8" y2="21"/>
+                                            <line x1="16" y1="3" x2="14" y2="21"/>
+                                        </svg>
+                                    </span>
+                                    <input type="number" id="dstPort" value="993">
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>SSL / TLS</label>
-                                <select id="dstSsl">
-                                    <option value="true" selected>SSL / TLS (Bắt buộc)</option>
-                                    <option value="false">STARTTLS / Plain</option>
-                                </select>
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        </svg>
+                                    </span>
+                                    <select id="dstSsl">
+                                        <option value="true" selected>SSL / TLS (Bắt buộc)</option>
+                                        <option value="false">STARTTLS / Plain</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-group col-span-2">
                                 <label>Email Đích</label>
-                                <input type="email" id="dstUser" placeholder="dest@domain.com">
+                                <div class="input-icon-group">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect width="20" height="16" x="2" y="4" rx="2"/>
+                                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                                        </svg>
+                                    </span>
+                                    <input type="email" id="dstUser" placeholder="dest@domain.com">
+                                </div>
                             </div>
                             <div class="form-group col-span-2">
                                 <label>Mật Khẩu Hộp Thư Đích</label>
-                                <input type="password" id="dstPass" placeholder="Nhập mật khẩu hộp thư đích">
+                                <div class="input-icon-group has-action">
+                                    <span class="input-icon-left">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                    </span>
+                                    <input type="password" id="dstPass" placeholder="Nhập mật khẩu hộp thư đích">
+                                    <button type="button" class="input-action-btn" id="toggleDstPass" title="Hiện/ẩn mật khẩu">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </button>
+                                </div>
                                 <small id="dstHintText" class="helper-text"></small>
                             </div>
                         </div>
                         <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                             <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; color: var(--text-muted);" title="Bật tùy chọn này nếu bạn muốn đồng bộ lại 100% từ đầu, không bỏ qua các thư đã nạp trước đó">
-                                <input type="checkbox" id="forceRemigrateSingle" style="accent-color: var(--text-primary); cursor: pointer;">
+                                <input type="checkbox" id="forceRemigrateSingle" style="accent-color: #6366f1; cursor: pointer;">
                                 <span>Chuyển mới toàn bộ từ đầu (Bỏ qua cache Resume)</span>
                             </label>
-                            <div style="display: flex; gap: 8px;">
-                                <button type="button" class="btn btn-secondary" id="btnTestDstPass">Kiểm Tra Đăng Nhập Đích</button>
-                                <button type="button" class="btn btn-primary" id="btnStartSingleMigrate">Bắt Đầu Di Chuyển</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="button" class="btn btn-secondary" id="btnTestDstPass">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    <span>Kiểm Tra Đăng Nhập Đích</span>
+                                </button>
+                                <button type="button" class="btn btn-primary" id="btnStartSingleMigrate">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polygon points="5 3 19 12 5 21 5 3"/>
+                                    </svg>
+                                    <span>Bắt Đầu Di Chuyển</span>
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Pre-flight Inspection Results Container -->
-                <div id="inspectionResultContainer" class="inspection-results card" style="display: none; margin-top: 24px;">
+                <div id="inspectionResultContainer" class="inspection-results card" style="display: none; margin-top: 26px;">
                     <div class="card-header">
                         <h3 id="inspectionTitle">Kết Quả Quét Hộp Thư Nguồn (Pre-flight Inspection)</h3>
-                        <div id="inspectionSummaryBadges" class="badges-row"></div>
+                        <div id="inspectionSummaryBadges" class="badges-row" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
                     </div>
 
                     <!-- Reconciliation Safe Mode Box for Dual Scanning -->
-                    <div id="reconciliationBox" style="display: none; padding: 12px 16px; margin: 16px 0 8px 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-card-hover);"></div>
+                    <div id="reconciliationBox" style="display: none; padding: 14px 18px; margin: 16px 0 8px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card-subtle);"></div>
 
                     <!-- Visual Chart & Quota Bar -->
                     <div class="chart-and-quota-row">
@@ -287,7 +495,7 @@
                         </div>
                     </div>
 
-                    <div class="table-responsive" style="margin-top: 20px;">
+                    <div class="table-responsive" style="margin-top: 22px;">
                         <table class="data-table" id="foldersTable">
                             <thead>
                                 <tr>
@@ -304,14 +512,14 @@
                 </div>
 
                 <!-- Live Migration Progress Box -->
-                <div id="singleProgressContainer" class="card progress-card" style="display: none; margin-top: 24px;">
+                <div id="singleProgressContainer" class="card progress-card" style="display: none; margin-top: 26px;">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <div class="progress-title-row">
                             <span class="status-dot"></span>
                             <h3>Tiến Trình Di Chuyển Thời Gian Thực</h3>
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;">
-                            <span id="progressPercentBadge" class="badge badge-neutral">0%</span>
+                            <span id="progressPercentBadge" class="badge badge-neutral" style="font-size:12px; font-weight:700;">0%</span>
                             <a href="/" target="_blank" class="btn btn-secondary btn-sm" id="btnOpenNewMigrationTab" title="Mở một tab trình duyệt mới để tạo thêm tiến trình khác song song">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
@@ -331,23 +539,23 @@
                     </div>
                     <div class="stats-grid">
                         <div class="stat-mini">
-                            <span class="stat-mini-label">ĐÃ CHUYỂN</span>
-                            <span id="statSuccessCount" class="stat-mini-value">0</span>
+                            <span class="stat-mini-label">ĐÃ CHUYỂN (SUCCESS)</span>
+                            <span id="statSuccessCount" class="stat-mini-value" style="color:#34d399;">0</span>
                         </div>
                         <div class="stat-mini">
-                            <span class="stat-mini-label">BỎ QUA (RESUME)</span>
-                            <span id="statSkippedCount" class="stat-mini-value">0</span>
+                            <span class="stat-mini-label">BỎ QUA (SKIPPED / RESUME)</span>
+                            <span id="statSkippedCount" class="stat-mini-value" style="color:#fbbf24;">0</span>
                         </div>
                         <div class="stat-mini">
                             <span class="stat-mini-label">LỖI (FAILED)</span>
-                            <span id="statFailedCount" class="stat-mini-value">0</span>
+                            <span id="statFailedCount" class="stat-mini-value" style="color:#fb7185;">0</span>
                         </div>
                         <div class="stat-mini">
                             <span class="stat-mini-label">THƯ MỤC HIỆN TẠI</span>
-                            <span id="statCurrentFolder" class="stat-mini-value" style="font-size: 14px;">-</span>
+                            <span id="statCurrentFolder" class="stat-mini-value" style="font-size: 14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">-</span>
                         </div>
                     </div>
-                    <div id="reportLinksContainer" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);"></div>
+                    <div id="reportLinksContainer" style="display: none; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border);"></div>
                 </div>
             </section>
 
@@ -355,34 +563,44 @@
             <section id="batchTab" class="tab-pane">
                 <div class="pane-header">
                     <h2>Di Chuyển Hàng Loạt Từ File CSV</h2>
-                    <p>Kéo thả file CSV danh sách tài khoản, kiểm tra mật khẩu đồng thời và chạy tự động theo hàng đợi.</p>
+                    <p>Kéo thả file CSV danh sách tài khoản, kiểm tra mật khẩu đồng thời và chạy tự động theo hàng đợi an toàn.</p>
                 </div>
 
                 <!-- Drag & Drop Zone -->
                 <div id="dropZone" class="drop-zone">
                     <div class="drop-zone-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" x2="12" y1="3" y2="15"/>
                         </svg>
                     </div>
                     <h3>Kéo thả file accounts.csv vào đây</h3>
-                    <p>hoặc nhấn nút bên dưới để chọn file từ máy</p>
+                    <p>hoặc nhấn nút bên dưới để chọn file từ máy tính của bạn</p>
                     <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">Chọn file CSV</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click()">Chọn file CSV từ máy</button>
                     <a href="/config/accounts.example.csv" download class="example-link">Tải file mẫu accounts.example.csv</a>
                 </div>
 
                 <!-- CSV Preview & Action Bar -->
-                <div id="csvPreviewSection" style="display: none; margin-top: 24px;">
+                <div id="csvPreviewSection" style="display: none; margin-top: 26px;">
                     <div class="action-bar-row">
                         <div class="action-info">
                             Đã nạp <strong id="csvTotalCount">0</strong> tài khoản từ file CSV
                         </div>
                         <div class="action-buttons">
-                            <button type="button" class="btn btn-secondary" id="btnCheckAllPasswords">Kiểm Tra Toàn Bộ Mật Khẩu</button>
-                            <button type="button" class="btn btn-primary" id="btnStartBatchMigrate">Bắt Đầu Di Chuyển CSV</button>
+                            <button type="button" class="btn btn-secondary" id="btnCheckAllPasswords">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                <span>Kiểm Tra Toàn Bộ Mật Khẩu</span>
+                            </button>
+                            <button type="button" class="btn btn-primary" id="btnStartBatchMigrate">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                <span>Bắt Đầu Di Chuyển CSV</span>
+                            </button>
                         </div>
                     </div>
 
@@ -409,7 +627,7 @@
 
             <!-- TAB: Active & Running Background Tasks -->
             <section id="activeTasksTab" class="tab-pane">
-                <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="pane-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:12px;">
                     <div>
                         <h2>Tiến Trình Đang Chạy & Hàng Đợi (Background Tasks)</h2>
                         <p>Theo dõi các tác vụ đang chạy ngầm trên VPS. Tiến trình tiếp tục chạy an toàn ngay cả khi bạn đóng trình duyệt web.</p>
@@ -423,7 +641,7 @@
                 </div>
 
                 <div id="activeTasksList" class="tasks-grid">
-                    <div class="card" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                    <div class="card" style="text-align: center; color: var(--text-muted); padding: 36px;">
                         Hiện không có tiến trình nào đang chạy ngầm.
                     </div>
                 </div>
@@ -431,16 +649,23 @@
 
             <!-- TAB 3: Sessions & Reports Archive -->
             <section id="sessionsTab" class="tab-pane">
-                <div class="pane-header">
-                    <h2>Lịch Sử & Báo Cáo Audit</h2>
-                    <p>Quản lý các phiên di chuyển đã thực hiện, xem báo cáo HTML/CSV và thử lại các email bị lỗi.</p>
+                <div class="pane-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <h2>Lịch Sử & Báo Cáo Audit</h2>
+                        <p>Quản lý các phiên di chuyển đã thực hiện, xem báo cáo HTML/CSV và tra cứu chi tiết từng email.</p>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="text" id="historySearchInput" placeholder="Tìm theo email, tên miền..." style="width:240px; height:34px; font-size:12.5px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshSessions">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                            <span>Làm mới</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
-                        <h3>Danh Sách Các Phiên Di Chuyển</h3>
-                        <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshSessions">Làm mới</button>
-                    </div>
                     <div class="table-responsive">
                         <table class="data-table" id="sessionsTable">
                             <thead>
@@ -465,17 +690,17 @@
             <section id="settingsTab" class="tab-pane">
                 <div class="pane-header">
                     <h2>Cấu Hình Hệ Thống & Anti-Ban</h2>
-                    <p>Tinh chỉnh các cơ chế bảo vệ máy chủ, chống tràn RAM và loại trừ thư mục.</p>
+                    <p>Tinh chỉnh các cơ chế bảo vệ máy chủ, chống tràn RAM và tự động loại trừ thư mục.</p>
                 </div>
 
-                <div class="card" style="max-width: 800px;">
+                <div class="card" style="max-width: 820px;">
                     <div class="form-grid">
                         <div class="form-group col-span-2">
                             <label>Khử Dấu Tiếng Việt Tên Thư Mục (Yandex / cPanel Fix)</label>
                             <label class="switch-container">
                                 <input type="checkbox" id="settingSanitizeAccents">
                                 <span class="slider"></span>
-                                <span style="margin-left: 10px; font-size: 14px; color: var(--text-muted);">
+                                <span style="margin-left: 12px; font-size: 13.5px; color: var(--text-muted);">
                                     Tự động chuyển 'Thư đã gửi' ➔ 'Thu da gui' để tránh lỗi ký tự lạ trên server cũ
                                 </span>
                             </label>
@@ -506,8 +731,8 @@
     <div id="logDrawer" class="log-drawer collapsed">
         <div class="drawer-header" id="drawerHeader">
             <div class="drawer-title">
-                <span class="terminal-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <span class="terminal-icon" style="color:#818cf8;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="4 17 10 11 4 5"/>
                         <line x1="12" x2="20" y1="19" y2="19"/>
                     </svg>
@@ -530,10 +755,10 @@
         <div class="floating-task-header">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span class="status-dot"></span>
-                <strong id="floatingTaskTitle" style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">Đang di chuyển...</strong>
+                <strong id="floatingTaskTitle" style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">Đang di chuyển...</strong>
             </div>
             <button type="button" class="floating-btn-close" id="btnExpandProgress" title="Mở rộng xem chi tiết">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15 3 21 3 21 9"/>
                     <polyline points="9 21 3 21 3 15"/>
                     <line x1="21" y1="3" x2="14" y2="10"/>
@@ -542,12 +767,94 @@
             </button>
         </div>
         <div class="floating-task-body">
-            <div class="progress-bar-container" style="height: 4px; margin-bottom: 6px;">
+            <div class="progress-bar-container" style="height: 5px; margin-bottom: 8px;">
                 <div id="floatingProgressBarFill" class="progress-bar-fill" style="width: 0%;"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted);">
                 <span id="floatingTaskFolder">Đang xử lý...</span>
-                <span id="floatingTaskPercent">0%</span>
+                <span id="floatingTaskPercent" style="font-weight:600; color:var(--text-primary);">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal Before Starting Migration -->
+    <div id="confirmMigrateModal" class="modal-backdrop">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <span>Xác Nhận Khởi Chạy Di Chuyển</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnDismissModal" title="Đóng popup">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-summary-box">
+                    <div class="modal-summary-row">
+                        <span>Hộp thư nguồn:</span>
+                        <strong id="modalConfirmSrc">-</strong>
+                    </div>
+                    <div class="modal-summary-row">
+                        <span>Hộp thư đích:</span>
+                        <strong id="modalConfirmDst">-</strong>
+                    </div>
+                    <div class="modal-summary-row" id="modalPreScanRow" style="display:none;">
+                        <span>Dữ liệu quét trước:</span>
+                        <strong id="modalConfirmSize" style="color:#34d399;">-</strong>
+                    </div>
+                </div>
+
+                <div style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:8px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25);">
+                    <div style="font-size:16px;">🛡️</div>
+                    <div style="font-size:12.5px; line-height:1.5; color:var(--text-muted);">
+                        <strong style="color:var(--text-primary); display:block; margin-bottom:2px;">Bảo đảm dữ liệu 100%:</strong>
+                        Cơ chế chống trùng thư tự động bỏ qua (SKIPPED) các email đã có trên đích. Hoàn toàn không ghi đè, không xóa dữ liệu máy chủ đích.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btnCancelModalAction">Hủy Bỏ</button>
+                <button type="button" class="btn btn-primary" id="btnConfirmStartAction">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    <span>Xác Nhận & Bắt Đầu Di Chuyển</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Detail Modal -->
+    <div id="sessionDetailModal" class="modal-backdrop">
+        <div class="modal-container" style="max-width: 620px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <span id="sessionModalTitle">Chi Tiết Phiên Di Chuyển</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseSessionModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="sessionModalBody">
+                <div style="text-align:center; padding:20px; color:var(--text-muted);">Đang tải chi tiết...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btnCloseSessionModalFooter">Đóng</button>
             </div>
         </div>
     </div>

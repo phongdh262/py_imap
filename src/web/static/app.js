@@ -9,6 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
     initActiveTasksTab();
     initSessionsTab();
     initLogDrawer();
+    initModals();
+    setupPasswordToggles();
+    setupHistorySearch();
     updateGrafanaLink();
     loadActiveTasks();
     setInterval(loadActiveTasks, 3000);
@@ -323,6 +326,7 @@ function initSingleAccountTab() {
                 throw new Error(data.detail || "Không thể kết nối đến máy chủ");
             }
 
+            window.lastInspectionData = data;
             renderInspectionResults(data);
             const totalMb = data.total_size_mb != null
                 ? data.total_size_mb
@@ -344,8 +348,8 @@ function initSingleAccountTab() {
         }
     });
 
-    // 4. Start Single Migration
-    document.getElementById("btnStartSingleMigrate").addEventListener("click", async () => {
+    // 4. Start Single Migration (Prompt Confirmation Modal)
+    document.getElementById("btnStartSingleMigrate").addEventListener("click", () => {
         const payload = {
             source: {
                 host: document.getElementById("srcHost").value.trim(),
@@ -372,36 +376,56 @@ function initSingleAccountTab() {
             return;
         }
 
-        const btn = document.getElementById("btnStartSingleMigrate");
-        btn.disabled = true;
-        btn.textContent = "Đang di chuyển...";
+        window.pendingMigratePayload = payload;
+        document.getElementById("modalConfirmSrc").textContent = `${payload.source.username} (${payload.source.host}:${payload.source.port})`;
+        document.getElementById("modalConfirmDst").textContent = `${payload.dest.username} (${payload.dest.host}:${payload.dest.port})`;
 
-        // Show progress container
-        const progressCard = document.getElementById("singleProgressContainer");
-        progressCard.style.display = "block";
-        progressCard.scrollIntoView({ behavior: "smooth" });
-
-        resetProgressUI();
-        appendTerminalLog(`[MIGRATE START] Khởi động di chuyển: ${payload.source.username} ➔ ${payload.dest.username}`, "info");
-
-        try {
-            const res = await fetch("/api/migrate/start", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || "Khởi động di chuyển thất bại");
-
-            showToast("Tiến trình di chuyển đã bắt đầu!", "info");
-            listenToEventStream(data.task_id);
-
-        } catch (e) {
-            showToast(`Lỗi: ${e.message}`, "error");
-            btn.disabled = false;
-            btn.textContent = "Bắt Đầu Di Chuyển";
+        const preScanRow = document.getElementById("modalPreScanRow");
+        if (window.lastInspectionData) {
+            const totalMb = window.lastInspectionData.total_size_mb || (window.lastInspectionData.total_size_bytes ? (window.lastInspectionData.total_size_bytes / (1024 * 1024)).toFixed(2) : "0");
+            const totalMsgs = window.lastInspectionData.total_messages || 0;
+            if (preScanRow) preScanRow.style.display = "flex";
+            const confirmSizeEl = document.getElementById("modalConfirmSize");
+            if (confirmSizeEl) confirmSizeEl.textContent = `${totalMb} MB (${totalMsgs.toLocaleString()} thư)`;
+        } else {
+            if (preScanRow) preScanRow.style.display = "none";
         }
+
+        const modal = document.getElementById("confirmMigrateModal");
+        if (modal) modal.classList.add("open");
     });
+}
+
+async function executeSingleMigrate(payload) {
+    const btn = document.getElementById("btnStartSingleMigrate");
+    btn.disabled = true;
+    btn.textContent = "Đang di chuyển...";
+
+    // Show progress container
+    const progressCard = document.getElementById("singleProgressContainer");
+    progressCard.style.display = "block";
+    progressCard.scrollIntoView({ behavior: "smooth" });
+
+    resetProgressUI();
+    appendTerminalLog(`[MIGRATE START] Khởi động di chuyển: ${payload.source.username} ➔ ${payload.dest.username}`, "info");
+
+    try {
+        const res = await fetch("/api/migrate/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Khởi động di chuyển thất bại");
+
+        showToast("Tiến trình di chuyển đã bắt đầu!", "info");
+        listenToEventStream(data.task_id);
+
+    } catch (e) {
+        showToast(`Lỗi: ${e.message}`, "error");
+        btn.disabled = false;
+        btn.textContent = "Bắt Đầu Di Chuyển";
+    }
 }
 
 function resetProgressUI() {
@@ -1053,17 +1077,25 @@ async function loadSessions() {
         sessions.forEach(s => {
             const tr = document.createElement("tr");
 
+            let statusBadge = `<span class="badge badge-neutral">${s.status}</span>`;
+            if (s.status === "COMPLETED") statusBadge = `<span class="status-badge status-success">COMPLETED</span>`;
+            else if (s.status === "FAILED") statusBadge = `<span class="status-badge status-failed">FAILED</span>`;
+            else if (s.status === "RUNNING") statusBadge = `<span class="status-badge status-skipped">RUNNING</span>`;
+
             tr.innerHTML = `
                 <td><strong>#${s.id}</strong></td>
-                <td>${s.source_account} ➔ ${s.dest_account}</td>
-                <td style="text-align: center;"><span class="badge badge-neutral">${s.status}</span></td>
-                <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">${s.migrated_messages}</td>
-                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--text-muted);">${s.skipped_messages}</td>
+                <td><strong>${s.source_account}</strong> ➔ <strong>${s.dest_account}</strong></td>
+                <td style="text-align: center;">${statusBadge}</td>
+                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight:600; color:#34d399;">${s.migrated_messages}</td>
+                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #fbbf24;">${s.skipped_messages}</td>
                 <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--danger-text);">${s.failed_messages}</td>
-                <td style="font-size: 11px; color: var(--text-dim);">${s.started_at ? s.started_at.substring(0, 19) : '-'}</td>
+                <td style="font-size: 11.5px; color: var(--text-dim);">${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</td>
                 <td style="text-align: center;">
-                    <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">Báo cáo</button>
-                    ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
+                    <div style="display:inline-flex; gap:6px;">
+                        <button class="btn btn-secondary btn-sm" onclick="showSessionDetail(${JSON.stringify(s).replace(/"/g, '&quot;')})">Chi tiết</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">Báo cáo</button>
+                        ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -1073,7 +1105,12 @@ async function loadSessions() {
     }
 }
 
-document.getElementById("btnRefreshSessions").addEventListener("click", loadSessions);
+function initSessionsTab() {
+    const btn = document.getElementById("btnRefreshSessions");
+    if (btn) {
+        btn.addEventListener("click", loadSessions);
+    }
+}
 
 function openReports(sessionId) {
     window.open(`/api/reports/view/${sessionId}`, "_blank");
@@ -1160,3 +1197,158 @@ function appendTerminalLog(message, type = "info") {
     // Auto-scroll to bottom
     body.scrollTop = body.scrollHeight;
 }
+
+// --------------------------------------------------------------------------
+// MODAL & POPUP CONTROLLER
+// --------------------------------------------------------------------------
+function initModals() {
+    const confirmModal = document.getElementById("confirmMigrateModal");
+    const btnDismiss = document.getElementById("btnDismissModal");
+    const btnCancel = document.getElementById("btnCancelModalAction");
+    const btnConfirm = document.getElementById("btnConfirmStartAction");
+
+    const closeConfirm = () => {
+        if (confirmModal) confirmModal.classList.remove("open");
+    };
+
+    if (btnDismiss) btnDismiss.addEventListener("click", closeConfirm);
+    if (btnCancel) btnCancel.addEventListener("click", closeConfirm);
+    if (confirmModal) {
+        confirmModal.addEventListener("click", (e) => {
+            if (e.target === confirmModal) closeConfirm();
+        });
+    }
+
+    if (btnConfirm) {
+        btnConfirm.addEventListener("click", () => {
+            closeConfirm();
+            if (window.pendingMigratePayload) {
+                executeSingleMigrate(window.pendingMigratePayload);
+            }
+        });
+    }
+
+    // Session Detail Modal
+    const sessionModal = document.getElementById("sessionDetailModal");
+    const btnCloseSession = document.getElementById("btnCloseSessionModal");
+    const btnCloseSessionFooter = document.getElementById("btnCloseSessionModalFooter");
+
+    const closeSession = () => {
+        if (sessionModal) sessionModal.classList.remove("open");
+    };
+    if (btnCloseSession) btnCloseSession.addEventListener("click", closeSession);
+    if (btnCloseSessionFooter) btnCloseSessionFooter.addEventListener("click", closeSession);
+    if (sessionModal) {
+        sessionModal.addEventListener("click", (e) => {
+            if (e.target === sessionModal) closeSession();
+        });
+    }
+
+    // Escape key to close modals
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            closeConfirm();
+            closeSession();
+        }
+    });
+}
+
+function showSessionDetail(s) {
+    const modal = document.getElementById("sessionDetailModal");
+    const title = document.getElementById("sessionModalTitle");
+    const body = document.getElementById("sessionModalBody");
+    if (!modal || !body) return;
+
+    if (title) title.textContent = `Chi Tiết Phiên Di Chuyển #${s.id}`;
+
+    let statusBadge = `<span class="badge badge-neutral">${s.status}</span>`;
+    if (s.status === "COMPLETED") statusBadge = `<span class="status-badge status-success">COMPLETED</span>`;
+    else if (s.status === "FAILED") statusBadge = `<span class="status-badge status-failed">FAILED</span>`;
+    else if (s.status === "RUNNING") statusBadge = `<span class="status-badge status-skipped">RUNNING</span>`;
+
+    body.innerHTML = `
+        <div class="modal-summary-box">
+            <div class="modal-summary-row">
+                <span>Nguồn ➔ Đích:</span>
+                <strong>${s.source_account} ➔ ${s.dest_account}</strong>
+            </div>
+            <div class="modal-summary-row">
+                <span>Trạng thái:</span>
+                <div>${statusBadge}</div>
+            </div>
+            <div class="modal-summary-row">
+                <span>Thời gian bắt đầu:</span>
+                <strong>${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</strong>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="stat-mini">
+                <span class="stat-mini-label">THÀNH CÔNG</span>
+                <span class="stat-mini-value" style="color:#34d399;">${s.migrated_messages}</span>
+            </div>
+            <div class="stat-mini">
+                <span class="stat-mini-label">BỎ QUA (RESUME)</span>
+                <span class="stat-mini-value" style="color:#fbbf24;">${s.skipped_messages}</span>
+            </div>
+            <div class="stat-mini">
+                <span class="stat-mini-label">LỖI (FAILED)</span>
+                <span class="stat-mini-value" style="color:#fb7185;">${s.failed_messages}</span>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+            <a href="/api/reports/view/${s.id}" target="_blank" class="btn btn-primary btn-sm">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
+                </svg>
+                <span>Xem Báo Cáo HTML</span>
+            </a>
+            ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại lỗi</button>` : ''}
+        </div>
+    `;
+
+    modal.classList.add("open");
+}
+
+// --------------------------------------------------------------------------
+// PASSWORD VISIBILITY TOGGLE HELPER
+// --------------------------------------------------------------------------
+function setupPasswordToggles() {
+    [
+        { inputId: "srcPass", btnId: "toggleSrcPass" },
+        { inputId: "dstPass", btnId: "toggleDstPass" }
+    ].forEach(({ inputId, btnId }) => {
+        const input = document.getElementById(inputId);
+        const btn = document.getElementById(btnId);
+        if (!input || !btn) return;
+        btn.addEventListener("click", () => {
+            const isPassword = input.type === "password";
+            input.type = isPassword ? "text" : "password";
+            btn.innerHTML = isPassword
+                ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>
+                   </svg>`
+                : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                   </svg>`;
+        });
+    });
+}
+
+// --------------------------------------------------------------------------
+// HISTORY SEARCH & FILTER HELPER
+// --------------------------------------------------------------------------
+function setupHistorySearch() {
+    const input = document.getElementById("historySearchInput");
+    if (!input) return;
+    input.addEventListener("input", (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const rows = document.querySelectorAll("#sessionsTableBody tr");
+        rows.forEach(r => {
+            const text = r.textContent.toLowerCase();
+            r.style.display = text.includes(query) ? "" : "none";
+        });
+    });
+}
+
