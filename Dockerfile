@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 # Prevent Python from writing .pyc files & enable unbuffered stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -6,12 +6,6 @@ ENV PYTHONUNBUFFERED=1
 ENV LOG_FORMAT=json
 
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
 
 # Create log directory
 RUN mkdir -p /var/log/email_migrator
