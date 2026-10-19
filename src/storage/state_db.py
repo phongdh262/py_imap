@@ -249,3 +249,25 @@ class StateDatabase:
                 (migration_id,),
             ).fetchall()
             return [dict(r) for r in rows]
+
+    def delete_migration(self, migration_id: int) -> bool:
+        """Deletes a single migration record and its associated message states."""
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM messages_state WHERE migration_id = ?", (migration_id,))
+            cursor = conn.execute("DELETE FROM migrations WHERE id = ?", (migration_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def clear_all_migrations(self) -> int:
+        """Deletes all migration records and associated message states, then vacuums the database."""
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM messages_state")
+            cursor = conn.execute("DELETE FROM migrations")
+            count = cursor.rowcount
+            conn.commit()
+            try:
+                conn.execute("VACUUM")
+            except Exception:
+                pass
+            return count
+

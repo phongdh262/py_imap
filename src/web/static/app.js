@@ -1764,10 +1764,17 @@ async function loadSessions() {
                 <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--danger-text);">${s.failed_messages}</td>
                 <td style="font-size: 11.5px; color: var(--text-dim);">${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</td>
                 <td style="text-align: center;">
-                    <div style="display:inline-flex; gap:6px;">
+                    <div style="display:inline-flex; gap:6px; align-items:center;">
                         <button class="btn btn-secondary btn-sm" onclick="showSessionDetail(${JSON.stringify(s).replace(/"/g, '&quot;')})">Chi tiết</button>
                         <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">Báo cáo</button>
                         ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
+                        <button class="btn btn-secondary btn-sm text-danger" onclick="deleteSessionPrompt(${s.id}, '${escapeHtml(s.source_account)}', '${escapeHtml(s.dest_account)}')" title="Xóa lịch sử phiên #${s.id}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            <span>Xóa</span>
+                        </button>
                     </div>
                 </td>
             `;
@@ -1779,9 +1786,13 @@ async function loadSessions() {
 }
 
 function initSessionsTab() {
-    const btn = document.getElementById("btnRefreshSessions");
-    if (btn) {
-        btn.addEventListener("click", loadSessions);
+    const btnRefresh = document.getElementById("btnRefreshSessions");
+    if (btnRefresh) {
+        btnRefresh.addEventListener("click", loadSessions);
+    }
+    const btnClearAll = document.getElementById("btnClearAllSessions");
+    if (btnClearAll) {
+        btnClearAll.addEventListener("click", clearAllSessionsPrompt);
     }
 }
 
@@ -1806,6 +1817,45 @@ function retrySessionPrompt(sessionId) {
             });
     }
 }
+
+window.deleteSessionPrompt = async function(sessionId, srcAcc, dstAcc) {
+    const label = srcAcc ? `\nTài khoản: ${srcAcc} ➔ ${dstAcc || ''}` : '';
+    if (!confirm(`Bạn có chắc chắn muốn xóa lịch sử phiên di chuyển #${sessionId}?${label}\n\nDữ liệu thống kê và trạng thái thư của phiên này trong database sẽ bị xóa.`)) {
+        return;
+    }
+    try {
+        const res = await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "Không thể xóa phiên di chuyển");
+        }
+        showToast(data.message || `Đã xóa thành công phiên #${sessionId}`, "success");
+        CyberAudio.playSuccess?.();
+        loadSessions();
+    } catch (err) {
+        showToast(`Lỗi: ${err.message}`, "error");
+        CyberAudio.playError?.();
+    }
+};
+
+window.clearAllSessionsPrompt = async function() {
+    if (!confirm("⚠️ CẢNH BÁO XÓA TOÀN BỘ LỊCH SỬ:\n\nBạn có chắc chắn muốn xóa TOÀN BỘ danh sách lịch sử di chuyển và các báo cáo đã lưu?\n\nThao tác này sẽ làm sạch database lịch sử và không thể hoàn tác!")) {
+        return;
+    }
+    try {
+        const res = await fetch("/api/sessions/clear", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || "Không thể xóa lịch sử");
+        }
+        showToast(data.message || "Đã xóa toàn bộ lịch sử di chuyển!", "success");
+        CyberAudio.playSuccess?.();
+        loadSessions();
+    } catch (err) {
+        showToast(`Lỗi: ${err.message}`, "error");
+        CyberAudio.playError?.();
+    }
+};
 
 // Live Terminal Log Drawer Logic
 let logCounter = 0;
@@ -1970,14 +2020,23 @@ function showSessionDetail(s) {
             </div>
         </div>
 
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
-            <a href="/api/reports/view/${s.id}" target="_blank" class="btn btn-primary btn-sm">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap;">
+            <button class="btn btn-danger btn-sm" onclick="document.getElementById('sessionDetailModal').classList.remove('open'); deleteSessionPrompt(${s.id}, '${escapeHtml(s.source_account)}', '${escapeHtml(s.dest_account)}')" title="Xóa phiên này">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 </svg>
-                <span>Xem Báo Cáo</span>
-            </a>
-            ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
+                <span>Xóa Phiên Này</span>
+            </button>
+            <div style="display:flex; gap:8px;">
+                <a href="/api/reports/view/${s.id}" target="_blank" class="btn btn-primary btn-sm">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/>
+                    </svg>
+                    <span>Xem Báo Cáo</span>
+                </a>
+                ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
+            </div>
         </div>
     `;
 

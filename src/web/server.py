@@ -792,6 +792,54 @@ async def get_all_sessions():
         return [dict(r) for r in rows]
 
 
+@app.delete("/api/sessions/{session_id}")
+@app.post("/api/sessions/{session_id}/delete")
+async def delete_session(session_id: int):
+    """Deletes a specific migration session and its message states."""
+    summary = state_db.get_migration_summary(session_id)
+    if not summary:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên di chuyển này")
+
+    # Clean up corresponding reports if they exist
+    source_acc = summary.get("source_account", "")
+    if source_acc:
+        clean_account = source_acc.replace("@", "_at_").replace(".", "_")
+        for f in REPORTS_DIR.glob(f"*{clean_account}*"):
+            try:
+                f.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+    success = state_db.delete_migration(session_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Không thể xóa phiên di chuyển")
+    return {"status": "ok", "message": f"Đã xóa thành công lịch sử phiên #{session_id}"}
+
+
+@app.delete("/api/sessions")
+@app.post("/api/sessions/clear")
+async def clear_all_sessions():
+    """Deletes all migration sessions and resets history."""
+    running_tasks = [t for t in ACTIVE_TASKS.values() if t.get("status") == "RUNNING"]
+    if running_tasks:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Đang có {len(running_tasks)} tiến trình di chuyển đang chạy. Vui lòng dừng hoặc chờ hoàn tất trước khi xóa toàn bộ lịch sử."
+        )
+
+    count = state_db.clear_all_migrations()
+
+    # Clean up all report files
+    try:
+        for f in REPORTS_DIR.glob("*.*"):
+            if f.suffix in (".html", ".csv") and f.name != ".gitkeep":
+                f.unlink(missing_ok=True)
+    except Exception as e:
+        logger.warning(f"Error cleaning reports folder: {e}")
+
+    return {"status": "ok", "message": f"Đã xóa toàn bộ {count} phiên trong lịch sử di chuyển", "deleted_count": count}
+
+
 @app.get("/api/reports/view/{session_id}", response_class=HTMLResponse)
 async def view_session_report(session_id: int):
     """Renders or generates the HTML audit report for a session."""
