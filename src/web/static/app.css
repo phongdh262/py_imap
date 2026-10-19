@@ -4092,8 +4092,644 @@ select:focus {
 
 .docs-faq-item.open .docs-faq-a {
     display: block;
+/* ==========================================================================
+   20. SPOTLIGHT MOUSE GLOW (Linear / Stripe Style)
+   ========================================================================== */
+.card, .task-metric-card, .metric-card, .task-card-pro, .provider-chip, .analytics-chart-card, .analytics-kpi-card {
+    position: relative;
 }
 
+.spotlight-active::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(380px circle at var(--mouse-x, -999px) var(--mouse-y, -999px), rgba(56, 189, 248, 0.14), transparent 45%);
+    pointer-events: none;
+    opacity: 1;
+    z-index: 1;
+    transition: opacity 0.25s ease;
+}
 
+/* ==========================================================================
+   21. CYBER DATA STREAM & PIPELINE VISUALIZER
+   ========================================================================== */
+.cyber-stream-card {
+    background: linear-gradient(135deg, rgba(8, 12, 22, 0.95), rgba(15, 23, 42, 0.95));
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.12);
+    border-radius: 14px;
+    padding: 18px 22px;
+    position: relative;
+    overflow: hidden;
+}
 
+.cyber-stream-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
 
+.stream-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #38bdf8;
+    letter-spacing: 0.5px;
+}
+
+.pulse-beacon {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #38bdf8;
+    box-shadow: 0 0 10px #38bdf8;
+    animation: beaconPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes beaconPulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.6); opacity: 0.3; }
+}
+
+.stream-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+}
+
+.stream-indicators {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+
+.stream-rate-badge {
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    font-weight: 600;
+}
+
+.stream-ping-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-dim);
+    font-size: 11px;
+}
+
+.blink-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    animation: pingBlink 0.6s infinite alternate;
+}
+
+@keyframes pingBlink {
+    0% { opacity: 0.2; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1.2); }
+}
+
+.cyber-stream-body {
+    display: grid;
+    grid-template-columns: 240px 1fr 240px;
+    align-items: center;
+    gap: 18px;
+}
+
+@media (max-width: 900px) {
+    .cyber-stream-body {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+}
+
+.stream-node {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    border-radius: 10px;
+}
+
+.node-icon-wrap {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.node-src-icon {
+    background: rgba(6, 182, 212, 0.15);
+    color: #06b6d4;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.node-dst-icon {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.node-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.node-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.node-acc {
+    font-size: 12.5px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stream-conduit {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.conduit-line {
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #06b6d4, #38bdf8, #10b981);
+    position: relative;
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    overflow: hidden;
+}
+
+.conduit-photon {
+    position: absolute;
+    top: -2px;
+    width: 30px;
+    height: 7px;
+    border-radius: 4px;
+    background: #ffffff;
+    box-shadow: 0 0 14px #ffffff, 0 0 20px #38bdf8;
+    animation: photonTravel 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.photon-1 { animation-delay: 0s; }
+.photon-2 { animation-delay: 0.55s; }
+.photon-3 { animation-delay: 1.1s; }
+
+@keyframes photonTravel {
+    0% { left: -10%; opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { left: 105%; opacity: 0; }
+}
+
+.conduit-floating-packet {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    max-width: 85%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   22. INTERACTIVE SESSIONS NATIVE SVG CHARTS
+   ========================================================================== */
+.sessions-analytics-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    gap: 16px;
+}
+
+@media (max-width: 1024px) {
+    .sessions-analytics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.analytics-chart-card, .analytics-kpi-card {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.chart-header h4 {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.donut-chart-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 4px auto 12px auto;
+}
+
+.donut-svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+}
+
+.donut-bg-circle {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.05);
+    stroke-width: 12;
+}
+
+.donut-segment {
+    fill: none;
+    stroke-width: 12;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.8s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s;
+}
+
+.segment-success { stroke: #10b981; }
+.segment-skipped { stroke: #f59e0b; }
+.segment-failed { stroke: #ef4444; }
+
+.donut-center-info {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.donut-center-info strong {
+    font-size: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #10b981;
+}
+
+.donut-center-info span {
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+.chart-legend {
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.legend-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.dot-success { background: #10b981; box-shadow: 0 0 5px #10b981; }
+.dot-skipped { background: #f59e0b; box-shadow: 0 0 5px #f59e0b; }
+.dot-failed { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
+.dot-running { background: #38bdf8; box-shadow: 0 0 5px #38bdf8; }
+
+.sparkline-container {
+    height: 110px;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px 4px 4px 4px;
+}
+
+.sparkline-bar-wrap {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    position: relative;
+    cursor: pointer;
+}
+
+.sparkline-bar {
+    width: 100%;
+    max-width: 28px;
+    background: linear-gradient(180deg, #38bdf8, #6366f1);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s;
+    min-height: 4px;
+}
+
+.sparkline-bar-wrap:hover .sparkline-bar {
+    filter: brightness(1.25);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+
+.sparkline-bar-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.sparkline-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+}
+
+.kpi-mini-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    justify-content: center;
+    flex: 1;
+}
+
+.kpi-mini-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.kpi-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.kpi-mini-item strong {
+    font-size: 15px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ==========================================================================
+   23. SMART FILTER CHIPS (SESSIONS)
+   ========================================================================== */
+.sessions-filter-chips-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.session-chip {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.session-chip:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.session-chip.active {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: #6366f1;
+    color: #a5b4fc;
+    font-weight: 600;
+}
+
+.chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.chip-badge {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.session-chip.active .chip-badge {
+    background: #6366f1;
+    color: #fff;
+}
+
+/* ==========================================================================
+   24. SKELETON SHIMMER LOADING & RADAR SCAN EMPTY STATE
+   ========================================================================== */
+.skeleton-row td {
+    padding: 16px 12px;
+}
+
+.skeleton-shimmer {
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.03) 75%);
+    background-size: 200% 100%;
+    animation: shimmerEffect 1.5s infinite;
+}
+
+@keyframes shimmerEffect {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.cyber-radar-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 45px 20px;
+    text-align: center;
+    gap: 14px;
+}
+
+.radar-scope {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.radar-sweep {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(56, 189, 248, 0.35) 0deg, transparent 60deg);
+    animation: radarSpin 3.5s linear infinite;
+}
+
+@keyframes radarSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.radar-center-icon {
+    position: relative;
+    z-index: 2;
+    font-size: 26px;
+    color: #38bdf8;
+    filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8));
+}
+
+.radar-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.radar-empty-desc {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    max-width: 420px;
+    margin: 0;
+    line-height: 1.55;
+}
+
+/* ==========================================================================
+   25. CYBER MILESTONE ACHIEVEMENT BANNER
+   ========================================================================== */
+.milestone-toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 100000;
+    animation: slideUpBounce 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpBounce {
+    0% { transform: translateY(60px) scale(0.9); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.milestone-toast-card {
+    background: linear-gradient(135deg, #090d16, #141f36);
+    border: 1.5px solid #10b981;
+    box-shadow: 0 0 35px rgba(16, 185, 129, 0.35), 0 10px 25px rgba(0, 0, 0, 0.5);
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    max-width: 420px;
+}
+
+.milestone-icon-wrap {
+    font-size: 28px;
+    line-height: 1;
+    filter: drop-shadow(0 0 10px #fbbf24);
+}
+
+.milestone-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.milestone-badge {
+    font-size: 9.5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    color: #10b981;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.milestone-content strong {
+    display: block;
+    font-size: 13.5px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.milestone-content p {
+    margin: 2px 0 0 0;
+    font-size: 11.5px;
+    color: var(--text-muted);
+}
+
+.milestone-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s;
+}
+
+.milestone-close-btn:hover {
+    color: #fff;
+}

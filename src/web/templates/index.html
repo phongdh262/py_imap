@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/app.css?v=2.8.0">
+    <link rel="stylesheet" href="/static/app.css?v=2.9.0">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -1861,6 +1861,65 @@
                     </div>
                 </div>
 
+                <!-- Cyber Data Stream Pipeline Visualizer -->
+                <div id="cyberDataStreamCard" class="card cyber-stream-card" style="margin-bottom: 20px; display: none;">
+                    <div class="cyber-stream-header">
+                        <div class="stream-title">
+                            <span class="pulse-beacon"></span>
+                            <strong>CYBER DATA STREAM</strong>
+                            <span class="stream-subtitle" id="streamSubTitle">Đang truyền tải dữ liệu thời gian thực...</span>
+                        </div>
+                        <div class="stream-indicators">
+                            <span class="stream-rate-badge" id="streamRateBadge">0.0 MB/s</span>
+                            <span class="stream-rate-badge text-success" id="streamMsgRateBadge">0 thư/s</span>
+                            <span class="stream-ping-dot" title="TX/RX Optical Packet Stream">TX / RX <span class="blink-dot"></span></span>
+                        </div>
+                    </div>
+                    <div class="cyber-stream-body">
+                        <!-- Left: Source Gateway -->
+                        <div class="stream-node stream-node-source">
+                            <div class="node-icon-wrap node-src-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+                                    <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"/>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"/>
+                                </svg>
+                            </div>
+                            <div class="node-meta">
+                                <span class="node-label">GATEWAY NGUỒN</span>
+                                <strong id="streamSrcAcc" class="node-acc">user@source.com</strong>
+                            </div>
+                        </div>
+
+                        <!-- Center: Fiber Laser Conduit with Moving Photons -->
+                        <div class="stream-conduit">
+                            <div class="conduit-line">
+                                <div class="conduit-photon photon-1"></div>
+                                <div class="conduit-photon photon-2"></div>
+                                <div class="conduit-photon photon-3"></div>
+                            </div>
+                            <div class="conduit-floating-packet" id="streamPacketBadge">
+                                <span class="packet-icon">✉️</span>
+                                <span id="streamCurrentFolder" class="packet-text">Đang kết nối IMAP...</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Destination Gateway -->
+                        <div class="stream-node stream-node-dest">
+                            <div class="node-icon-wrap node-dst-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+                                </svg>
+                            </div>
+                            <div class="node-meta">
+                                <span class="node-label">GATEWAY ĐÍCH</span>
+                                <strong id="streamDstAcc" class="node-acc">user@dest.com</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Controls & Filter Toolbar -->
                 <div class="tasks-filter-bar">
                     <div class="tasks-filter-pills" id="taskStatusFilters">
@@ -1923,6 +1982,94 @@
                             <span>Xóa Toàn Bộ Lịch Sử</span>
                         </button>
                     </div>
+                </div>
+
+                <!-- Interactive Native SVG Dashboard Charts -->
+                <div class="sessions-analytics-grid" style="margin-bottom: 20px;">
+                    <!-- Chart 1: Donut Success vs Skipped vs Failed -->
+                    <div class="card analytics-chart-card">
+                        <div class="chart-header">
+                            <h4>Tỷ Lệ Di Chuyển Tổng Quan</h4>
+                            <span class="badge badge-neutral" id="donutTotalCount">0 Phiên</span>
+                        </div>
+                        <div class="donut-chart-container">
+                            <svg viewBox="0 0 120 120" class="donut-svg" id="sessionsDonutSvg">
+                                <circle cx="60" cy="60" r="48" class="donut-bg-circle"/>
+                                <circle cx="60" cy="60" r="48" class="donut-segment segment-success" id="donutSuccessSeg" stroke-dasharray="0 301.6"/>
+                                <circle cx="60" cy="60" r="48" class="donut-segment segment-skipped" id="donutSkippedSeg" stroke-dasharray="0 301.6"/>
+                                <circle cx="60" cy="60" r="48" class="donut-segment segment-failed" id="donutFailedSeg" stroke-dasharray="0 301.6"/>
+                            </svg>
+                            <div class="donut-center-info">
+                                <strong id="donutPctValue">100%</strong>
+                                <span>Thành công</span>
+                            </div>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item"><span class="legend-dot dot-success"></span> Thành công: <strong id="legendSuccessCount">0</strong></div>
+                            <div class="legend-item"><span class="legend-dot dot-skipped"></span> Bỏ qua: <strong id="legendSkippedCount">0</strong></div>
+                            <div class="legend-item"><span class="legend-dot dot-failed"></span> Lỗi: <strong id="legendFailedCount">0</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Chart 2: Sparkline Bar Activity Stream -->
+                    <div class="card analytics-chart-card">
+                        <div class="chart-header">
+                            <h4>Lưu Lượng Các Phiên Gần Nhất</h4>
+                            <span class="text-dim" style="font-size:11px;">Số thư / phiên</span>
+                        </div>
+                        <div class="sparkline-container" id="sessionsSparklineContainer">
+                            <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:var(--text-dim); font-size:12px;">Đang tính toán biểu đồ...</div>
+                        </div>
+                        <div class="sparkline-footer">
+                            <span id="sparklineMinMax">Hiển thị các phiên gần nhất</span>
+                            <span style="color:#38bdf8;">Thư điện tử</span>
+                        </div>
+                    </div>
+
+                    <!-- Chart 3: KPI Snapshot Cards -->
+                    <div class="card analytics-kpi-card">
+                        <div class="chart-header">
+                            <h4>Hiệu Suất Vận Hành</h4>
+                            <span class="badge badge-success">Enterprise Grade</span>
+                        </div>
+                        <div class="kpi-mini-rows">
+                            <div class="kpi-mini-item">
+                                <span class="kpi-label">Tổng Thư Đã Chuyển</span>
+                                <strong id="kpiTotalMigrated" class="text-success">0</strong>
+                            </div>
+                            <div class="kpi-mini-item">
+                                <span class="kpi-label">Tổng Dung Lượng</span>
+                                <strong id="kpiTotalSize" class="text-info">0 MB</strong>
+                            </div>
+                            <div class="kpi-mini-item">
+                                <span class="kpi-label">Độ Toàn Vẹn Dữ Liệu</span>
+                                <strong class="text-primary" id="kpiSuccessRate">100%</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Smart Filter Chips for Sessions Table -->
+                <div class="sessions-filter-chips-bar" id="sessionFilterChipsBar" style="margin-bottom: 14px;">
+                    <button type="button" class="session-chip active" data-filter="all">
+                        <span>Tất cả</span>
+                        <span class="chip-badge" id="chipCountAll">0</span>
+                    </button>
+                    <button type="button" class="session-chip" data-filter="COMPLETED">
+                        <span class="chip-dot dot-success"></span>
+                        <span>Thành công (100%)</span>
+                        <span class="chip-badge" id="chipCountSuccess">0</span>
+                    </button>
+                    <button type="button" class="session-chip" data-filter="FAILED">
+                        <span class="chip-dot dot-failed"></span>
+                        <span>Có thư lỗi</span>
+                        <span class="chip-badge" id="chipCountFailed">0</span>
+                    </button>
+                    <button type="button" class="session-chip" data-filter="RUNNING">
+                        <span class="chip-dot dot-running"></span>
+                        <span>Đang chạy</span>
+                        <span class="chip-badge" id="chipCountRunning">0</span>
+                    </button>
                 </div>
 
                 <div class="card">
@@ -2869,6 +3016,19 @@ giam_doc@old-domain.com,BossPass999$,giam_doc@new-domain.com,BossPass999$</code>
         </div>
     </div>
 
-    <script src="/static/app.js?v=2.9.0"></script>
+    <!-- Cyber Milestone Achievement Toast -->
+    <div id="cyberMilestoneBanner" class="milestone-toast" style="display:none;">
+        <div class="milestone-toast-card">
+            <div class="milestone-icon-wrap">🏆</div>
+            <div class="milestone-content">
+                <div class="milestone-badge">MỤC TIÊU HOÀN TẤT</div>
+                <strong id="milestoneTitle">Di Chuyển Email Thành Công 100%!</strong>
+                <p id="milestoneDesc">Đã hoàn thành bàn giao hòm thư sang máy chủ mới an toàn.</p>
+            </div>
+            <button type="button" class="milestone-close-btn" id="btnCloseMilestone">✕</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=3.0.0"></script>
 </body>
 </html>

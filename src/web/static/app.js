@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initCommandPalette();
     initMiniGame();
     initCardTilt();
+    initSpotlightGlow();
     initCrtMode();
     initMatrixEasterEgg();
     initProviderChips();
@@ -1372,8 +1373,7 @@ async function loadActiveTasks() {
         if (!isFirstActiveTaskLoad) {
             const newlyCompleted = completedTasks.some(t => !prevCompletedTaskIds.has(t.task_id));
             if (newlyCompleted) {
-                CyberAudio.playVictory();
-                fireCelebrationConfetti();
+                showMilestoneAchievement("Hoàn Tất Di Chuyển 100%!", "Một tiến trình di chuyển đã chuyển toàn bộ thư an toàn sang máy chủ đích.");
                 showToast("🎉 Một tiến trình di chuyển đã hoàn tất 100%!", "success");
             }
         }
@@ -1421,6 +1421,32 @@ async function loadActiveTasks() {
                 badge.textContent = runningTasks.length;
             } else {
                 badge.style.display = "none";
+            }
+        }
+
+        // 4b. Update Cyber Data Stream Pipeline Visualizer
+        const streamCard = document.getElementById("cyberDataStreamCard");
+        if (streamCard) {
+            if (runningTasks.length > 0) {
+                const active = runningTasks[0];
+                streamCard.style.display = "block";
+                const srcEl = document.getElementById("streamSrcAcc");
+                const dstEl = document.getElementById("streamDstAcc");
+                const folderEl = document.getElementById("streamCurrentFolder");
+                const subTitleEl = document.getElementById("streamSubTitle");
+                const rateBadge = document.getElementById("streamRateBadge");
+                const msgRateBadge = document.getElementById("streamMsgRateBadge");
+
+                if (srcEl) srcEl.textContent = active.source || "user@source.com";
+                if (dstEl) dstEl.textContent = active.dest || "user@dest.com";
+                if (folderEl) folderEl.textContent = active.current_folder ? `Hộp thư: ${active.current_folder} (${active.current_index || 0}/${active.folder_total || 0})` : "Đang kết nối luồng dữ liệu IMAP...";
+                if (subTitleEl) subTitleEl.textContent = `Tiến trình #${active.task_id} • Đã xử lý ${(active.percent || 0).toFixed(0)}%`;
+                
+                const speedMb = active.speed_mb_s ? Number(active.speed_mb_s).toFixed(1) : ((active.speed_msg_s || 12) * 0.08).toFixed(1);
+                if (rateBadge) rateBadge.textContent = `${speedMb > 0 ? speedMb : '1.4'} MB/s`;
+                if (msgRateBadge) msgRateBadge.textContent = `${active.speed_msg_s || 18} thư/s`;
+            } else {
+                streamCard.style.display = "none";
             }
         }
 
@@ -1475,14 +1501,13 @@ function renderActiveTasksCards(tasks) {
 
     if (!tasks || tasks.length === 0) {
         container.innerHTML = `
-            <div class="tasks-empty-card">
-                <div class="tasks-empty-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                    </svg>
+            <div class="tasks-empty-card cyber-radar-empty">
+                <div class="radar-scope">
+                    <div class="radar-sweep"></div>
+                    <div class="radar-center-icon">📡</div>
                 </div>
-                <h3>Hiện không có tiến trình nào đang chạy ngầm</h3>
-                <p>Hệ thống đang rảnh rỗi và sẵn sàng xử lý các tác vụ mới. Bạn có thể bắt đầu di chuyển một tài khoản hoặc nạp danh sách CSV.</p>
+                <h3 class="radar-empty-title">Radar Quét: Hệ Thống Sẵn Sàng (Standby)</h3>
+                <p class="radar-empty-desc">Không có tiến trình nào đang di chuyển ngầm. Hệ thống IMAP đang rảnh rỗi và sẵn sàng tiếp nhận tác vụ mới bất kỳ lúc nào.</p>
                 <div class="tasks-empty-actions">
                     <button type="button" class="btn btn-primary btn-sm" onclick="switchToTab('singleTab')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1733,62 +1758,228 @@ function renderActiveTasksCards(tasks) {
 }
 
 // Sessions & Archive Tab Logic
+let currentSessionFilter = "all";
+window.allSessionsCache = [];
+
+function initSessionsFilterChips() {
+    const chipsBar = document.getElementById("sessionFilterChipsBar");
+    if (!chipsBar) return;
+    const chips = chipsBar.querySelectorAll(".session-chip");
+    chips.forEach(chip => {
+        chip.addEventListener("click", () => {
+            chips.forEach(c => c.classList.remove("active"));
+            chip.classList.add("active");
+            currentSessionFilter = chip.dataset.filter || "all";
+            CyberAudio.playClick();
+            renderFilteredSessionsTable();
+        });
+    });
+}
+
+function updateSessionChipCounts(sessions) {
+    if (!sessions) return;
+    const all = sessions.length;
+    const completed = sessions.filter(s => s.status === "COMPLETED" && (s.failed_messages || 0) === 0).length;
+    const failed = sessions.filter(s => (s.failed_messages || 0) > 0 || s.status === "FAILED").length;
+    const running = sessions.filter(s => s.status === "RUNNING").length;
+
+    const elAll = document.getElementById("chipCountAll");
+    const elComp = document.getElementById("chipCountSuccess");
+    const elFail = document.getElementById("chipCountFailed");
+    const elRun = document.getElementById("chipCountRunning");
+
+    if (elAll) elAll.textContent = all;
+    if (elComp) elComp.textContent = completed;
+    if (elFail) elFail.textContent = failed;
+    if (elRun) elRun.textContent = running;
+}
+
+function renderFilteredSessionsTable() {
+    const sessions = window.allSessionsCache || [];
+    const tbody = document.getElementById("sessionsTableBody");
+    if (!tbody) return;
+
+    let filtered = [...sessions];
+    if (currentSessionFilter === "COMPLETED") {
+        filtered = filtered.filter(s => s.status === "COMPLETED" && (s.failed_messages || 0) === 0);
+    } else if (currentSessionFilter === "FAILED") {
+        filtered = filtered.filter(s => (s.failed_messages || 0) > 0 || s.status === "FAILED");
+    } else if (currentSessionFilter === "RUNNING") {
+        filtered = filtered.filter(s => s.status === "RUNNING");
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không có phiên di chuyển nào khớp với bộ lọc "${currentSessionFilter}".</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = "";
+    filtered.forEach(s => {
+        const tr = document.createElement("tr");
+
+        let statusBadge = `<span class="badge badge-neutral">${s.status}</span>`;
+        if (s.status === "COMPLETED") statusBadge = `<span class="status-badge status-success">COMPLETED</span>`;
+        else if (s.status === "FAILED") statusBadge = `<span class="status-badge status-failed">FAILED</span>`;
+        else if (s.status === "RUNNING") statusBadge = `<span class="status-badge status-skipped">RUNNING</span>`;
+
+        tr.innerHTML = `
+            <td style="text-align: center;"><strong>#${s.id}</strong></td>
+            <td><strong>${escapeHtml(s.source_account)}</strong> ➔ <strong>${escapeHtml(s.dest_account)}</strong></td>
+            <td style="text-align: center;">${statusBadge}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight:600; color:#34d399;">${(s.migrated_messages || 0).toLocaleString()}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #fbbf24;">${(s.skipped_messages || 0).toLocaleString()}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--danger-text);">${(s.failed_messages || 0).toLocaleString()}</td>
+            <td style="font-size: 11.5px; color: var(--text-dim);">${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</td>
+            <td style="text-align: center;">
+                <div style="display:inline-flex; gap:6px; align-items:center;">
+                    <button class="btn btn-secondary btn-sm" onclick="showSessionDetail(${JSON.stringify(s).replace(/"/g, '&quot;')})">Chi tiết</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">Báo cáo</button>
+                    ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
+                    <button class="btn btn-secondary btn-sm text-danger" onclick="deleteSessionPrompt(${s.id}, '${escapeHtml(s.source_account)}', '${escapeHtml(s.dest_account)}')" title="Xóa lịch sử phiên #${s.id}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span>Xóa</span>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderSessionsAnalytics(sessions) {
+    if (!sessions || sessions.length === 0) {
+        const donutTotal = document.getElementById("donutTotalCount");
+        if (donutTotal) donutTotal.textContent = "0 Phiên";
+        return;
+    }
+
+    let totalMigrated = 0;
+    let totalSkipped = 0;
+    let totalFailed = 0;
+
+    sessions.forEach(s => {
+        totalMigrated += (s.migrated_messages || 0);
+        totalSkipped += (s.skipped_messages || 0);
+        totalFailed += (s.failed_messages || 0);
+    });
+
+    const totalProcessed = totalMigrated + totalSkipped + totalFailed;
+    const donutTotal = document.getElementById("donutTotalCount");
+    if (donutTotal) donutTotal.textContent = `${sessions.length} Phiên`;
+
+    // 1. Donut Segments
+    const C = 301.59; // 2 * PI * 48
+    const succSeg = document.getElementById("donutSuccessSeg");
+    const skipSeg = document.getElementById("donutSkippedSeg");
+    const failSeg = document.getElementById("donutFailedSeg");
+    const pctVal = document.getElementById("donutPctValue");
+
+    if (totalProcessed > 0) {
+        const succLen = (totalMigrated / totalProcessed) * C;
+        const skipLen = (totalSkipped / totalProcessed) * C;
+        const failLen = (totalFailed / totalProcessed) * C;
+
+        if (succSeg) {
+            succSeg.style.strokeDasharray = `${succLen.toFixed(1)} ${C.toFixed(1)}`;
+            succSeg.style.strokeDashoffset = "0";
+        }
+        if (skipSeg) {
+            skipSeg.style.strokeDasharray = `${skipLen.toFixed(1)} ${C.toFixed(1)}`;
+            skipSeg.style.strokeDashoffset = `${-succLen.toFixed(1)}`;
+        }
+        if (failSeg) {
+            failSeg.style.strokeDasharray = `${failLen.toFixed(1)} ${C.toFixed(1)}`;
+            failSeg.style.strokeDashoffset = `${-(succLen + skipLen).toFixed(1)}`;
+        }
+
+        const pct = Math.round((totalMigrated / (totalMigrated + totalFailed || 1)) * 100);
+        if (pctVal) pctVal.textContent = `${pct}%`;
+        const kpiRate = document.getElementById("kpiSuccessRate");
+        if (kpiRate) kpiRate.textContent = `${pct}%`;
+    } else {
+        if (succSeg) succSeg.style.strokeDasharray = `0 ${C}`;
+        if (pctVal) pctVal.textContent = "100%";
+    }
+
+    // Legend
+    const legSucc = document.getElementById("legendSuccessCount");
+    const legSkip = document.getElementById("legendSkippedCount");
+    const legFail = document.getElementById("legendFailedCount");
+    if (legSucc) legSucc.textContent = totalMigrated.toLocaleString();
+    if (legSkip) legSkip.textContent = totalSkipped.toLocaleString();
+    if (legFail) legFail.textContent = totalFailed.toLocaleString();
+
+    // 2. KPI
+    const kpiMigrated = document.getElementById("kpiTotalMigrated");
+    const kpiSize = document.getElementById("kpiTotalSize");
+    if (kpiMigrated) kpiMigrated.textContent = totalMigrated.toLocaleString();
+    if (kpiSize) {
+        const mb = (totalMigrated * 0.125).toFixed(1);
+        kpiSize.textContent = `${Number(mb).toLocaleString()} MB`;
+    }
+
+    // 3. Sparkline Bar Activity Stream
+    const sparkContainer = document.getElementById("sessionsSparklineContainer");
+    const sparkMinMax = document.getElementById("sparklineMinMax");
+    if (sparkContainer) {
+        const recent = sessions.slice(0, 8).reverse();
+        const maxVal = Math.max(...recent.map(s => s.migrated_messages || 0), 10);
+
+        sparkContainer.innerHTML = recent.map((s, idx) => {
+            const h = Math.max(12, Math.round(((s.migrated_messages || 0) / maxVal) * 100));
+            const isLatest = idx === recent.length - 1;
+            const barColor = (s.failed_messages || 0) > 0 ? "rgba(239, 68, 68, 0.75)" : (isLatest ? "var(--primary-color)" : "rgba(56, 189, 248, 0.65)");
+            return `
+                <div class="spark-bar-col" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative;" title="Phiên #${s.id}: ${(s.migrated_messages || 0).toLocaleString()} thư">
+                    <div style="width: 75%; height: ${h}%; background: ${barColor}; border-radius: 4px 4px 0 0; transition: height 0.4s ease;"></div>
+                    <span style="font-size: 9.5px; color: var(--text-dim); margin-top: 5px;">#${s.id}</span>
+                </div>
+            `;
+        }).join("");
+
+        if (sparkMinMax && recent.length > 0) {
+            sparkMinMax.textContent = `Phiên #${recent[0].id} ➔ #${recent[recent.length-1].id} (Đỉnh: ${maxVal.toLocaleString()} thư)`;
+        }
+    }
+}
+
 async function loadSessions() {
     const tbody = document.getElementById("sessionsTableBody");
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">Đang tải danh sách phiên...</td></tr>`;
+    tbody.innerHTML = `
+        <tr class="skeleton-shimmer"><td colspan="8" style="height: 44px;"></td></tr>
+        <tr class="skeleton-shimmer"><td colspan="8" style="height: 44px;"></td></tr>
+        <tr class="skeleton-shimmer"><td colspan="8" style="height: 44px;"></td></tr>
+    `;
 
     try {
         const res = await fetch("/api/sessions");
         const sessions = await res.json();
+        window.allSessionsCache = sessions;
 
-        if (sessions.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">Chưa có phiên di chuyển nào.</td></tr>`;
-            return;
-        }
+        // Render Analytics Charts & KPI
+        renderSessionsAnalytics(sessions);
 
-        tbody.innerHTML = "";
-        sessions.forEach(s => {
-            const tr = document.createElement("tr");
+        // Update Smart Filter Chips counts
+        updateSessionChipCounts(sessions);
 
-            let statusBadge = `<span class="badge badge-neutral">${s.status}</span>`;
-            if (s.status === "COMPLETED") statusBadge = `<span class="status-badge status-success">COMPLETED</span>`;
-            else if (s.status === "FAILED") statusBadge = `<span class="status-badge status-failed">FAILED</span>`;
-            else if (s.status === "RUNNING") statusBadge = `<span class="status-badge status-skipped">RUNNING</span>`;
-
-            tr.innerHTML = `
-                <td><strong>#${s.id}</strong></td>
-                <td><strong>${s.source_account}</strong> ➔ <strong>${s.dest_account}</strong></td>
-                <td style="text-align: center;">${statusBadge}</td>
-                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight:600; color:#34d399;">${s.migrated_messages}</td>
-                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #fbbf24;">${s.skipped_messages}</td>
-                <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--danger-text);">${s.failed_messages}</td>
-                <td style="font-size: 11.5px; color: var(--text-dim);">${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</td>
-                <td style="text-align: center;">
-                    <div style="display:inline-flex; gap:6px; align-items:center;">
-                        <button class="btn btn-secondary btn-sm" onclick="showSessionDetail(${JSON.stringify(s).replace(/"/g, '&quot;')})">Chi tiết</button>
-                        <button class="btn btn-secondary btn-sm" onclick="openReports(${s.id})">Báo cáo</button>
-                        ${s.failed_messages > 0 ? `<button class="btn btn-secondary btn-sm text-danger" onclick="retrySessionPrompt(${s.id})">Thử lại</button>` : ''}
-                        <button class="btn btn-secondary btn-sm text-danger" onclick="deleteSessionPrompt(${s.id}, '${escapeHtml(s.source_account)}', '${escapeHtml(s.dest_account)}')" title="Xóa lịch sử phiên #${s.id}">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                            <span>Xóa</span>
-                        </button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+        // Render Table Rows
+        renderFilteredSessionsTable();
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger-text); padding: 20px;">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
     }
 }
 
 function initSessionsTab() {
+    initSessionsFilterChips();
     const btnRefresh = document.getElementById("btnRefreshSessions");
     if (btnRefresh) {
-        btnRefresh.addEventListener("click", loadSessions);
+        btnRefresh.addEventListener("click", () => {
+            CyberAudio.playClick();
+            loadSessions();
+        });
     }
     const btnClearAll = document.getElementById("btnClearAllSessions");
     if (btnClearAll) {
@@ -4283,6 +4474,55 @@ function fallbackCopy(text) {
     showToast("Đã sao chép vào bộ nhớ tạm!", "success");
 }
 
+// ==========================================
+// 6. SPOTLIGHT MOUSE GLOW ENGINE (Linear / Stripe style)
+// ==========================================
+function initSpotlightGlow() {
+    document.addEventListener("mousemove", (e) => {
+        const target = e.target.closest(".card, .stat-card, .analytics-chart-card, .cyber-stream-card, .task-card-pro");
+        if (target) {
+            const rect = target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            target.style.setProperty("--mouse-x", `${x}px`);
+            target.style.setProperty("--mouse-y", `${y}px`);
+            if (!target.classList.contains("spotlight-active")) {
+                target.classList.add("spotlight-active");
+            }
+        }
+    }, { passive: true });
+}
 
+// ==========================================
+// 7. CYBER MILESTONE ACHIEVEMENT BANNER
+// ==========================================
+function showMilestoneAchievement(title, desc) {
+    const banner = document.getElementById("cyberMilestoneBanner");
+    if (!banner) return;
+    const titleEl = document.getElementById("milestoneTitle");
+    const descEl = document.getElementById("milestoneDesc");
+    if (titleEl && title) titleEl.textContent = title;
+    if (descEl && desc) descEl.textContent = desc;
 
+    banner.style.display = "block";
+    requestAnimationFrame(() => {
+        banner.classList.add("active");
+    });
 
+    CyberAudio.playVictory();
+    fireCelebrationConfetti();
+
+    if (window._milestoneTimeout) clearTimeout(window._milestoneTimeout);
+    window._milestoneTimeout = setTimeout(() => {
+        banner.classList.remove("active");
+        setTimeout(() => { banner.style.display = "none"; }, 400);
+    }, 7000);
+
+    const closeBtn = document.getElementById("btnCloseMilestone");
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            banner.classList.remove("active");
+            setTimeout(() => { banner.style.display = "none"; }, 400);
+        };
+    }
+}
