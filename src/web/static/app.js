@@ -2,6 +2,11 @@ document.addEventListener("DOMContentLoaded", () => {
     initThemeSwitcher();
     initTabs();
     initCyberAudio();
+    initHudBar();
+    initCommandPalette();
+    initMiniGame();
+    initCardTilt();
+    initCrtMode();
     initMatrixEasterEgg();
     initProviderChips();
     initSingleAccountTab();
@@ -1392,9 +1397,9 @@ async function loadActiveTasks() {
 
         if (elRunning) elRunning.textContent = runningTasks.length;
         if (elActiveWorkers) elActiveWorkers.textContent = `${runningTasks.length} tác vụ`;
-        if (elSuccess) elSuccess.textContent = totalSuccess.toLocaleString();
-        if (elSkipped) elSkipped.textContent = totalSkipped.toLocaleString();
-        if (elFailed) elFailed.textContent = totalFailed.toLocaleString();
+        if (elSuccess) animateCountUp(elSuccess, totalSuccess, 600);
+        if (elSkipped) animateCountUp(elSkipped, totalSkipped, 600);
+        if (elFailed) animateCountUp(elFailed, totalFailed, 600);
 
         // 3. Update Filter Counts
         const cntAll = document.getElementById("filterCountAll");
@@ -1723,6 +1728,7 @@ function renderActiveTasksCards(tasks) {
 
         container.appendChild(card);
     });
+    initCardTilt();
 }
 
 // Sessions & Archive Tab Logic
@@ -3314,6 +3320,46 @@ const CyberAudio = {
             osc.start(now);
             osc.stop(now + 0.26);
         } catch (_) {}
+    },
+
+    playLaser() {
+        if (!this.enabled) return;
+        try {
+            const ctx = this.getCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(110, now + 0.08);
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.09);
+        } catch (_) {}
+    },
+
+    playExplosion() {
+        if (!this.enabled) return;
+        try {
+            const ctx = this.getCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.exponentialRampToValueAtTime(30, now + 0.2);
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.21);
+        } catch (_) {}
     }
 };
 
@@ -3498,5 +3544,553 @@ function startMatrixRain(canvas) {
 
     matrixRainTimer = setInterval(draw, 33);
 }
+
+// ==========================================
+// 1. HUD LIVE CLOCK & LATENCY HEARTBEAT
+// ==========================================
+function initHudBar() {
+    const clockEl = document.getElementById("hudLiveClock");
+    const latencyEl = document.getElementById("hudLatencyVal");
+
+    function updateClock() {
+        if (!clockEl) return;
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString("vi-VN", { hour12: false });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    async function pingLatency() {
+        if (!latencyEl) return;
+        const t0 = performance.now();
+        try {
+            await fetch("/api/tasks/active", { method: "HEAD", cache: "no-store" });
+            const ms = Math.round(performance.now() - t0);
+            latencyEl.textContent = `${ms}ms`;
+            if (ms < 70) {
+                latencyEl.style.color = "#38bdf8";
+            } else if (ms < 150) {
+                latencyEl.style.color = "#fbbf24";
+            } else {
+                latencyEl.style.color = "#f87171";
+            }
+        } catch (_) {
+            latencyEl.textContent = "OFFLINE";
+            latencyEl.style.color = "#f87171";
+        }
+    }
+    pingLatency();
+    setInterval(pingLatency, 6000);
+}
+
+// ==========================================
+// 2. COMMAND PALETTE (CTRL+K / CMD+K)
+// ==========================================
+function initCommandPalette() {
+    const modal = document.getElementById("commandPaletteModal");
+    const input = document.getElementById("cmdInput");
+    const btnOpen = document.getElementById("btnOpenCommandPalette");
+    const btnClose = document.getElementById("btnCloseCmdPalette");
+    const cmdList = document.getElementById("cmdList");
+    if (!modal || !input) return;
+
+    let selectedIndex = 0;
+
+    function getVisibleItems() {
+        return Array.from(cmdList.querySelectorAll(".cmd-item")).filter(el => el.style.display !== "none");
+    }
+
+    function updateActiveItem() {
+        const visible = getVisibleItems();
+        visible.forEach((el, idx) => {
+            el.classList.toggle("active", idx === selectedIndex);
+            if (idx === selectedIndex) {
+                el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }
+        });
+    }
+
+    function openPalette() {
+        modal.classList.add("open");
+        input.value = "";
+        filterCommands("");
+        CyberAudio.playClick();
+        setTimeout(() => input.focus(), 50);
+    }
+
+    function closePalette() {
+        modal.classList.remove("open");
+        input.blur();
+    }
+
+    if (btnOpen) btnOpen.addEventListener("click", openPalette);
+    if (btnClose) btnClose.addEventListener("click", closePalette);
+
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) closePalette();
+    });
+
+    window.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+            e.preventDefault();
+            if (modal.classList.contains("open")) closePalette();
+            else openPalette();
+        } else if (e.key === "Escape" && modal.classList.contains("open")) {
+            closePalette();
+        }
+    });
+
+    function filterCommands(query) {
+        const q = query.toLowerCase().trim();
+        const items = cmdList.querySelectorAll(".cmd-item");
+
+        items.forEach(item => {
+            const title = item.querySelector(".cmd-item-title")?.textContent.toLowerCase() || "";
+            const desc = item.querySelector(".cmd-item-desc")?.textContent.toLowerCase() || "";
+            const key = item.querySelector(".cmd-key")?.textContent.toLowerCase() || "";
+            const matches = !q || title.includes(q) || desc.includes(q) || key.includes(q);
+
+            item.style.display = matches ? "flex" : "none";
+        });
+
+        selectedIndex = 0;
+        updateActiveItem();
+    }
+
+    input.addEventListener("input", (e) => {
+        filterCommands(e.target.value);
+    });
+
+    input.addEventListener("keydown", (e) => {
+        const visible = getVisibleItems();
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (visible.length > 0) {
+                selectedIndex = (selectedIndex + 1) % visible.length;
+                updateActiveItem();
+            }
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (visible.length > 0) {
+                selectedIndex = (selectedIndex - 1 + visible.length) % visible.length;
+                updateActiveItem();
+            }
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (visible[selectedIndex]) {
+                executeCommand(visible[selectedIndex]);
+            }
+        }
+    });
+
+    cmdList.addEventListener("click", (e) => {
+        const item = e.target.closest(".cmd-item");
+        if (item) {
+            executeCommand(item);
+        }
+    });
+
+    function executeCommand(item) {
+        const action = item.dataset.action;
+        closePalette();
+
+        if (action === "tab") {
+            const targetTab = item.dataset.target;
+            if (typeof switchToTab === "function") switchToTab(targetTab);
+            CyberAudio.playClick();
+        } else if (action === "toggle-sfx") {
+            document.getElementById("btnSfxToggle")?.click();
+        } else if (action === "open-game") {
+            openMiniGameModal();
+        } else if (action === "open-matrix") {
+            document.getElementById("brandHeader")?.dispatchEvent(new MouseEvent("dblclick"));
+        } else if (action === "toggle-crt") {
+            document.getElementById("btnCrtToggle")?.click();
+        } else if (action === "toggle-theme") {
+            const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+            const nextTheme = currentTheme === "dark" ? "light" : "dark";
+            const themeBtn = document.querySelector(`.theme-btn[data-theme="${nextTheme}"]`);
+            if (themeBtn) themeBtn.click();
+        } else if (action === "toggle-log") {
+            document.getElementById("btnToggleDrawer")?.click();
+        }
+    }
+}
+
+// ==========================================
+// 3. RETRO MINI-GAME (SPACE MAIL DEFENDER)
+// ==========================================
+let gameAnimId = null;
+let isGameRunning = false;
+
+function openMiniGameModal() {
+    const modal = document.getElementById("miniGameModal");
+    if (!modal) return;
+    modal.classList.add("open");
+    CyberAudio.playSuccess();
+    const overlay = document.getElementById("gameOverlay");
+    if (overlay) overlay.style.display = "flex";
+}
+
+function closeMiniGameModal() {
+    const modal = document.getElementById("miniGameModal");
+    if (!modal) return;
+    modal.classList.remove("open");
+    stopGameLoop();
+}
+
+function stopGameLoop() {
+    isGameRunning = false;
+    if (gameAnimId) {
+        cancelAnimationFrame(gameAnimId);
+        gameAnimId = null;
+    }
+}
+
+function initMiniGame() {
+    const modal = document.getElementById("miniGameModal");
+    const btnOpenNav = document.getElementById("btnOpenMiniGame");
+    const btnOpenFloat = document.getElementById("btnFloatingGameTrigger");
+    const btnClose = document.getElementById("btnCloseGame");
+    const btnStart = document.getElementById("btnStartGame");
+    const canvas = document.getElementById("gameCanvas");
+    const scoreEl = document.getElementById("gameScore");
+    const highScoreEl = document.getElementById("gameHighScore");
+    const overlay = document.getElementById("gameOverlay");
+
+    if (!canvas || !modal) return;
+    const ctx = canvas.getContext("2d");
+
+    let highScore = parseInt(localStorage.getItem("py_imap_game_high_score") || "0");
+    if (highScoreEl) highScoreEl.textContent = highScore;
+
+    if (btnOpenNav) btnOpenNav.addEventListener("click", openMiniGameModal);
+    if (btnOpenFloat) btnOpenFloat.addEventListener("click", openMiniGameModal);
+    if (btnClose) btnClose.addEventListener("click", closeMiniGameModal);
+
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeMiniGameModal();
+    });
+
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && modal.classList.contains("open")) {
+            closeMiniGameModal();
+        }
+    });
+
+    // Game State
+    let score = 0;
+    let player = { x: canvas.width / 2 - 18, y: canvas.height - 30, w: 36, h: 16, speed: 6 };
+    let bullets = [];
+    let enemies = [];
+    let particles = [];
+    let keys = {};
+    let lastEnemySpawn = 0;
+
+    window.addEventListener("keydown", (e) => {
+        if (!modal.classList.contains("open")) return;
+        keys[e.key] = true;
+        if (e.key === " " && isGameRunning) {
+            e.preventDefault();
+            fireBullet();
+        }
+    });
+
+    window.addEventListener("keyup", (e) => {
+        if (!modal.classList.contains("open")) return;
+        keys[e.key] = false;
+    });
+
+    function fireBullet() {
+        bullets.push({ x: player.x + player.w / 2 - 2, y: player.y - 4, w: 4, h: 10, speed: 8 });
+        CyberAudio.playLaser?.();
+    }
+
+    if (btnStart) {
+        btnStart.addEventListener("click", () => {
+            if (overlay) overlay.style.display = "none";
+            startGame();
+        });
+    }
+
+    function startGame() {
+        stopGameLoop();
+        score = 0;
+        if (scoreEl) scoreEl.textContent = "0";
+        player.x = canvas.width / 2 - 18;
+        bullets = [];
+        enemies = [];
+        particles = [];
+        isGameRunning = true;
+        lastEnemySpawn = performance.now();
+        gameLoop();
+    }
+
+    const enemyTypes = [
+        { label: "SPAM", color: "#f43f5e", points: 10, hp: 1 },
+        { label: "PHISH", color: "#e11d48", points: 15, hp: 1 },
+        { label: "TROJAN", color: "#a855f7", points: 25, hp: 2 },
+        { label: "404", color: "#f59e0b", points: 10, hp: 1 }
+    ];
+
+    function spawnEnemy() {
+        const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+        enemies.push({
+            x: Math.random() * (canvas.width - 60) + 10,
+            y: -20,
+            w: 48,
+            h: 20,
+            speed: Math.random() * 1.5 + 1.2,
+            type: type.label,
+            color: type.color,
+            points: type.points,
+            hp: type.hp
+        });
+    }
+
+    function spawnExplosion(x, y, color) {
+        for (let i = 0; i < 16; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                size: Math.random() * 3 + 2,
+                color,
+                life: 1
+            });
+        }
+        CyberAudio.playExplosion?.();
+    }
+
+    function gameLoop(timestamp) {
+        if (!isGameRunning) return;
+
+        // 1. Controls
+        if (keys["ArrowLeft"] || keys["a"] || keys["A"]) {
+            player.x = Math.max(0, player.x - player.speed);
+        }
+        if (keys["ArrowRight"] || keys["d"] || keys["D"]) {
+            player.x = Math.min(canvas.width - player.w, player.x + player.speed);
+        }
+
+        // 2. Spawn enemies
+        if (!timestamp || timestamp - lastEnemySpawn > 1100) {
+            spawnEnemy();
+            lastEnemySpawn = timestamp || performance.now();
+        }
+
+        // 3. Clear canvas
+        ctx.fillStyle = "rgba(4, 7, 14, 0.35)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 4. Draw Stars background
+        ctx.fillStyle = "#ffffff";
+        for (let i = 0; i < 8; i++) {
+            const sx = (Math.sin((timestamp || 0) * 0.001 + i * 2) * 0.5 + 0.5) * canvas.width;
+            const sy = (Math.cos((timestamp || 0) * 0.001 + i * 3) * 0.5 + 0.5) * canvas.height;
+            ctx.fillRect(sx, sy, 1.5, 1.5);
+        }
+
+        // 5. Draw Player (Cyber Mail Gateway Ship)
+        ctx.fillStyle = "#38bdf8";
+        ctx.shadowColor = "#38bdf8";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(player.x + player.w / 2, player.y);
+        ctx.lineTo(player.x + player.w, player.y + player.h);
+        ctx.lineTo(player.x, player.y + player.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 6. Update Bullets
+        ctx.fillStyle = "#00ff88";
+        ctx.shadowColor = "#00ff88";
+        ctx.shadowBlur = 8;
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            const b = bullets[i];
+            b.y -= b.speed;
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+            if (b.y < -10) bullets.splice(i, 1);
+        }
+        ctx.shadowBlur = 0;
+
+        // 7. Update Enemies
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const en = enemies[i];
+            en.y += en.speed;
+
+            // Draw Enemy Box
+            ctx.fillStyle = en.color;
+            ctx.fillRect(en.x, en.y, en.w, en.h);
+
+            ctx.fillStyle = "#000000";
+            ctx.font = "bold 10px 'JetBrains Mono', monospace";
+            ctx.fillText(en.type, en.x + 6, en.y + 14);
+
+            // Check collision with bullets
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                const b = bullets[j];
+                if (b.x > en.x && b.x < en.x + en.w && b.y > en.y && b.y < en.y + en.h) {
+                    en.hp--;
+                    bullets.splice(j, 1);
+                    if (en.hp <= 0) {
+                        spawnExplosion(en.x + en.w / 2, en.y + en.h / 2, en.color);
+                        score += en.points;
+                        if (scoreEl) scoreEl.textContent = score;
+                        if (score > highScore) {
+                            highScore = score;
+                            if (highScoreEl) highScoreEl.textContent = highScore;
+                            localStorage.setItem("py_imap_game_high_score", highScore.toString());
+                        }
+                        enemies.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            // Check Game Over
+            if (en.y + en.h >= canvas.height - 10) {
+                gameOver();
+                return;
+            }
+        }
+
+        // 8. Update Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.04;
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+            } else {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        gameAnimId = requestAnimationFrame(gameLoop);
+    }
+
+    function gameOver() {
+        stopGameLoop();
+        CyberAudio.playError();
+        if (overlay) {
+            overlay.style.display = "flex";
+            const content = overlay.querySelector(".game-overlay-content");
+            if (content) {
+                content.innerHTML = `
+                    <h3 style="color:#ef4444;">💀 HỘP THƯ ĐÃ BỊ XÂM NHẬP!</h3>
+                    <p>Điểm số đạt được: <strong style="color:#38bdf8; font-size:16px;">${score}</strong> • Kỷ lục: <strong>${highScore}</strong></p>
+                    <button type="button" class="btn btn-primary" id="btnRestartGame">CHƠI LẠI NGAY 🔄</button>
+                `;
+                content.querySelector("#btnRestartGame")?.addEventListener("click", () => {
+                    overlay.style.display = "none";
+                    startGame();
+                });
+            }
+        }
+    }
+}
+
+// ==========================================
+// 4. 3D HOLOGRAPHIC CARD TILT ENGINE
+// ==========================================
+function initCardTilt() {
+    const cards = document.querySelectorAll(".metric-card, .hero-metric-card, .task-card-pro, .stat-card");
+    cards.forEach(card => {
+        if (!card.querySelector(".card-glare")) {
+            const glare = document.createElement("div");
+            glare.className = "card-glare";
+            card.prepend(glare);
+        }
+        card.classList.add("tilt-card");
+
+        card.addEventListener("mousemove", (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            const rotateX = -((y - centerY) / centerY) * 6;
+            const rotateY = ((x - centerX) / centerX) * 6;
+
+            card.style.transform = `perspective(800px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
+
+            const glare = card.querySelector(".card-glare");
+            if (glare) {
+                glare.style.opacity = "0.75";
+                glare.style.background = `radial-gradient(circle at ${(x / rect.width * 100).toFixed(1)}% ${(y / rect.height * 100).toFixed(1)}%, rgba(255,255,255,0.2) 0%, transparent 60%)`;
+            }
+        });
+
+        card.addEventListener("mouseleave", () => {
+            card.style.transform = `perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0px)`;
+            const glare = card.querySelector(".card-glare");
+            if (glare) glare.style.opacity = "0";
+        });
+    });
+}
+
+// ==========================================
+// 5. CRT RETRO SCANLINE & TERMINAL AUDIO
+// ==========================================
+function initCrtMode() {
+    const btn = document.getElementById("btnCrtToggle");
+    const terminal = document.getElementById("drawerConsoleBody");
+    if (!btn || !terminal) return;
+
+    let crtEnabled = localStorage.getItem("py_imap_crt_mode") === "true";
+
+    function applyCrt(enabled) {
+        terminal.classList.toggle("crt-scanlines", enabled);
+        btn.textContent = enabled ? "📺 CRT: BẬT" : "📺 CRT: TẮT";
+        btn.classList.toggle("btn-primary", enabled);
+        btn.classList.toggle("btn-secondary", !enabled);
+    }
+
+    applyCrt(crtEnabled);
+
+    btn.addEventListener("click", () => {
+        crtEnabled = !crtEnabled;
+        localStorage.setItem("py_imap_crt_mode", crtEnabled.toString());
+        applyCrt(crtEnabled);
+        CyberAudio.playClick();
+        showToast(crtEnabled ? "Đã bật chế độ màn hình CRT Scanline 📺" : "Đã tắt chế độ CRT", "info");
+    });
+}
+
+// ==========================================
+// 6. ANIMATED COUNT-UP NUMBER HELPER
+// ==========================================
+function animateCountUp(element, endVal, duration = 800) {
+    if (!element) return;
+    const startVal = parseFloat(element.textContent.replace(/,/g, "")) || 0;
+    const target = parseFloat(endVal) || 0;
+    if (isNaN(target)) {
+        element.textContent = endVal;
+        return;
+    }
+
+    const startTime = performance.now();
+    function tick(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const current = Math.floor(startVal + (target - startVal) * easeOut);
+        element.textContent = current.toLocaleString();
+
+        if (progress < 1) {
+            requestAnimationFrame(tick);
+        } else {
+            element.textContent = target.toLocaleString();
+        }
+    }
+    requestAnimationFrame(tick);
+}
+
 
 

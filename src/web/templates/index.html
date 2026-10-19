@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/app.css?v=2.6.0">
+    <link rel="stylesheet" href="/static/app.css?v=2.7.0">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -24,7 +24,37 @@
                 <div class="brand-sub">Di Chuyển Email Doanh Nghiệp</div>
             </div>
         </a>
+
+        <!-- Cyber HUD Center: Live Clock & Latency Heartbeat -->
+        <div class="hud-center-bar" id="hudCenterBar">
+            <div class="hud-item hud-clock" title="Đồng hồ hệ thống thời gian thực">
+                <span class="hud-clock-icon">⏱</span>
+                <span id="hudLiveClock" class="hud-time">--:--:--</span>
+                <span class="hud-tz">UTC+7</span>
+            </div>
+            <div class="hud-item hud-latency" id="hudLatencyBadge" title="Độ trễ gateway máy chủ">
+                <span class="hud-ecg-pulse"></span>
+                <span id="hudLatencyVal">--ms</span>
+                <span class="hud-online-badge">ONLINE</span>
+            </div>
+        </div>
+
         <div class="top-actions">
+            <!-- Command Palette Trigger Button -->
+            <button type="button" class="btn btn-secondary btn-sm cmd-palette-trigger" id="btnOpenCommandPalette" title="Mở bảng điều khiển phím tắt (Ctrl+K hoặc Cmd+K)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Lệnh</span>
+                <kbd class="kbd-badge">⌘K</kbd>
+            </button>
+
+            <!-- Mini-Game Arcade Trigger Button -->
+            <button type="button" class="btn btn-secondary btn-sm game-trigger-btn" id="btnOpenMiniGame" title="Giải trí khi chờ di chuyển (Space Mail Defender)">
+                <span>🎮 Game</span>
+            </button>
+
             <!-- Cyber Audio SFX Toggle Button -->
             <button type="button" class="sfx-toggle-btn active" id="btnSfxToggle" title="Bật/Tắt hiệu ứng âm thanh công nghệ (Web Audio API)">
                 <svg class="sfx-icon-on" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2114,6 +2144,7 @@
                 <span id="drawerLogCount" class="badge badge-neutral">0 dòng</span>
             </div>
             <div class="drawer-actions">
+                <button type="button" class="btn btn-sm btn-secondary" id="btnCrtToggle" title="Bật/Tắt hiệu ứng màn hình CRT Retro">📺 CRT: Tắt</button>
                 <button type="button" class="btn btn-sm btn-secondary" id="btnClearLogs">Xóa log</button>
                 <button type="button" class="drawer-toggle-btn" id="btnToggleDrawer">Mở rộng ▲</button>
             </div>
@@ -2128,16 +2159,19 @@
         <div class="floating-task-header">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span class="status-dot"></span>
-                <strong id="floatingTaskTitle" style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;">Đang di chuyển...</strong>
+                <strong id="floatingTaskTitle" style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">Đang di chuyển...</strong>
             </div>
-            <button type="button" class="floating-btn-close" id="btnExpandProgress" title="Mở rộng xem chi tiết">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 3 21 3 21 9"/>
-                    <polyline points="9 21 3 21 3 15"/>
-                    <line x1="21" y1="3" x2="14" y2="10"/>
-                    <line x1="3" y1="21" x2="10" y2="14"/>
-                </svg>
-            </button>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <button type="button" class="floating-btn-action" id="btnFloatingGameTrigger" title="Chơi mini-game giải trí trong khi chờ">🎮</button>
+                <button type="button" class="floating-btn-close" id="btnExpandProgress" title="Mở rộng xem chi tiết">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 3 21 3 21 9"/>
+                        <polyline points="9 21 3 21 3 15"/>
+                        <line x1="21" y1="3" x2="14" y2="10"/>
+                        <line x1="3" y1="21" x2="10" y2="14"/>
+                    </svg>
+                </button>
+            </div>
         </div>
         <div class="floating-task-body">
             <div class="progress-bar-container" style="height: 5px; margin-bottom: 8px;">
@@ -2307,6 +2341,196 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=2.6.0"></script>
+    <!-- Command Palette Modal (Ctrl+K / Cmd+K) -->
+    <div id="commandPaletteModal" class="cmd-modal-backdrop">
+        <div class="cmd-palette-box">
+            <div class="cmd-input-wrapper">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="cmd-search-icon">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="cmdInput" class="cmd-input" placeholder="Gõ lệnh hoặc phím tắt... (Dùng ↑↓ để chọn, ↵ để chạy, ESC để đóng)" autocomplete="off" spellcheck="false">
+                <span class="cmd-esc-badge" id="btnCloseCmdPalette">ESC</span>
+            </div>
+            <div class="cmd-list-container" id="cmdList">
+                <!-- Group: Điều Hướng Tabs -->
+                <div class="cmd-group-title">ĐIỀU HƯỚNG NHANH</div>
+                <div class="cmd-item" data-action="tab" data-target="singleTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">📧</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Di Chuyển 1 Email</span>
+                            <span class="cmd-item-desc">Chuyển dữ liệu hòm thư đơn lẻ với thanh tiến trình trực tiếp</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 1</kbd>
+                </div>
+                <div class="cmd-item" data-action="tab" data-target="batchTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">📑</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Di Chuyển Hàng Loạt (CSV)</span>
+                            <span class="cmd-item-desc">Nhập danh sách tài khoản CSV, ánh xạ đa luồng thông minh</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 2</kbd>
+                </div>
+                <div class="cmd-item" data-action="tab" data-target="authCheckTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">🔑</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Kiểm Tra Mật Khẩu (Auth Check)</span>
+                            <span class="cmd-item-desc">Xác thực IMAP đơn lẻ hoặc hàng loạt tài khoản</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 3</kbd>
+                </div>
+                <div class="cmd-item" data-action="tab" data-target="scanStorageTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">📊</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Khảo Sát Dung Lượng & Thư Mục</span>
+                            <span class="cmd-item-desc">Đo lường chi tiết quota, dung lượng MB/GB từng folder</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 4</kbd>
+                </div>
+                <div class="cmd-item" data-action="tab" data-target="activeTasksTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">⚡</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Tiến Trình Đang Chạy (Active Tasks)</span>
+                            <span class="cmd-item-desc">Theo dõi tất cả tác vụ di chuyển nền ngầm thời gian thực</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 5</kbd>
+                </div>
+                <div class="cmd-item" data-action="tab" data-target="settingsTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">⚙️</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Cài Đặt Hệ Thống</span>
+                            <span class="cmd-item-desc">Tùy chỉnh luồng worker, timeout socket, retry lỗi</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 6</kbd>
+                </div>
+                <div class="cmd-item" data-action="tab" data-target="sessionsTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">📜</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Lịch Sử Phiên Chạy</span>
+                            <span class="cmd-item-desc">Xem bảng nhật ký và tải báo cáo Excel/CSV các lần chạy trước</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 7</kbd>
+                </div>
+
+                <!-- Group: Lệnh Nhanh & Giải Trí -->
+                <div class="cmd-group-title">LỆNH HỆ THỐNG & GIẢI TRÍ</div>
+                <div class="cmd-item" data-action="toggle-sfx">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">🔊</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Bật / Tắt Âm Thanh Hiệu Ứng (SFX)</span>
+                            <span class="cmd-item-desc">Web Audio API Cyber Synthesizer clicks & chimes</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">SFX</kbd>
+                </div>
+                <div class="cmd-item" data-action="open-game">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">👾</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Chơi Mini-Game "Space Mail Defender"</span>
+                            <span class="cmd-item-desc">Bắn spam mail giải trí thư giãn trong khi chờ di chuyển</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">GAME</kbd>
+                </div>
+                <div class="cmd-item" data-action="open-matrix">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">🕶️</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Kích Hoạt Hacker Matrix Rain Mode</span>
+                            <span class="cmd-item-desc">Mưa kỹ thuật số rơi toàn màn hình</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Ctrl+M</kbd>
+                </div>
+                <div class="cmd-item" data-action="toggle-crt">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">📺</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Bật / Tắt Retro CRT Scanline Terminal</span>
+                            <span class="cmd-item-desc">Chế độ màn hình ống tia điện tử cổ điển</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">CRT</kbd>
+                </div>
+                <div class="cmd-item" data-action="toggle-theme">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">🌓</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Đổi Giao Diện Sáng / Tối</span>
+                            <span class="cmd-item-desc">Chuyển đổi Dark Mode và Light Mode</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Theme</kbd>
+                </div>
+                <div class="cmd-item" data-action="toggle-log">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">💻</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Mở / Đóng Ngăn Nhật Ký (Log Drawer)</span>
+                            <span class="cmd-item-desc">Xem console streaming log chi tiết</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Logs</kbd>
+                </div>
+            </div>
+            <div class="cmd-footer">
+                <div class="cmd-shortcuts-hint">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> Chọn</span>
+                    <span><kbd>↵</kbd> Chạy</span>
+                    <span><kbd>ESC</kbd> Thoát</span>
+                </div>
+                <div class="cmd-status-tip">Py-IMAP Control Center v2.7</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Retro Mini-Game Modal: Space Mail Defender -->
+    <div id="miniGameModal" class="game-modal-backdrop">
+        <div class="game-card">
+            <div class="game-card-header">
+                <div class="game-title">
+                    <span class="game-badge">RETRO ARCADE</span>
+                    <span>👾 SPACE MAIL DEFENDER</span>
+                </div>
+                <div class="game-stats">
+                    <span class="game-stat-pill">Điểm: <strong id="gameScore">0</strong></span>
+                    <span class="game-stat-pill">Kỷ Lục: <strong id="gameHighScore">0</strong></span>
+                    <button type="button" class="game-close-btn" id="btnCloseGame">ESC / Thoát</button>
+                </div>
+            </div>
+            <div class="game-canvas-wrapper">
+                <canvas id="gameCanvas" width="600" height="340"></canvas>
+                <div id="gameOverlay" class="game-overlay">
+                    <div class="game-overlay-content">
+                        <h3>👾 PHÒNG THỦ MÁY CHỦ EMAIL</h3>
+                        <p>Bắn hạ các email Spam / Virus độc hại trước khi chúng xâm nhập máy chủ!</p>
+                        <p class="game-controls-hint">Phím <kbd>←</kbd> <kbd>→</kbd> hoặc <kbd>A</kbd> <kbd>D</kbd> di chuyển • Phím <kbd>Space</kbd> bắn đạn</p>
+                        <button type="button" class="btn btn-primary" id="btnStartGame">BẮT ĐẦU CHƠI 🚀</button>
+                    </div>
+                </div>
+            </div>
+            <div class="game-card-footer">
+                <span>💡 <em>Mẹo:</em> Tiến trình di chuyển email bên dưới vẫn chạy ngầm an toàn 100%!</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=2.7.0"></script>
 </body>
 </html>
