@@ -2863,3 +2863,222 @@ select:focus {
     color: #f43f5e;
 }
 
+/* --------------------------------------------------------------------------
+   23. HIGH-TECH CYBER FX, AUDIO SFX, MATRIX & ENTERTAINMENT
+   -------------------------------------------------------------------------- */
+.sfx-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.sfx-toggle-btn:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.sfx-toggle-btn.active {
+    color: #06b6d4;
+    border-color: rgba(6, 182, 212, 0.4);
+    background: rgba(6, 182, 212, 0.08);
+    box-shadow: 0 0 14px rgba(6, 182, 212, 0.18);
+}
+
+[data-theme="light"] .sfx-toggle-btn.active {
+    background: #e0f2fe;
+    border-color: #38bdf8;
+    color: #0284c7;
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.15);
+}
+
+/* Confetti Canvas Overlay */
+.confetti-canvas-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+/* Live Data Stream / Flying Photon Packets */
+.data-packet-stream {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 12px 0 6px 0;
+}
+
+[data-theme="light"] .data-packet-stream {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.data-packet-dot {
+    position: absolute;
+    top: -1px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #06b6d4;
+    box-shadow: 0 0 10px #06b6d4, 0 0 20px #3b82f6;
+    animation: packetTravel 1.6s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.data-packet-dot-2 {
+    animation-delay: 0.5s;
+    background: #818cf8;
+    box-shadow: 0 0 10px #818cf8, 0 0 20px #a855f7;
+}
+
+.data-packet-dot-3 {
+    animation-delay: 1s;
+    background: #10b981;
+    box-shadow: 0 0 10px #10b981, 0 0 20px #059669;
+}
+
+@keyframes packetTravel {
+    0% { left: 0%; opacity: 0; transform: scale(0.6); }
+    15% { opacity: 1; transform: scale(1.2); }
+    85% { opacity: 1; transform: scale(1.2); }
+    100% { left: 100%; opacity: 0; transform: scale(0.6); }
+}
+
+/* Sonar Radar Scan Effect */
+.radar-scan-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.radar-scan-ring {
+    position: absolute;
+    inset: -6px;
+    border: 2px solid #06b6d4;
+    border-radius: 50%;
+    animation: radarRipple 1.6s infinite ease-out;
+    pointer-events: none;
+    opacity: 0;
+}
+
+@keyframes radarRipple {
+    0% { transform: scale(0.85); opacity: 0.8; }
+    100% { transform: scale(1.75); opacity: 0; }
+}
+
+/* Easter Egg: Matrix Digital Rain Modal */
+.matrix-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.94);
+    z-index: 100000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+}
+
+.matrix-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.matrix-terminal-card {
+    position: relative;
+    z-index: 2;
+    width: 90%;
+    max-width: 600px;
+    background: rgba(5, 12, 10, 0.9);
+    border: 1px solid #10b981;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.35);
+    color: #10b981;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.matrix-terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(16, 185, 129, 0.3);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.matrix-terminal-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #34d399;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.matrix-terminal-logs {
+    font-size: 13px;
+    line-height: 1.8;
+    color: #a7f3d0;
+    min-height: 150px;
+    white-space: pre-line;
+}
+
+.matrix-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background: #10b981;
+    vertical-align: middle;
+    animation: blink 1s infinite;
+}
+
+.matrix-close-btn {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid #10b981;
+    color: #34d399;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.matrix-close-btn:hover {
+    background: #10b981;
+    color: #000000;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.5);
+}
+
+.brand {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.brand:hover .logo-icon {
+    transform: rotate(6deg) scale(1.05);
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.5);
+}
+
+

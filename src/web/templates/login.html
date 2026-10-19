@@ -17,17 +17,52 @@
             padding: 1.5rem;
             position: relative;
             background: var(--bg-dark);
+            overflow: hidden;
+        }
+
+        .login-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: auto;
         }
 
         .login-theme-toggle {
             position: absolute;
             top: 1.5rem;
             right: 1.5rem;
+            z-index: 10;
+        }
+
+        .login-card-wrapper {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .login-card-glow {
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.6), rgba(6, 182, 212, 0.5), rgba(16, 185, 129, 0.4), rgba(99, 102, 241, 0.6));
+            background-size: 300% 300%;
+            border-radius: 18px;
+            filter: blur(12px);
+            opacity: 0.45;
+            animation: auraGlow 8s ease infinite;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @keyframes auraGlow {
+            0%, 100% { background-position: 0% 50%; opacity: 0.35; }
+            50% { background-position: 100% 50%; opacity: 0.55; }
         }
 
         .login-card {
             width: 100%;
-            max-width: 420px;
             background: var(--bg-card);
             backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
@@ -36,6 +71,7 @@
             padding: 2.5rem 2rem;
             box-shadow: var(--card-shadow-hover);
             position: relative;
+            z-index: 2;
         }
 
         .login-brand {
@@ -43,21 +79,33 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.75rem;
         }
 
         .login-logo {
-            width: 52px;
-            height: 52px;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            width: 54px;
+            height: 54px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(6, 182, 212, 0.2) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.16);
             border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 1.25rem;
+            margin-bottom: 1.15rem;
             color: #818cf8;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+            box-shadow: 0 0 24px rgba(99, 102, 241, 0.3);
+            cursor: pointer;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            user-select: none;
+        }
+
+        .login-logo:hover {
+            transform: scale(1.08) rotate(3deg);
+            box-shadow: 0 0 32px rgba(6, 182, 212, 0.5);
+        }
+
+        .login-logo:active {
+            transform: scale(0.94);
         }
 
         .login-title {
@@ -65,12 +113,41 @@
             font-weight: 700;
             color: var(--text-primary);
             letter-spacing: -0.02em;
-            margin-bottom: 0.35rem;
+            margin-bottom: 0.25rem;
         }
 
         .login-subtitle {
             font-size: 0.85rem;
             color: var(--text-muted);
+        }
+
+        .cyber-badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #06b6d4;
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            padding: 4px 11px;
+            border-radius: 20px;
+            margin-top: 10px;
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.15);
+        }
+
+        .cyber-pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #06b6d4;
+            box-shadow: 0 0 8px #06b6d4;
+            animation: pulseDot 1.5s infinite;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.4; }
         }
 
         .login-alert {
@@ -186,6 +263,9 @@
 </head>
 <body>
     <div class="login-page">
+        <!-- High-Tech Interactive Network Topology Canvas -->
+        <canvas id="networkCanvas" class="login-canvas"></canvas>
+
         <!-- Theme Switcher -->
         <div class="login-theme-toggle">
             <div class="theme-switcher">
@@ -205,62 +285,284 @@
             </div>
         </div>
 
-        <div class="login-card">
-            <div class="login-brand">
-                <div class="login-logo">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect width="20" height="16" x="2" y="4" rx="2"/>
-                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                    </svg>
-                </div>
-                <h1 class="login-title">Py-IMAP Control Center</h1>
-                <p class="login-subtitle">Đăng nhập tài khoản quản trị hệ thống</p>
-            </div>
-
-            <!-- Error Banner -->
-            <div id="loginAlert" class="login-alert" role="alert"></div>
-
-            <!-- Form -->
-            <form id="loginForm" class="login-form" autocomplete="on">
-                <div class="form-group">
-                    <label for="username">Tên người dùng</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="username" name="username" placeholder="admin" required autofocus autocomplete="username">
+        <!-- Glowing Card Wrapper -->
+        <div class="login-card-wrapper">
+            <div class="login-card-glow"></div>
+            <div class="login-card">
+                <div class="login-brand">
+                    <div class="login-logo" id="loginLogo" title="Nhấp vào để kích hoạt âm thanh chào mừng 🚀">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="20" height="16" x="2" y="4" rx="2"/>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                    </div>
+                    <h1 class="login-title">Py-IMAP Control Center</h1>
+                    <p class="login-subtitle">Đăng nhập tài khoản quản trị hệ thống</p>
+                    <div class="cyber-badge-pill" id="cyberBadgePill">
+                        <span class="cyber-pulse-dot"></span>
+                        <span id="cyberStatusText">IMAP Gateway: Sẵn sàng</span>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="password">Mật khẩu</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
-                        <button type="button" class="toggle-pwd-btn" id="togglePasswordBtn" title="Hiện/ẩn mật khẩu">
-                            <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                        </button>
+                <!-- Error Banner -->
+                <div id="loginAlert" class="login-alert" role="alert"></div>
+
+                <!-- Form -->
+                <form id="loginForm" class="login-form" autocomplete="on">
+                    <div class="form-group">
+                        <label for="username">Tên người dùng</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="username" name="username" placeholder="admin" required autofocus autocomplete="username">
+                        </div>
                     </div>
+
+                    <div class="form-group">
+                        <label for="password">Mật khẩu</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+                            <button type="button" class="toggle-pwd-btn" id="togglePasswordBtn" title="Hiện/ẩn mật khẩu">
+                                <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="login-btn" id="submitBtn">
+                        <span id="btnText">Đăng nhập</span>
+                    </button>
+                </form>
+
+                <div class="login-footer">
+                    Py-IMAP Enterprise Migration Platform
                 </div>
-
-                <button type="submit" class="login-btn" id="submitBtn">
-                    <span id="btnText">Đăng nhập</span>
-                </button>
-            </form>
-
-            <div class="login-footer">
-                Py-IMAP Enterprise Migration Platform
             </div>
         </div>
     </div>
 
     <script>
-        // 1. Theme Management
+        // -------------------------------------------------------------
+        // 1. Web Audio API Sci-Fi Synthesizer (Zero Dependency)
+        // -------------------------------------------------------------
+        const AudioFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) this.ctx = new AudioContextClass();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            playClick() {
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.04);
+                    gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.04);
+                } catch(e) {}
+            },
+            playSuccess() {
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        const start = this.ctx.currentTime + (idx * 0.07);
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, start);
+                        gain.gain.setValueAtTime(0.08, start);
+                        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(start);
+                        osc.stop(start + 0.25);
+                    });
+                } catch(e) {}
+            },
+            playError() {
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.15);
+                } catch(e) {}
+            }
+        };
+
+        // -------------------------------------------------------------
+        // 2. High-Tech Interactive Network Topology Canvas
+        // -------------------------------------------------------------
+        const canvas = document.getElementById('networkCanvas');
+        const ctx = canvas ? canvas.getContext('2d') : null;
+        let particles = [];
+        let mouse = { x: null, y: null, radius: 140 };
+
+        function initCanvas() {
+            if (!canvas || !ctx) return;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const count = Math.min(Math.floor((canvas.width * canvas.height) / 22000), 55);
+            particles = [];
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.7,
+                    vy: (Math.random() - 0.5) * 0.7,
+                    size: Math.random() * 2 + 1.2,
+                    pulse: Math.random() * Math.PI,
+                    isServer: Math.random() > 0.8
+                });
+            }
+        }
+
+        window.addEventListener('resize', initCanvas);
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        window.addEventListener('mouseout', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        function animateCanvas() {
+            if (!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const nodeColor = isDark ? 'rgba(99, 102, 241, ' : 'rgba(59, 130, 246, ';
+            const serverColor = isDark ? 'rgba(6, 182, 212, ' : 'rgba(16, 185, 129, ';
+            const lineColor = isDark ? 'rgba(99, 102, 241, ' : 'rgba(59, 130, 246, ';
+
+            // Update & Draw Particles
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.pulse += 0.03;
+
+                // Bounce
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                // Mouse interaction
+                if (mouse.x !== null) {
+                    const dx = mouse.x - p.x;
+                    const dy = mouse.y - p.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < mouse.radius) {
+                        const force = (mouse.radius - dist) / mouse.radius;
+                        p.x -= (dx / dist) * force * 1.5;
+                        p.y -= (dy / dist) * force * 1.5;
+                    }
+                }
+
+                // Draw Particle
+                const alpha = 0.4 + Math.sin(p.pulse) * 0.25;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.isServer ? p.size + 1.5 : p.size, 0, Math.PI * 2);
+                ctx.fillStyle = (p.isServer ? serverColor : nodeColor) + alpha + ')';
+                ctx.shadowBlur = p.isServer ? 10 : 4;
+                ctx.shadowColor = p.isServer ? '#06b6d4' : '#6366f1';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Draw Connecting Lines
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p2 = particles[j];
+                    const dx = p.x - p2.x;
+                    const dy = p.y - p2.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 125) {
+                        const lineAlpha = (1 - dist / 125) * (isDark ? 0.25 : 0.18);
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = lineColor + lineAlpha + ')';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            requestAnimationFrame(animateCanvas);
+        }
+
+        initCanvas();
+        animateCanvas();
+
+        // -------------------------------------------------------------
+        // 3. Cyber Status Cycling Typewriter
+        // -------------------------------------------------------------
+        const statusLines = [
+            'IMAP Gateway v2.5.0: Sẵn sàng',
+            'Bảo vệ Append-Only: Kích hoạt',
+            'Động cơ Socket SSL/TLS: Hoạt động',
+            'Zero-Data-Loss Protocol: Đang chờ lệnh'
+        ];
+        let statusIdx = 0;
+        const statusEl = document.getElementById('cyberStatusText');
+        if (statusEl) {
+            setInterval(() => {
+                statusIdx = (statusIdx + 1) % statusLines.length;
+                statusEl.style.opacity = '0';
+                setTimeout(() => {
+                    statusEl.textContent = statusLines[statusIdx];
+                    statusEl.style.opacity = '1';
+                }, 250);
+            }, 3800);
+            statusEl.style.transition = 'opacity 0.25s ease';
+        }
+
+        // Easter Egg on Logo Click
+        const logoEl = document.getElementById('loginLogo');
+        if (logoEl) {
+            logoEl.addEventListener('click', () => {
+                AudioFX.playSuccess();
+                logoEl.style.transform = 'scale(1.2) rotate(15deg)';
+                setTimeout(() => logoEl.style.transform = '', 300);
+                if (statusEl) {
+                    statusEl.textContent = '🚀 Turbo Engine: Siêu tốc độ kích hoạt!';
+                }
+            });
+        }
+
+        // -------------------------------------------------------------
+        // 4. Theme Management
+        // -------------------------------------------------------------
         const savedTheme = localStorage.getItem('py_imap_theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
         updateThemeButtons(savedTheme);
 
         document.querySelectorAll('.theme-btn').forEach(btn => {
             btn.addEventListener('click', () => {
+                AudioFX.playClick();
                 const theme = btn.getAttribute('data-theme');
                 document.documentElement.setAttribute('data-theme', theme);
                 localStorage.setItem('py_imap_theme', theme);
@@ -274,12 +576,15 @@
             });
         }
 
-        // 2. Toggle Password Visibility
+        // -------------------------------------------------------------
+        // 5. Toggle Password Visibility
+        // -------------------------------------------------------------
         const pwdInput = document.getElementById('password');
         const togglePwdBtn = document.getElementById('togglePasswordBtn');
         const eyeIcon = document.getElementById('eyeIcon');
 
         togglePwdBtn.addEventListener('click', () => {
+            AudioFX.playClick();
             const isPassword = pwdInput.type === 'password';
             pwdInput.type = isPassword ? 'text' : 'password';
             eyeIcon.innerHTML = isPassword 
@@ -287,7 +592,9 @@
                 : '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>';
         });
 
-        // 3. Login Submission
+        // -------------------------------------------------------------
+        // 6. Login Submission
+        // -------------------------------------------------------------
         const form = document.getElementById('loginForm');
         const alertBox = document.getElementById('loginAlert');
         const submitBtn = document.getElementById('submitBtn');
@@ -295,12 +602,14 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            AudioFX.playClick();
             alertBox.style.display = 'none';
 
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
 
             if (!username || !password) {
+                AudioFX.playError();
                 alertBox.textContent = 'Vui lòng nhập đầy đủ tên người dùng và mật khẩu.';
                 alertBox.style.display = 'block';
                 return;
@@ -319,15 +628,20 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    btnText.textContent = 'Thành công! Đang chuyển hướng...';
-                    window.location.href = data.redirect || '/';
+                    AudioFX.playSuccess();
+                    btnText.textContent = '✓ Thành công! Đang vào hệ thống...';
+                    setTimeout(() => {
+                        window.location.href = data.redirect || '/';
+                    }, 400);
                 } else {
+                    AudioFX.playError();
                     alertBox.textContent = data.detail || 'Tài khoản hoặc mật khẩu không chính xác.';
                     alertBox.style.display = 'block';
                     submitBtn.disabled = false;
                     btnText.textContent = 'Đăng nhập';
                 }
             } catch (err) {
+                AudioFX.playError();
                 alertBox.textContent = 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra lại mạng.';
                 alertBox.style.display = 'block';
                 submitBtn.disabled = false;

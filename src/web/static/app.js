@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
     initThemeSwitcher();
     initTabs();
+    initCyberAudio();
+    initMatrixEasterEgg();
     initProviderChips();
     initSingleAccountTab();
     initDropZone();
@@ -17,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadActiveTasks();
     setInterval(loadActiveTasks, 3000);
 });
+
 
 // HTML escaping helper
 function escapeHtml(str) {
@@ -221,6 +224,7 @@ function initSingleAccountTab() {
             });
             const data = await res.json();
             if (data.is_valid) {
+                CyberAudio.playSuccess();
                 btn.textContent = `✓ Hợp Lệ (${data.latency_ms}ms)`;
                 if (hint) {
                     hint.innerHTML = `<span style="color:#16a34a; font-weight:600;">✓ Mật khẩu chính xác! Độ trễ IMAP: ${data.latency_ms}ms</span>`;
@@ -228,6 +232,7 @@ function initSingleAccountTab() {
                 showToast(`Mật khẩu Nguồn hợp lệ (${data.latency_ms}ms)`, "success");
                 appendTerminalLog(`[AUTH OK] Nguồn ${payload.username} hợp lệ, Latency: ${data.latency_ms}ms`, "success");
             } else {
+                CyberAudio.playError();
                 const reason = data.provider_hint || data.error_reason || (data.detail || "Sai mật khẩu hoặc chưa bật IMAP");
                 btn.textContent = "✗ Không Hợp Lệ";
                 if (hint) {
@@ -237,6 +242,7 @@ function initSingleAccountTab() {
                 appendTerminalLog(`[AUTH FAILED] Nguồn ${payload.username} thất bại: ${reason}`, "error");
             }
         } catch (e) {
+            CyberAudio.playError();
             btn.textContent = "✗ Lỗi Kết Nối";
             if (hint) {
                 hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">✗ Lỗi: ${e.message}</span>`;
@@ -288,6 +294,7 @@ function initSingleAccountTab() {
             });
             const data = await res.json();
             if (data.is_valid) {
+                CyberAudio.playSuccess();
                 btn.textContent = `✓ Hợp Lệ (${data.latency_ms}ms)`;
                 if (hint) {
                     hint.innerHTML = `<span style="color:#16a34a; font-weight:600;">✓ Mật khẩu chính xác! Độ trễ IMAP: ${data.latency_ms}ms</span>`;
@@ -295,6 +302,7 @@ function initSingleAccountTab() {
                 showToast(`Mật khẩu Đích hợp lệ (${data.latency_ms}ms)`, "success");
                 appendTerminalLog(`[AUTH OK] Đích ${payload.username} hợp lệ, Latency: ${data.latency_ms}ms`, "success");
             } else {
+                CyberAudio.playError();
                 const reason = data.provider_hint || data.error_reason || (data.detail || "Sai mật khẩu hoặc chưa bật IMAP");
                 btn.textContent = "✗ Không Hợp Lệ";
                 if (hint) {
@@ -304,6 +312,7 @@ function initSingleAccountTab() {
                 appendTerminalLog(`[AUTH FAILED] Đích ${payload.username} thất bại: ${reason}`, "error");
             }
         } catch (e) {
+            CyberAudio.playError();
             btn.textContent = "✗ Lỗi Kết Nối";
             if (hint) {
                 hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">✗ Lỗi: ${e.message}</span>`;
@@ -864,8 +873,11 @@ function listenToEventStream(taskId = null) {
             document.getElementById("progressBarFill").style.width = "100%";
             document.getElementById("progressPercentBadge").textContent = "100%";
 
-            showToast("Hoàn tất di chuyển hộp thư!", "success");
+            showToast("Hoàn tất di chuyển hộp thư! 🎉", "success");
             appendTerminalLog(`[COMPLETED] Hoàn thành: ${d.success} thư, Bỏ qua: ${d.skipped}, Lỗi: ${d.failed}`, "success");
+
+            CyberAudio.playVictory();
+            fireCelebrationConfetti();
 
             // Show report links
             const links = document.getElementById("reportLinksContainer");
@@ -1336,6 +1348,9 @@ function expandProgressWidget() {
     }
 }
 
+let prevCompletedTaskIds = new Set();
+let isFirstActiveTaskLoad = true;
+
 async function loadActiveTasks() {
     try {
         const res = await fetch("/api/tasks/active");
@@ -1347,6 +1362,17 @@ async function loadActiveTasks() {
         const runningTasks = tasks.filter(t => t.status === "RUNNING");
         const completedTasks = tasks.filter(t => t.status === "COMPLETED");
         const failedOrStoppedTasks = tasks.filter(t => ["FAILED", "STOPPED", "PARTIAL"].includes(t.status));
+
+        if (!isFirstActiveTaskLoad) {
+            const newlyCompleted = completedTasks.some(t => !prevCompletedTaskIds.has(t.task_id));
+            if (newlyCompleted) {
+                CyberAudio.playVictory();
+                fireCelebrationConfetti();
+                showToast("🎉 Một tiến trình di chuyển đã hoàn tất 100%!", "success");
+            }
+        }
+        isFirstActiveTaskLoad = false;
+        prevCompletedTaskIds = new Set(completedTasks.map(t => t.task_id));
 
         let totalSuccess = 0;
         let totalSkipped = 0;
@@ -1574,7 +1600,12 @@ function renderActiveTasksCards(tasks) {
                     </svg>
                     <span class="task-route-email">${t.source}</span>
                 </div>
-                <div class="task-route-arrow">
+                <div class="task-route-arrow ${t.status === 'RUNNING' ? 'route-active' : ''}">
+                    ${t.status === 'RUNNING' ? `
+                    <div class="data-packet-stream">
+                        <span class="data-packet-dot"></span>
+                        <span class="data-packet-dot" style="animation-delay: 0.5s;"></span>
+                    </div>` : ''}
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                         <polyline points="12 5 19 12 12 19"></polyline>
@@ -3114,4 +3145,358 @@ window.openScanFolderModal = function(index) {
 
     if (modal) modal.classList.add("open");
 };
+
+// ==========================================
+// CYBER AUDIO ENGINE (Zero-dependency Web Audio API)
+// ==========================================
+const CyberAudio = {
+    ctx: null,
+    enabled: localStorage.getItem("py_imap_sound_enabled") === "true",
+
+    init() {
+        this.updateButtonUI();
+        const toggleBtn = document.getElementById("btnSfxToggle");
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", () => {
+                this.enabled = !this.enabled;
+                localStorage.setItem("py_imap_sound_enabled", this.enabled ? "true" : "false");
+                this.updateButtonUI();
+                if (this.enabled) {
+                    this.playSuccess();
+                    showToast("Âm thanh hiệu ứng đã BẬT 🔊", "info");
+                } else {
+                    showToast("Âm thanh hiệu ứng đã TẮT 🔇", "info");
+                }
+            });
+        }
+
+        // Global soft cyber click for buttons, nav-items, chips
+        document.addEventListener("click", (e) => {
+            if (!this.enabled) return;
+            const target = e.target.closest("button, .nav-item, .provider-chip, .tab-btn, .history-card-btn, .cyber-chip, .task-id-badge");
+            if (target && !target.closest("#btnSfxToggle") && !target.closest("#matrixModal")) {
+                this.playClick();
+            }
+        });
+    },
+
+    getCtx() {
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                this.ctx = new AudioCtx();
+            }
+        }
+        if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume();
+        }
+        return this.ctx;
+    },
+
+    updateButtonUI() {
+        const btn = document.getElementById("btnSfxToggle");
+        if (!btn) return;
+        const text = btn.querySelector(".sfx-text");
+        if (this.enabled) {
+            btn.classList.add("sfx-active");
+            if (text) text.textContent = "SFX: BẬT";
+            btn.title = "Âm thanh hiệu ứng đang BẬT - Click để tắt";
+        } else {
+            btn.classList.remove("sfx-active");
+            if (text) text.textContent = "SFX: TẮT";
+            btn.title = "Âm thanh hiệu ứng đang TẮT - Click để bật";
+        }
+    },
+
+    playClick() {
+        if (!this.enabled) return;
+        try {
+            const ctx = this.getCtx();
+            if (!ctx) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(800, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.035);
+            gain.gain.setValueAtTime(0.04, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.04);
+        } catch (_) {}
+    },
+
+    playSuccess() {
+        if (!this.enabled) return;
+        try {
+            const ctx = this.getCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(freq, now + i * 0.06);
+                gain.gain.setValueAtTime(0.06, now + i * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.16);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + i * 0.06);
+                osc.stop(now + i * 0.06 + 0.17);
+            });
+        } catch (_) {}
+    },
+
+    playScanPing() {
+        if (!this.enabled) return;
+        try {
+            const ctx = this.getCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(1400, now);
+            osc.frequency.exponentialRampToValueAtTime(900, now + 0.22);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.23);
+        } catch (_) {}
+    },
+
+    playVictory() {
+        if (!this.enabled) return;
+        try {
+            const ctx = this.getCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const chords = [
+                { f: 392.00, t: 0.00, d: 0.12 },
+                { f: 523.25, t: 0.12, d: 0.12 },
+                { f: 659.25, t: 0.24, d: 0.14 },
+                { f: 783.99, t: 0.38, d: 0.50 },
+                { f: 1046.50, t: 0.40, d: 0.48 }
+            ];
+            chords.forEach(c => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(c.f, now + c.t);
+                gain.gain.setValueAtTime(0.08, now + c.t);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + c.t + c.d);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + c.t);
+                osc.stop(now + c.t + c.d);
+            });
+        } catch (_) {}
+    },
+
+    playError() {
+        if (!this.enabled) return;
+        try {
+            const ctx = this.getCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.setValueAtTime(160, now + 0.1);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.26);
+        } catch (_) {}
+    }
+};
+
+function initCyberAudio() {
+    CyberAudio.init();
+}
+
+// ==========================================
+// CONFETTI CELEBRATION ENGINE (Zero-dependency Canvas)
+// ==========================================
+let confettiAnimId = null;
+function fireCelebrationConfetti() {
+    const canvas = document.getElementById("confettiCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.style.display = "block";
+
+    const colors = ["#00f0ff", "#7000ff", "#00ff88", "#ff007f", "#ffe600", "#38bdf8", "#a855f7"];
+    const particles = [];
+    const count = 140;
+
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: canvas.width * 0.5 + (Math.random() - 0.5) * 200,
+            y: canvas.height * 0.4 + (Math.random() - 0.5) * 100,
+            vx: (Math.random() - 0.5) * 18,
+            vy: Math.random() * -15 - 4,
+            size: Math.random() * 8 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rotation: Math.random() * 360,
+            rotSpeed: (Math.random() - 0.5) * 12,
+            gravity: 0.35,
+            drag: 0.96,
+            opacity: 1
+        });
+    }
+
+    if (confettiAnimId) {
+        cancelAnimationFrame(confettiAnimId);
+    }
+
+    const startTime = performance.now();
+    function animate(time) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = 0;
+
+        particles.forEach(p => {
+            p.vx *= p.drag;
+            p.vy *= p.drag;
+            p.vy += p.gravity;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rotation += p.rotSpeed;
+            p.opacity -= 0.007;
+
+            if (p.opacity > 0 && p.y < canvas.height + 60) {
+                alive++;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.globalAlpha = Math.max(0, p.opacity);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+                ctx.restore();
+            }
+        });
+
+        if (alive > 0 && (time - startTime < 4500)) {
+            confettiAnimId = requestAnimationFrame(animate);
+        } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.style.display = "none";
+            confettiAnimId = null;
+        }
+    }
+
+    confettiAnimId = requestAnimationFrame(animate);
+}
+
+// ==========================================
+// MATRIX DIGITAL RAIN EASTER EGG
+// ==========================================
+let matrixRainTimer = null;
+function initMatrixEasterEgg() {
+    const brand = document.getElementById("brandHeader");
+    const modal = document.getElementById("matrixModal");
+    const closeBtn = document.getElementById("btnCloseMatrix");
+    const canvas = document.getElementById("matrixCanvas");
+    if (!modal || !canvas) return;
+
+    function openMatrix() {
+        modal.classList.add("open");
+        CyberAudio.playSuccess();
+        startMatrixRain(canvas);
+        showToast("🕶️ Đã kích hoạt Hacker Matrix Mode! Nhấn ESC hoặc click để đóng.", "info");
+    }
+
+    function closeMatrix() {
+        modal.classList.remove("open");
+        if (matrixRainTimer) {
+            clearInterval(matrixRainTimer);
+            matrixRainTimer = null;
+        }
+    }
+
+    if (brand) {
+        brand.addEventListener("dblclick", openMatrix);
+    }
+
+    window.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === "m" || e.key === "M")) {
+            e.preventDefault();
+            if (modal.classList.contains("open")) {
+                closeMatrix();
+            } else {
+                openMatrix();
+            }
+        } else if (e.key === "Escape" && modal.classList.contains("open")) {
+            closeMatrix();
+        }
+    });
+
+    if (closeBtn) {
+        closeBtn.addEventListener("click", closeMatrix);
+    }
+
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+            closeMatrix();
+        }
+    });
+}
+
+function startMatrixRain(canvas) {
+    if (matrixRainTimer) clearInterval(matrixRainTimer);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const chars = "01010101ABCDEFGHIJKLMNOPQRSTUVWXYZアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン★⌘⚡︎⌥⎋";
+    const fontSize = 16;
+    const cols = Math.floor(canvas.width / fontSize);
+    const drops = [];
+
+    for (let x = 0; x < cols; x++) {
+        drops[x] = Math.floor(Math.random() * -50);
+    }
+
+    function draw() {
+        ctx.fillStyle = "rgba(5, 8, 16, 0.08)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.font = `${fontSize}px 'JetBrains Mono', monospace`;
+
+        for (let i = 0; i < drops.length; i++) {
+            const char = chars.charAt(Math.floor(Math.random() * chars.length));
+            const x = i * fontSize;
+            const y = drops[i] * fontSize;
+
+            if (Math.random() > 0.88) {
+                ctx.fillStyle = "#ffffff";
+            } else if (Math.random() > 0.55) {
+                ctx.fillStyle = "#00f0ff";
+            } else {
+                ctx.fillStyle = "#00ff88";
+            }
+
+            ctx.fillText(char, x, y);
+
+            if (y > canvas.height && Math.random() > 0.975) {
+                drops[i] = 0;
+            }
+            drops[i]++;
+        }
+    }
+
+    matrixRainTimer = setInterval(draw, 33);
+}
+
 
