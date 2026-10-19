@@ -3737,6 +3737,13 @@ function closeMiniGameModal() {
     const modal = document.getElementById("miniGameModal");
     if (!modal) return;
     modal.classList.remove("open");
+    const gameCard = modal.querySelector(".game-card");
+    if (gameCard) gameCard.classList.remove("fullscreen");
+    const btnToggleFullscreen = document.getElementById("btnToggleGameFullscreen");
+    if (btnToggleFullscreen) {
+        btnToggleFullscreen.innerHTML = "⛶ Phóng to";
+        btnToggleFullscreen.setAttribute("title", "Phóng to / Thu nhỏ toàn màn hình");
+    }
     stopGameLoop();
 }
 
@@ -3753,6 +3760,7 @@ function initMiniGame() {
     const btnOpenNav = document.getElementById("btnOpenMiniGame");
     const btnOpenFloat = document.getElementById("btnFloatingGameTrigger");
     const btnClose = document.getElementById("btnCloseGame");
+    const btnToggleFullscreen = document.getElementById("btnToggleGameFullscreen");
     const btnStart = document.getElementById("btnStartGame");
     const canvas = document.getElementById("gameCanvas");
     const scoreEl = document.getElementById("gameScore");
@@ -3761,6 +3769,7 @@ function initMiniGame() {
 
     if (!canvas || !modal) return;
     const ctx = canvas.getContext("2d");
+    const gameCard = modal.querySelector(".game-card");
 
     let highScore = parseInt(localStorage.getItem("py_imap_game_high_score") || "0");
     if (highScoreEl) highScoreEl.textContent = highScore;
@@ -3768,6 +3777,15 @@ function initMiniGame() {
     if (btnOpenNav) btnOpenNav.addEventListener("click", openMiniGameModal);
     if (btnOpenFloat) btnOpenFloat.addEventListener("click", openMiniGameModal);
     if (btnClose) btnClose.addEventListener("click", closeMiniGameModal);
+
+    if (btnToggleFullscreen && gameCard) {
+        btnToggleFullscreen.addEventListener("click", () => {
+            const isFull = gameCard.classList.toggle("fullscreen");
+            btnToggleFullscreen.innerHTML = isFull ? "🗗 Thu nhỏ" : "⛶ Phóng to";
+            btnToggleFullscreen.setAttribute("title", isFull ? "Thu nhỏ cửa sổ game" : "Phóng to toàn màn hình");
+            CyberAudio.playLaser?.();
+        });
+    }
 
     modal.addEventListener("click", (e) => {
         if (e.target === modal) closeMiniGameModal();
@@ -3779,9 +3797,9 @@ function initMiniGame() {
         }
     });
 
-    // Game State
+    // Game State (Scaled for 1000 x 560 canvas)
     let score = 0;
-    let player = { x: canvas.width / 2 - 18, y: canvas.height - 30, w: 36, h: 16, speed: 6 };
+    let player = { x: canvas.width / 2 - 26, y: canvas.height - 44, w: 52, h: 22, speed: 8.5 };
     let bullets = [];
     let enemies = [];
     let particles = [];
@@ -3803,7 +3821,7 @@ function initMiniGame() {
     });
 
     function fireBullet() {
-        bullets.push({ x: player.x + player.w / 2 - 2, y: player.y - 4, w: 4, h: 10, speed: 8 });
+        bullets.push({ x: player.x + player.w / 2 - 2.5, y: player.y - 6, w: 5, h: 14, speed: 11 });
         CyberAudio.playLaser?.();
     }
 
@@ -3818,7 +3836,8 @@ function initMiniGame() {
         stopGameLoop();
         score = 0;
         if (scoreEl) scoreEl.textContent = "0";
-        player.x = canvas.width / 2 - 18;
+        player.x = canvas.width / 2 - 26;
+        player.y = canvas.height - 44;
         bullets = [];
         enemies = [];
         particles = [];
@@ -3831,17 +3850,18 @@ function initMiniGame() {
         { label: "SPAM", color: "#f43f5e", points: 10, hp: 1 },
         { label: "PHISH", color: "#e11d48", points: 15, hp: 1 },
         { label: "TROJAN", color: "#a855f7", points: 25, hp: 2 },
-        { label: "404", color: "#f59e0b", points: 10, hp: 1 }
+        { label: "MALWARE", color: "#ec4899", points: 30, hp: 2 },
+        { label: "404 BOT", color: "#f59e0b", points: 10, hp: 1 }
     ];
 
     function spawnEnemy() {
         const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
         enemies.push({
-            x: Math.random() * (canvas.width - 60) + 10,
-            y: -20,
-            w: 48,
-            h: 20,
-            speed: Math.random() * 1.5 + 1.2,
+            x: Math.random() * (canvas.width - 90) + 15,
+            y: -30,
+            w: 64,
+            h: 26,
+            speed: Math.random() * 1.6 + 1.4,
             type: type.label,
             color: type.color,
             points: type.points,
@@ -3850,12 +3870,12 @@ function initMiniGame() {
     }
 
     function spawnExplosion(x, y, color) {
-        for (let i = 0; i < 16; i++) {
+        for (let i = 0; i < 22; i++) {
             particles.push({
                 x, y,
-                vx: (Math.random() - 0.5) * 6,
-                vy: (Math.random() - 0.5) * 6,
-                size: Math.random() * 3 + 2,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                size: Math.random() * 4 + 2,
                 color,
                 life: 1
             });
@@ -3875,30 +3895,32 @@ function initMiniGame() {
         }
 
         // 2. Spawn enemies
-        if (!timestamp || timestamp - lastEnemySpawn > 1100) {
+        if (!timestamp || timestamp - lastEnemySpawn > 1050) {
             spawnEnemy();
             lastEnemySpawn = timestamp || performance.now();
         }
 
-        // 3. Clear canvas
+        // 3. Clear canvas with subtle trail
         ctx.fillStyle = "rgba(4, 7, 14, 0.35)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // 4. Draw Stars background
         ctx.fillStyle = "#ffffff";
-        for (let i = 0; i < 8; i++) {
-            const sx = (Math.sin((timestamp || 0) * 0.001 + i * 2) * 0.5 + 0.5) * canvas.width;
-            const sy = (Math.cos((timestamp || 0) * 0.001 + i * 3) * 0.5 + 0.5) * canvas.height;
-            ctx.fillRect(sx, sy, 1.5, 1.5);
+        for (let i = 0; i < 20; i++) {
+            const sx = ((Math.sin((timestamp || 0) * 0.0008 + i * 1.4) * 0.5 + 0.5) * canvas.width);
+            const sy = ((Math.cos((timestamp || 0) * 0.0006 + i * 2.2) * 0.5 + 0.5) * canvas.height);
+            const sz = (i % 3 === 0) ? 2 : 1;
+            ctx.fillRect(sx, sy, sz, sz);
         }
 
         // 5. Draw Player (Cyber Mail Gateway Ship)
         ctx.fillStyle = "#38bdf8";
         ctx.shadowColor = "#38bdf8";
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 14;
         ctx.beginPath();
         ctx.moveTo(player.x + player.w / 2, player.y);
         ctx.lineTo(player.x + player.w, player.y + player.h);
+        ctx.lineTo(player.x + player.w / 2, player.y + player.h - 5);
         ctx.lineTo(player.x, player.y + player.h);
         ctx.closePath();
         ctx.fill();
@@ -3907,12 +3929,12 @@ function initMiniGame() {
         // 6. Update Bullets
         ctx.fillStyle = "#00ff88";
         ctx.shadowColor = "#00ff88";
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 10;
         for (let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
             b.y -= b.speed;
             ctx.fillRect(b.x, b.y, b.w, b.h);
-            if (b.y < -10) bullets.splice(i, 1);
+            if (b.y < -15) bullets.splice(i, 1);
         }
         ctx.shadowBlur = 0;
 
@@ -3921,13 +3943,20 @@ function initMiniGame() {
             const en = enemies[i];
             en.y += en.speed;
 
-            // Draw Enemy Box
+            // Draw Enemy Box with neon glow
             ctx.fillStyle = en.color;
+            ctx.shadowColor = en.color;
+            ctx.shadowBlur = 8;
             ctx.fillRect(en.x, en.y, en.w, en.h);
+            ctx.shadowBlur = 0;
 
-            ctx.fillStyle = "#000000";
-            ctx.font = "bold 10px 'JetBrains Mono', monospace";
-            ctx.fillText(en.type, en.x + 6, en.y + 14);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 11px 'JetBrains Mono', monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(en.type, en.x + en.w / 2, en.y + en.h / 2);
+            ctx.textAlign = "start";
+            ctx.textBaseline = "alphabetic";
 
             // Check collision with bullets
             for (let j = bullets.length - 1; j >= 0; j--) {
@@ -3951,7 +3980,7 @@ function initMiniGame() {
             }
 
             // Check Game Over
-            if (en.y + en.h >= canvas.height - 10) {
+            if (en.y + en.h >= canvas.height - 15) {
                 gameOver();
                 return;
             }
@@ -3962,7 +3991,7 @@ function initMiniGame() {
             const p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= 0.04;
+            p.life -= 0.035;
             if (p.life <= 0) {
                 particles.splice(i, 1);
             } else {
@@ -3985,7 +4014,7 @@ function initMiniGame() {
             if (content) {
                 content.innerHTML = `
                     <h3 style="color:#ef4444;">💀 HỘP THƯ ĐÃ BỊ XÂM NHẬP!</h3>
-                    <p>Điểm số đạt được: <strong style="color:#38bdf8; font-size:16px;">${score}</strong> • Kỷ lục: <strong>${highScore}</strong></p>
+                    <p>Điểm số đạt được: <strong style="color:#38bdf8; font-size:18px;">${score}</strong> • Kỷ lục: <strong>${highScore}</strong></p>
                     <button type="button" class="btn btn-primary" id="btnRestartGame">CHƠI LẠI NGAY 🔄</button>
                 `;
                 content.querySelector("#btnRestartGame")?.addEventListener("click", () => {

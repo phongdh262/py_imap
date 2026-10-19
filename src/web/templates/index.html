@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/app.css?v=2.7.0">
+    <link rel="stylesheet" href="/static/app.css?v=2.8.0">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -2841,11 +2841,12 @@ giam_doc@old-domain.com,BossPass999$,giam_doc@new-domain.com,BossPass999$</code>
                 <div class="game-stats">
                     <span class="game-stat-pill">Điểm: <strong id="gameScore">0</strong></span>
                     <span class="game-stat-pill">Kỷ Lục: <strong id="gameHighScore">0</strong></span>
+                    <button type="button" class="game-maximize-btn" id="btnToggleGameFullscreen" title="Phóng to / Thu nhỏ toàn màn hình">⛶ Phóng to</button>
                     <button type="button" class="game-close-btn" id="btnCloseGame">ESC / Thoát</button>
                 </div>
             </div>
             <div class="game-canvas-wrapper">
-                <canvas id="gameCanvas" width="600" height="340"></canvas>
+                <canvas id="gameCanvas" width="1000" height="560"></canvas>
                 <div id="gameOverlay" class="game-overlay">
                     <div class="game-overlay-content">
                         <h3>👾 PHÒNG THỦ MÁY CHỦ EMAIL</h3>
@@ -2856,11 +2857,11 @@ giam_doc@old-domain.com,BossPass999$,giam_doc@new-domain.com,BossPass999$</code>
                 </div>
             </div>
             <div class="game-card-footer">
-                <span>💡 <em>Mẹo:</em> Tiến trình di chuyển email bên dưới vẫn chạy ngầm an toàn 100%!</span>
+                <span>💡 <em>Mẹo:</em> Tiến trình di chuyển email bên dưới vẫn chạy ngầm an toàn 100%! Bấm <strong>⛶ Phóng to</strong> để bung toàn màn hình.</span>
             </div>
         </div>
     </div>
 
-    <script src="/static/app.js?v=2.7.0"></script>
+    <script src="/static/app.js?v=2.8.0"></script>
 </body>
 </html>
