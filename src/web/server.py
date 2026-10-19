@@ -309,6 +309,8 @@ async def scan_batch_mailboxes(req: BatchCheckRequest):
                 if idx < len(data.get("folders", [])):
                     data["folders"][idx]["size_mb"] = f.size_mb
                     data["folders"][idx]["destination_folder"] = f.destination_folder
+                    data["folders"][idx]["messages"] = f.messages_count
+                    data["folders"][idx]["messages_count"] = f.messages_count
             return data
         except Exception as e:
             return {
@@ -352,12 +354,26 @@ async def inspect_mailbox(req: Dict[str, Any]):
             src_data["total_size_gb"] = result["source"].total_size_gb
             src_data["quota"] = result["source"].quota
 
+            for idx, f in enumerate(result["source"].folders):
+                if idx < len(src_data.get("folders", [])):
+                    src_data["folders"][idx]["size_mb"] = f.size_mb
+                    src_data["folders"][idx]["destination_folder"] = f.destination_folder
+                    src_data["folders"][idx]["messages"] = f.messages_count
+                    src_data["folders"][idx]["messages_count"] = f.messages_count
+
             dst_data = None
             if result["dest"]:
                 dst_data = result["dest"].model_dump()
                 dst_data["total_size_mb"] = result["dest"].total_size_mb
                 dst_data["total_size_gb"] = result["dest"].total_size_gb
                 dst_data["quota"] = result["dest"].quota
+
+                for idx, f in enumerate(result["dest"].folders):
+                    if idx < len(dst_data.get("folders", [])):
+                        dst_data["folders"][idx]["size_mb"] = f.size_mb
+                        dst_data["folders"][idx]["destination_folder"] = f.destination_folder
+                        dst_data["folders"][idx]["messages"] = f.messages_count
+                        dst_data["folders"][idx]["messages_count"] = f.messages_count
 
             return {
                 "is_dual": True,
@@ -380,6 +396,8 @@ async def inspect_mailbox(req: Dict[str, Any]):
                 if idx < len(data.get("folders", [])):
                     data["folders"][idx]["size_mb"] = f.size_mb
                     data["folders"][idx]["destination_folder"] = f.destination_folder
+                    data["folders"][idx]["messages"] = f.messages_count
+                    data["folders"][idx]["messages_count"] = f.messages_count
             return data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

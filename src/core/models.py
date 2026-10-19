@@ -43,6 +43,11 @@ class FolderInfo(BaseModel):
 
     @computed_field
     @property
+    def messages(self) -> int:
+        return self.messages_count
+
+    @computed_field
+    @property
     def size_mb(self) -> float:
         return round(self.size_bytes / (1024 * 1024), 2)
 

@@ -92,23 +92,23 @@ class MailboxInspector:
             if client_wrapper.supports_status_size:
                 try:
                     status = client.folder_status(raw_name, [b"MESSAGES", b"SIZE"])
-                    msgs = status.get(b"MESSAGES", 0)
-                    size = status.get(b"SIZE", 0)
-                    return msgs, size
+                    msgs = status.get(b"MESSAGES", status.get("MESSAGES", 0))
+                    size = status.get(b"SIZE", status.get("SIZE", 0))
+                    return int(msgs), int(size)
                 except Exception:
                     pass
 
             # Standard path: Query message count via STATUS (MESSAGES)
             status = client.folder_status(raw_name, [b"MESSAGES"])
-            msgs = status.get(b"MESSAGES", 0)
-            if msgs == 0:
+            msgs = status.get(b"MESSAGES", status.get("MESSAGES", 0))
+            if not msgs:
                 return 0, 0
 
             # Select folder readonly and fast fetch RFC822.SIZE metadata
             client.select_folder(raw_name, readonly=True)
             uids = client.search(["ALL"])
             if not uids:
-                return 0, 0
+                return int(msgs), 0
 
             # Batch fetch sizes (chunks of 1000 UIDs)
             total_size = 0
@@ -117,7 +117,7 @@ class MailboxInspector:
                 chunk = uids[i:i + chunk_size]
                 fetch_data = client.fetch(chunk, ["RFC822.SIZE"])
                 for uid, data in fetch_data.items():
-                    total_size += data.get(b"RFC822.SIZE", 0)
+                    total_size += data.get(b"RFC822.SIZE", data.get("RFC822.SIZE", 0))
 
             return len(uids), total_size
 

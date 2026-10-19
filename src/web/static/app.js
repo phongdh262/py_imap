@@ -2546,7 +2546,7 @@ function initScanStorageTab() {
                 if (subEl) subEl.textContent = `Máy chủ: ${host}:${port} • Giao thức: ${ssl ? 'SSL/TLS' : 'Plaintext'}`;
 
                 // Aggregate metrics
-                const totalMsgs = data.total_messages || lastSingleScanFolders.reduce((s, f) => s + (f.messages || 0), 0);
+                const totalMsgs = data.total_messages || lastSingleScanFolders.reduce((s, f) => s + (f.messages_count != null ? f.messages_count : (f.messages || 0)), 0);
                 const totalMb = data.total_size_mb || (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
                 const totalGb = data.total_size_gb || (data.total_size_bytes ? (data.total_size_bytes / (1024 * 1024 * 1024)).toFixed(2) : "0.00");
 
@@ -3023,6 +3023,7 @@ function renderSingleScanFoldersTable(folders, totalMb) {
     tbody.innerHTML = folders.map((f, idx) => {
         const fSizeMb = f.size_mb || (f.size_bytes ? (f.size_bytes / (1024 * 1024)).toFixed(2) : "0.00");
         const fraction = (totalMb > 0 && parseFloat(fSizeMb) > 0) ? Math.min(Math.round((parseFloat(fSizeMb) / totalMb) * 100), 100) : 0;
+        const msgCount = f.messages_count != null ? f.messages_count : (f.messages != null ? f.messages : 0);
 
         let roleBadge = `<span class="badge badge-neutral">${escapeHtml(f.role || 'Thư mục')}</span>`;
         if (f.role === 'INBOX') roleBadge = `<span class="badge badge-primary">Hộp thư đến</span>`;
@@ -3036,7 +3037,7 @@ function renderSingleScanFoldersTable(folders, totalMb) {
                 <td style="text-align:center; color:var(--text-dim); font-size:12px;">${idx + 1}</td>
                 <td><strong>${escapeHtml(f.name)}</strong></td>
                 <td>${roleBadge}</td>
-                <td style="text-align:right; font-family:'JetBrains Mono', monospace; font-weight:600;">${(f.messages || 0).toLocaleString()}</td>
+                <td style="text-align:right; font-family:'JetBrains Mono', monospace; font-weight:600;">${msgCount.toLocaleString()}</td>
                 <td style="text-align:right; font-family:'JetBrains Mono', monospace; color:#38bdf8;">${fSizeMb} MB</td>
                 <td style="text-align:right;">
                     <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
@@ -3130,6 +3131,7 @@ window.openScanFolderModal = function(index) {
         } else {
             tbody.innerHTML = folders.map((f, i) => {
                 const fSize = f.size_mb || (f.size_bytes ? (f.size_bytes / 1048576).toFixed(2) : "0.00");
+                const msgCount = f.messages_count != null ? f.messages_count : (f.messages != null ? f.messages : 0);
                 let roleBadge = `<span class="badge badge-neutral">${escapeHtml(f.role || 'Thư mục')}</span>`;
                 if (f.role === 'INBOX') roleBadge = `<span class="badge badge-primary">Hộp thư đến</span>`;
                 else if (f.role === 'Sent') roleBadge = `<span class="badge badge-success">Đã gửi</span>`;
@@ -3142,7 +3144,7 @@ window.openScanFolderModal = function(index) {
                         <td style="text-align:center; color:var(--text-dim); font-size:12px;">${i + 1}</td>
                         <td><strong>${escapeHtml(f.name)}</strong></td>
                         <td>${roleBadge}</td>
-                        <td style="text-align:right; font-family:'JetBrains Mono', monospace;">${(f.messages || 0).toLocaleString()}</td>
+                        <td style="text-align:right; font-family:'JetBrains Mono', monospace;">${msgCount.toLocaleString()}</td>
                         <td style="text-align:right; font-family:'JetBrains Mono', monospace; color:#38bdf8;">${fSize} MB</td>
                     </tr>
                 `;
