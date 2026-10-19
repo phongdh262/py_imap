@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/app.css?v=2.9.0">
+    <link rel="stylesheet" href="/static/app.css?v=3.2.0">
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -1985,23 +1985,23 @@
                 </div>
 
                 <!-- Interactive Native SVG Dashboard Charts -->
-                <div class="sessions-analytics-grid" style="margin-bottom: 20px;">
+                <div class="sessions-analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <!-- Chart 1: Donut Success vs Skipped vs Failed -->
                     <div class="card analytics-chart-card">
                         <div class="chart-header">
                             <h4>Tỷ Lệ Di Chuyển Tổng Quan</h4>
                             <span class="badge badge-neutral" id="donutTotalCount">0 Phiên</span>
                         </div>
-                        <div class="donut-chart-container">
-                            <svg viewBox="0 0 120 120" class="donut-svg" id="sessionsDonutSvg">
-                                <circle cx="60" cy="60" r="48" class="donut-bg-circle"/>
-                                <circle cx="60" cy="60" r="48" class="donut-segment segment-success" id="donutSuccessSeg" stroke-dasharray="0 301.6"/>
-                                <circle cx="60" cy="60" r="48" class="donut-segment segment-skipped" id="donutSkippedSeg" stroke-dasharray="0 301.6"/>
-                                <circle cx="60" cy="60" r="48" class="donut-segment segment-failed" id="donutFailedSeg" stroke-dasharray="0 301.6"/>
+                        <div class="donut-chart-container" style="position: relative; width: 120px; height: 120px; max-width: 120px; max-height: 120px; margin: 6px auto 14px auto; display: flex; align-items: center; justify-content: center;">
+                            <svg viewBox="0 0 120 120" width="120" height="120" class="donut-svg" id="sessionsDonutSvg" style="width: 120px; height: 120px; max-width: 120px; max-height: 120px; transform: rotate(-90deg); display: block;">
+                                <circle cx="60" cy="60" r="48" class="donut-bg-circle" fill="none" stroke="rgba(125, 125, 125, 0.18)" stroke-width="12" style="fill: none !important; stroke-width: 12;"/>
+                                <circle cx="60" cy="60" r="48" class="donut-segment segment-success" id="donutSuccessSeg" fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 301.6" style="fill: none !important; stroke: #10b981; stroke-width: 12;"/>
+                                <circle cx="60" cy="60" r="48" class="donut-segment segment-skipped" id="donutSkippedSeg" fill="none" stroke="#f59e0b" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 301.6" style="fill: none !important; stroke: #f59e0b; stroke-width: 12;"/>
+                                <circle cx="60" cy="60" r="48" class="donut-segment segment-failed" id="donutFailedSeg" fill="none" stroke="#ef4444" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 301.6" style="fill: none !important; stroke: #ef4444; stroke-width: 12;"/>
                             </svg>
-                            <div class="donut-center-info">
-                                <strong id="donutPctValue">100%</strong>
-                                <span>Thành công</span>
+                            <div class="donut-center-info" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+                                <strong id="donutPctValue" style="font-size: 18px; font-family: 'JetBrains Mono', monospace; color: #10b981;">100%</strong>
+                                <span style="font-size: 10px; color: var(--text-dim);">Thành công</span>
                             </div>
                         </div>
                         <div class="chart-legend">
@@ -3029,6 +3029,6 @@ giam_doc@old-domain.com,BossPass999$,giam_doc@new-domain.com,BossPass999$</code>
         </div>
     </div>
 
-    <script src="/static/app.js?v=3.0.0"></script>
+    <script src="/static/app.js?v=3.2.0"></script>
 </body>
 </html>
