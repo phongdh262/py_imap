@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettingsTab();
     initActiveTasksTab();
     initSessionsTab();
+    initDocsTab();
     initLogDrawer();
     initModals();
     setupPasswordToggles();
@@ -4091,6 +4092,107 @@ function animateCountUp(element, endVal, duration = 800) {
     }
     requestAnimationFrame(tick);
 }
+
+// ==========================================
+// 7. DOCUMENTATION TAB LOGIC (KNOWLEDGE BASE)
+// ==========================================
+function initDocsTab() {
+    const searchInput = document.getElementById("docsSearchInput");
+    const clearBtn = document.getElementById("docsClearSearch");
+    const chips = document.querySelectorAll(".docs-chip");
+    const cards = document.querySelectorAll(".docs-card");
+    const faqItems = document.querySelectorAll(".docs-faq-item");
+
+    let currentCategory = "all";
+
+    function filterDocs() {
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        if (clearBtn) clearBtn.style.display = query ? "block" : "none";
+
+        cards.forEach(card => {
+            const cardCat = card.dataset.category || "";
+            const catMatches = (currentCategory === "all" || cardCat === currentCategory);
+            const textContent = card.textContent.toLowerCase();
+            const textMatches = !query || textContent.includes(query);
+
+            if (catMatches && textMatches) {
+                card.style.display = "block";
+            } else {
+                card.style.display = "none";
+            }
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener("input", filterDocs);
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            searchInput.value = "";
+            filterDocs();
+            searchInput.focus();
+        });
+    }
+
+    chips.forEach(chip => {
+        chip.addEventListener("click", () => {
+            chips.forEach(c => c.classList.remove("active"));
+            chip.classList.add("active");
+            currentCategory = chip.dataset.category || "all";
+            filterDocs();
+            CyberAudio.playClick();
+        });
+    });
+
+    // Accordion FAQ toggle
+    faqItems.forEach(item => {
+        const q = item.querySelector(".docs-faq-q");
+        if (q) {
+            q.addEventListener("click", () => {
+                const isOpen = item.classList.contains("open");
+                item.classList.toggle("open", !isOpen);
+                CyberAudio.playClick();
+            });
+        }
+    });
+}
+
+function copyHostText(host) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(host).then(() => {
+            CyberAudio.playSuccess();
+            showToast(`Đã sao chép máy chủ: ${host}`, "success");
+        }).catch(() => fallbackCopy(host));
+    } else {
+        fallbackCopy(host);
+    }
+}
+
+function copyCsvSampleText() {
+    const code = document.getElementById("csvSampleCodeBlock");
+    const text = code ? code.textContent : `source_user,source_pass,dest_user,dest_pass\nuser1@old-domain.com,SecretPass123!,user1@new-domain.com,NewPass456!`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            CyberAudio.playSuccess();
+            showToast("Đã sao chép mẫu CSV vào Clipboard!", "success");
+        }).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    CyberAudio.playSuccess();
+    showToast("Đã sao chép vào bộ nhớ tạm!", "success");
+}
+
 
 
 

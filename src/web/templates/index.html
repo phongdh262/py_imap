@@ -193,6 +193,18 @@
                     </span>
                     <span>Cài Đặt Hệ Thống</span>
                 </button>
+                <button class="nav-item" data-tab="docsTab" id="navDocs">
+                    <span class="nav-icon">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                            <line x1="9" y1="7" x2="15" y2="7"/>
+                            <line x1="9" y1="11" x2="13" y2="11"/>
+                        </svg>
+                    </span>
+                    <span>Tài Liệu Hướng Dẫn</span>
+                    <span class="badge badge-primary" style="margin-left:auto; font-size:10px; padding:2px 6px;">DOCS</span>
+                </button>
             </nav>
 
             <div class="sidebar-footer">
@@ -2127,6 +2139,314 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Documentation & Technical Guide Tab -->
+            <section id="docsTab" class="tab-pane">
+                <!-- Docs Hero Header -->
+                <div class="docs-hero">
+                    <div class="docs-hero-left">
+                        <div class="docs-badge-tag">
+                            <span class="live-pulse-dot" style="background:#6366f1;"></span>
+                            <span>KNOWLEDGE BASE & CHEATSHEET v2.7</span>
+                        </div>
+                        <h2 class="docs-hero-title">Trung Tâm Tài Liệu & Hướng Dẫn</h2>
+                        <p class="docs-hero-sub">
+                            Cẩm nang toàn diện về giao thức IMAP, hướng dẫn di chuyển <strong>Zero Data Loss</strong>, cấu hình các nhà cung cấp Email phổ biến, quy chuẩn file CSV và phương án xử lý lỗi.
+                        </p>
+                    </div>
+                    <div class="docs-hero-actions">
+                        <a href="/static/sample_migration.csv" download="sample_migration.csv" class="btn btn-primary btn-sm" id="btnDownloadSampleCsv">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            <span>Tải File CSV Mẫu (.csv)</span>
+                        </a>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="switchToTab('activeTasksTab')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                            <span>Xem Tiến Trình Đang Chạy</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Docs Live Search & Filter Chips -->
+                <div class="docs-toolbar">
+                    <div class="docs-search-wrapper">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="docs-search-icon">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="docsSearchInput" class="docs-search-input" placeholder="Tìm kiếm nhanh tài liệu, lỗi IMAP, cấu hình Gmail, Microsoft 365, Zimbra, CSV..." autocomplete="off">
+                        <button type="button" id="docsClearSearch" class="docs-search-clear" style="display:none;">✕</button>
+                    </div>
+                    <div class="docs-filter-chips">
+                        <button type="button" class="docs-chip active" data-category="all">Tất cả</button>
+                        <button type="button" class="docs-chip" data-category="quickstart">🚀 Bắt Đầu Nhanh</button>
+                        <button type="button" class="docs-chip" data-category="providers">🌐 Cấu Hình Email</button>
+                        <button type="button" class="docs-chip" data-category="csv">📑 Quy Chuẩn CSV</button>
+                        <button type="button" class="docs-chip" data-category="performance">⚡ Hiệu Năng & Tham Số</button>
+                        <button type="button" class="docs-chip" data-category="faq">❓ Giải Đáp FAQ</button>
+                    </div>
+                </div>
+
+                <!-- Docs Content Sections Grid -->
+                <div class="docs-grid" id="docsContentGrid">
+
+                    <!-- Section 1: Quickstart Guide -->
+                    <div class="docs-card" data-category="quickstart">
+                        <div class="docs-card-header">
+                            <div class="docs-card-icon" style="background:rgba(99,102,241,0.15); color:#818cf8;">🚀</div>
+                            <div>
+                                <h3 class="docs-card-title">1. Quy Trình 4 Bước Di Chuyển An Toàn</h3>
+                                <p class="docs-card-sub">Áp dụng cho cả di chuyển 1 hộp thư hoặc hàng loạt tài khoản</p>
+                            </div>
+                        </div>
+                        <div class="docs-card-body">
+                            <div class="docs-step-list">
+                                <div class="docs-step-item">
+                                    <div class="docs-step-num">01</div>
+                                    <div class="docs-step-content">
+                                        <strong>Kiểm tra xác thực IMAP (Auth Check):</strong>
+                                        <p>Luôn bấm nút <em>"Kiểm Tra Mật Khẩu"</em> trước khi chạy. Hệ thống sẽ kết nối TLS và đo độ trễ mạng (latency ms). Tránh trường hợp sai mật khẩu làm gián đoạn tiến trình hàng loạt.</p>
+                                    </div>
+                                </div>
+                                <div class="docs-step-item">
+                                    <div class="docs-step-num">02</div>
+                                    <div class="docs-step-content">
+                                        <strong>Khảo sát dung lượng & Cây thư mục:</strong>
+                                        <p>Dùng tab <em>"Quét Thư Mục & Dung Lượng"</em> để xem tổng số email, dung lượng từng folder (Inbox, Sent, Trash...) và đối chiếu hạn ngạch (Quota) của hòm thư đích có đủ chứa không.</p>
+                                    </div>
+                                </div>
+                                <div class="docs-step-item">
+                                    <div class="docs-step-num">03</div>
+                                    <div class="docs-step-content">
+                                        <strong>Khởi động tiến trình di chuyển:</strong>
+                                        <p>Nhấn <em>"Bắt Đầu Di Chuyển"</em>. Worker ngầm sẽ duyệt từng thư mục theo thứ tự ưu tiên (Inbox ➔ Sent ➔ các thư mục con ➔ Drafts ➔ Trash).</p>
+                                    </div>
+                                </div>
+                                <div class="docs-step-item">
+                                    <div class="docs-step-num">04</div>
+                                    <div class="docs-step-content">
+                                        <strong>Đối soát & Tải báo cáo:</strong>
+                                        <p>Sau khi hoàn tất 100%, bạn có thể tải báo cáo Excel / CSV chi tiết trong tab <em>"Lịch Sử Di Chuyển"</em> để làm biên bản bàn giao cho khách hàng hoặc doanh nghiệp.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="docs-alert docs-alert-info">
+                                <span class="docs-alert-icon">💡</span>
+                                <div><strong>Cơ chế chạy ngầm:</strong> Bạn có thể thu nhỏ tiến trình xuống góc màn hình hoặc đóng tab trình duyệt, tiến trình trên máy chủ vẫn tiếp tục chạy độc lập không bị dừng.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Email Provider Cheatsheet -->
+                    <div class="docs-card" data-category="providers">
+                        <div class="docs-card-header">
+                            <div class="docs-card-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">🌐</div>
+                            <div>
+                                <h3 class="docs-card-title">2. Cấu Hình Máy Chủ Email & Mật Khẩu Ứng Dụng</h3>
+                                <p class="docs-card-sub">Thông số kết nối chuẩn RFC cho các nền tảng email thông dụng</p>
+                            </div>
+                        </div>
+                        <div class="docs-card-body">
+                            <div class="docs-table-wrapper">
+                                <table class="docs-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nhà Cung Cấp</th>
+                                            <th>Máy Chủ IMAP Host</th>
+                                            <th>Cổng / SSL</th>
+                                            <th>Lưu Ý Về Mật Khẩu</th>
+                                            <th>Thao Tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Gmail / Google Workspace</strong></td>
+                                            <td><code class="docs-code-inline">imap.gmail.com</code></td>
+                                            <td><span class="badge badge-primary">993 SSL</span></td>
+                                            <td>Cần bật 2FA ➔ Tạo <strong>Mật khẩu ứng dụng (App Password)</strong> 16 ký tự</td>
+                                            <td><button type="button" class="btn btn-xs btn-secondary" onclick="copyHostText('imap.gmail.com')">Sao chép</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Microsoft 365 / Outlook</strong></td>
+                                            <td><code class="docs-code-inline">outlook.office365.com</code></td>
+                                            <td><span class="badge badge-primary">993 SSL</span></td>
+                                            <td>Cần bật IMAP trong Exchange Admin ➔ Tạo App Password nếu có MFA</td>
+                                            <td><button type="button" class="btn btn-xs btn-secondary" onclick="copyHostText('outlook.office365.com')">Sao chép</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Zimbra Collaboration</strong></td>
+                                            <td><code class="docs-code-inline">mail.domain.com</code></td>
+                                            <td><span class="badge badge-primary">993 SSL</span></td>
+                                            <td>Sử dụng tài khoản email và mật khẩu hòm thư trực tiếp</td>
+                                            <td><button type="button" class="btn btn-xs btn-secondary" onclick="copyHostText('mail.domain.com')">Sao chép</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>cPanel / Webmail / DirectAdmin</strong></td>
+                                            <td><code class="docs-code-inline">mail.yourdomain.com</code></td>
+                                            <td><span class="badge badge-primary">993 SSL</span></td>
+                                            <td>Tài khoản email đầy đủ (ví dụ: <code class="docs-code-inline">info@domain.com</code>)</td>
+                                            <td><button type="button" class="btn btn-xs btn-secondary" onclick="copyHostText('mail.yourdomain.com')">Sao chép</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Yahoo Mail / AOL</strong></td>
+                                            <td><code class="docs-code-inline">imap.mail.yahoo.com</code></td>
+                                            <td><span class="badge badge-primary">993 SSL</span></td>
+                                            <td>Vào Security ➔ Generate App Password</td>
+                                            <td><button type="button" class="btn btn-xs btn-secondary" onclick="copyHostText('imap.mail.yahoo.com')">Sao chép</button></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Zoho Mail</strong></td>
+                                            <td><code class="docs-code-inline">imappro.zoho.com</code></td>
+                                            <td><span class="badge badge-primary">993 SSL</span></td>
+                                            <td>Tạo Application-Specific Password trong Zoho Account</td>
+                                            <td><button type="button" class="btn btn-xs btn-secondary" onclick="copyHostText('imappro.zoho.com')">Sao chép</button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="docs-alert docs-alert-warning" style="margin-top:14px;">
+                                <span class="docs-alert-icon">⚠️</span>
+                                <div><strong>Lỗi Google/Microsoft thường gặp:</strong> Nếu hệ thống báo <em>"AUTHENTICATIONFAILED"</em> dù mật khẩu webmail đúng, 99% tài khoản chưa bật Mật khẩu ứng dụng (App Password) hoặc quản trị viên chưa cho phép giao thức IMAP (Basic Auth).</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: CSV Format & Batch Migration -->
+                    <div class="docs-card" data-category="csv">
+                        <div class="docs-card-header">
+                            <div class="docs-card-icon" style="background:rgba(16,185,129,0.15); color:#34d399;">📑</div>
+                            <div>
+                                <h3 class="docs-card-title">3. Quy Chuẩn File CSV Di Chuyển Hàng Loạt</h3>
+                                <p class="docs-card-sub">Cấu trúc file bảng tính để nạp hàng chục đến hàng trăm tài khoản</p>
+                            </div>
+                        </div>
+                        <div class="docs-card-body">
+                            <p style="font-size:13.5px; color:var(--text-muted); margin-bottom:12px;">
+                                Trong tính năng <strong>Di Chuyển Hàng Loạt (CSV)</strong>, bạn đã chọn trước máy chủ Nguồn và Đích ở 2 hộp trên cùng. Do đó file CSV <strong>chỉ cần 4 cột cơ bản</strong>:
+                            </p>
+
+                            <div class="docs-code-box">
+                                <div class="docs-code-header">
+                                    <span>sample_migration.csv (Chuẩn UTF-8)</span>
+                                    <button type="button" class="docs-copy-btn" onclick="copyCsvSampleText()">Sao chép mẫu</button>
+                                </div>
+                                <pre><code id="csvSampleCodeBlock">source_user,source_pass,dest_user,dest_pass
+user1@old-domain.com,SecretPass123!,user1@new-domain.com,NewPass456!
+user2@old-domain.com,SecretPass123!,user2@new-domain.com,NewPass456!
+ke_toan@old-domain.com,KeToan2026@#,ke_toan@new-domain.com,KeToan2026@#
+giam_doc@old-domain.com,BossPass999$,giam_doc@new-domain.com,BossPass999$</code></pre>
+                            </div>
+
+                            <div class="docs-checklist" style="margin-top:14px;">
+                                <div class="docs-check-item">
+                                    <span class="docs-check-icon">✓</span>
+                                    <span><strong>Tiêu đề bắt buộc (Header):</strong> Dòng đầu tiên phải là <code class="docs-code-inline">source_user,source_pass,dest_user,dest_pass</code>.</span>
+                                </div>
+                                <div class="docs-check-item">
+                                    <span class="docs-check-icon">✓</span>
+                                    <span><strong>Định dạng file:</strong> Lưu bằng UTF-8 (không BOM) từ Excel hoặc Google Sheets để mật khẩu có ký tự đặc biệt (<code class="docs-code-inline">!@#$%^&*</code>) không bị biến dạng.</span>
+                                </div>
+                                <div class="docs-check-item">
+                                    <span class="docs-check-icon">✓</span>
+                                    <span><strong>Xem trước thông minh:</strong> Sau khi tải file, hệ thống sẽ hiển thị bảng xem trước (Preview) kèm trạng thái kiểm tra mật khẩu từng dòng trước khi bạn bấm chạy.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Performance & Zero Data Loss -->
+                    <div class="docs-card" data-category="performance">
+                        <div class="docs-card-header">
+                            <div class="docs-card-icon" style="background:rgba(245,158,11,0.15); color:#fbbf24;">⚡</div>
+                            <div>
+                                <h3 class="docs-card-title">4. Cơ Chế Zero-Data-Loss & Tối Ưu Hiệu Năng</h3>
+                                <p class="docs-card-sub">Nguyên lý bảo toàn dữ liệu và điều chỉnh tham số hệ thống</p>
+                            </div>
+                        </div>
+                        <div class="docs-card-body">
+                            <div class="docs-features-grid">
+                                <div class="docs-feature-box">
+                                    <div class="docs-feature-title">🛡️ Cam kết Append-Only</div>
+                                    <p class="docs-feature-desc">Hệ thống chỉ đọc (READ-ONLY) trên máy chủ nguồn và ghi thêm (APPEND) vào máy chủ đích. <strong>Tuyệt đối không bao giờ xóa hoặc chỉnh sửa thư gốc.</strong></p>
+                                </div>
+                                <div class="docs-feature-box">
+                                    <div class="docs-feature-title">🔁 Khử trùng lặp thông minh</div>
+                                    <p class="docs-feature-desc">Đối chiếu <code class="docs-code-inline">Message-ID</code>, ngày tháng và kích thước thư. Nếu thư đã có ở server đích, worker sẽ tự động bỏ qua (Skipped) để tiết kiệm băng thông và tránh sinh thư trùng.</p>
+                                </div>
+                                <div class="docs-feature-box">
+                                    <div class="docs-feature-title">⏱️ Socket Timeout & Retry</div>
+                                    <p class="docs-feature-desc">Nếu gặp thư đính kèm dung lượng khủng (25MB - 50MB) hoặc mạng chậm, hãy vào tab <em>"Cài Đặt Hệ Thống"</em> tăng <strong>Socket Timeout lên 60s - 120s</strong>.</p>
+                                </div>
+                                <div class="docs-feature-box">
+                                    <div class="docs-feature-title">⚡ Đa luồng Concurrency</div>
+                                    <p class="docs-feature-desc">Điều chỉnh số luồng song song (3 - 8 workers). Tránh đặt quá 10 luồng đối với Gmail để không bị giới hạn tần suất API (Rate Limit).</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Troubleshooting & FAQs -->
+                    <div class="docs-card" data-category="faq">
+                        <div class="docs-card-header">
+                            <div class="docs-card-icon" style="background:rgba(239,68,68,0.15); color:#f87171;">❓</div>
+                            <div>
+                                <h3 class="docs-card-title">5. Câu Hỏi Thường Gặp & Xử Lý Lỗi (FAQ)</h3>
+                                <p class="docs-card-sub">Giải đáp các tình huống thực tế khi vận hành di chuyển email</p>
+                            </div>
+                        </div>
+                        <div class="docs-card-body">
+                            <div class="docs-faq-list">
+                                <div class="docs-faq-item">
+                                    <div class="docs-faq-q">
+                                        <span>Q: Đang di chuyển gặp sự cố rớt mạng hoặc ngắt kết nối thì xử lý thế nào?</span>
+                                        <span class="docs-faq-toggle">+</span>
+                                    </div>
+                                    <div class="docs-faq-a">
+                                        Py-IMAP tích hợp cơ chế tự động kết nối lại (Auto-reconnect with Exponential Backoff). Nếu mạng bị mất hoàn toàn, tiến trình sẽ chuyển trạng thái <code>PARTIAL</code> hoặc <code>STOPPED</code>. Bạn chỉ cần nhấn nút <strong>"Tiếp tục / Chạy lại"</strong>, hệ thống sẽ tự động quét và bỏ qua các email đã di chuyển thành công trước đó, chỉ chuyển tiếp các thư còn thiếu!
+                                    </div>
+                                </div>
+
+                                <div class="docs-faq-item">
+                                    <div class="docs-faq-q">
+                                        <span>Q: Các thư mục tiếng Việt (như "Hộp thư đến", "Đã gửi", "Hóa đơn") có bị lỗi font không?</span>
+                                        <span class="docs-faq-toggle">+</span>
+                                    </div>
+                                    <div class="docs-faq-a">
+                                        Không. Py-IMAP sử dụng chuẩn mã hóa <code>Modified UTF-7 (RFC 3501 Section 5.1.3)</code> chuyên biệt cho giao thức IMAP, đảm bảo tên thư mục có dấu tiếng Việt, emoji, hoặc ký tự đặc biệt đều được ánh xạ chính xác 100% sang máy chủ mới.
+                                    </div>
+                                </div>
+
+                                <div class="docs-faq-item">
+                                    <div class="docs-faq-q">
+                                        <span>Q: Hạn ngạch (Quota) máy chủ đích bị đầy thì sao?</span>
+                                        <span class="docs-faq-toggle">+</span>
+                                    </div>
+                                    <div class="docs-faq-a">
+                                        Trước khi chạy, hãy dùng tính năng <strong>"Quét Thư Mục & Dung Lượng"</strong>. Nếu máy chủ báo dung lượng nguồn là 15GB mà hòm thư đích chỉ có 10GB, bạn cần liên hệ quản trị viên nâng dung lượng đích trước khi chạy để tránh lỗi <code>QUOTA EXCEEDED</code> giữa chừng.
+                                    </div>
+                                </div>
+
+                                <div class="docs-faq-item">
+                                    <div class="docs-faq-q">
+                                        <span>Q: Ngày tháng của email (InternalDate) và trạng thái Đã đọc / Chưa đọc có được giữ nguyên không?</span>
+                                        <span class="docs-faq-toggle">+</span>
+                                    </div>
+                                    <div class="docs-faq-a">
+                                        Có. Thuật toán của Py-IMAP bảo toàn nguyên vẹn <code>IMAP INTERNALDATE</code> (thời điểm người gửi gửi thư ban đầu) và các cờ cắm (Flags) như <code>\Seen</code> (đã đọc), <code>\Flagged</code> (gắn sao), <code>\Answered</code> (đã trả lời). Thư khi sang máy chủ mới sẽ nằm đúng thứ tự thời gian trên Outlook, Apple Mail và Webmail.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
         </main>
     </div>
 
@@ -2424,6 +2744,16 @@
                         </div>
                     </div>
                     <kbd class="cmd-key">Tab 7</kbd>
+                </div>
+                <div class="cmd-item" data-action="tab" data-target="docsTab">
+                    <div class="cmd-item-left">
+                        <span class="cmd-item-icon">📚</span>
+                        <div class="cmd-item-info">
+                            <span class="cmd-item-title">Tài Liệu & Hướng Dẫn (Docs)</span>
+                            <span class="cmd-item-desc">Cẩm nang cấu hình email IMAP, file CSV mẫu và giải đáp FAQ</span>
+                        </div>
+                    </div>
+                    <kbd class="cmd-key">Tab 8</kbd>
                 </div>
 
                 <!-- Group: Lệnh Nhanh & Giải Trí -->

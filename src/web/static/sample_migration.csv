@@ -1,0 +1,5 @@
+source_user,source_pass,dest_user,dest_pass
+user1@old-domain.com,SecretPass123!,user1@new-domain.com,NewPass456!
+user2@old-domain.com,SecretPass123!,user2@new-domain.com,NewPass456!
+ke_toan@old-domain.com,KeToan2026@#,ke_toan@new-domain.com,KeToan2026@#
+giam_doc@old-domain.com,BossPass999$,giam_doc@new-domain.com,BossPass999$
