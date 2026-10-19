@@ -1794,10 +1794,49 @@ function updateSessionChipCounts(sessions) {
     if (elRun) elRun.textContent = running;
 }
 
+function resetSessionFilter() {
+    const chipsBar = document.getElementById("sessionFilterChipsBar");
+    if (chipsBar) {
+        const chips = chipsBar.querySelectorAll(".session-chip");
+        chips.forEach(c => c.classList.remove("active"));
+        const allChip = chipsBar.querySelector('.session-chip[data-filter="all"]');
+        if (allChip) allChip.classList.add("active");
+    }
+    currentSessionFilter = "all";
+    const input = document.getElementById("historySearchInput");
+    if (input) input.value = "";
+    renderFilteredSessionsTable();
+}
+window.resetSessionFilter = resetSessionFilter;
+
 function renderFilteredSessionsTable() {
     const sessions = window.allSessionsCache || [];
     const tbody = document.getElementById("sessionsTableBody");
     if (!tbody) return;
+
+    if (sessions.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="padding: 0; border: none;">
+                    <div class="table-empty-box">
+                        <div class="table-empty-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                                <rect x="1" y="3" width="22" height="5"></rect>
+                                <line x1="10" y1="12" x2="14" y2="12"></line>
+                            </svg>
+                        </div>
+                        <h4 class="table-empty-title">Chưa có phiên di chuyển nào trong lịch sử</h4>
+                        <p class="table-empty-desc">Toàn bộ lịch sử các tác vụ di chuyển email, tiến độ từng hộp thư và báo cáo kiểm toán sẽ tự động lưu trữ tại đây khi bạn khởi chạy tiến trình.</p>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="switchToTab('singleTab')">
+                            Bắt đầu di chuyển email ngay ➔
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
 
     let filtered = [...sessions];
     if (currentSessionFilter === "COMPLETED") {
@@ -1809,7 +1848,25 @@ function renderFilteredSessionsTable() {
     }
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không có phiên di chuyển nào khớp với bộ lọc "${currentSessionFilter}".</td></tr>`;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="padding: 0; border: none;">
+                    <div class="table-empty-box">
+                        <div class="table-empty-icon" style="background: rgba(148,163,184,0.1); color: var(--text-dim);">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </div>
+                        <h4 class="table-empty-title">Không tìm thấy phiên phù hợp</h4>
+                        <p class="table-empty-desc">Không có tác vụ nào khớp với bộ lọc "${currentSessionFilter}" hoặc từ khóa tìm kiếm.</p>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="resetSessionFilter()">
+                            Đặt lại bộ lọc
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
         return;
     }
 
@@ -1826,8 +1883,8 @@ function renderFilteredSessionsTable() {
             <td style="text-align: center;"><strong>#${s.id}</strong></td>
             <td><strong>${escapeHtml(s.source_account)}</strong> ➔ <strong>${escapeHtml(s.dest_account)}</strong></td>
             <td style="text-align: center;">${statusBadge}</td>
-            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight:600; color:#34d399;">${(s.migrated_messages || 0).toLocaleString()}</td>
-            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #fbbf24;">${(s.skipped_messages || 0).toLocaleString()}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight:600; color:#10b981;">${(s.migrated_messages || 0).toLocaleString()}</td>
+            <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #f59e0b;">${(s.skipped_messages || 0).toLocaleString()}</td>
             <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--danger-text);">${(s.failed_messages || 0).toLocaleString()}</td>
             <td style="font-size: 11.5px; color: var(--text-dim);">${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</td>
             <td style="text-align: center;">
@@ -1850,9 +1907,45 @@ function renderFilteredSessionsTable() {
 }
 
 function renderSessionsAnalytics(sessions) {
+    const donutTotal = document.getElementById("donutTotalCount");
+    const succSeg = document.getElementById("donutSuccessSeg");
+    const skipSeg = document.getElementById("donutSkippedSeg");
+    const failSeg = document.getElementById("donutFailedSeg");
+    const pctVal = document.getElementById("donutPctValue");
+    const legSucc = document.getElementById("legendSuccessCount");
+    const legSkip = document.getElementById("legendSkippedCount");
+    const legFail = document.getElementById("legendFailedCount");
+    const kpiMigrated = document.getElementById("kpiTotalMigrated");
+    const kpiSize = document.getElementById("kpiTotalSize");
+    const kpiRate = document.getElementById("kpiSuccessRate");
+    const sparkContainer = document.getElementById("sessionsSparklineContainer");
+    const sparkMinMax = document.getElementById("sparklineMinMax");
+
     if (!sessions || sessions.length === 0) {
-        const donutTotal = document.getElementById("donutTotalCount");
         if (donutTotal) donutTotal.textContent = "0 Phiên";
+        if (succSeg) succSeg.style.display = "none";
+        if (skipSeg) skipSeg.style.display = "none";
+        if (failSeg) failSeg.style.display = "none";
+        if (pctVal) pctVal.textContent = "100%";
+        if (legSucc) legSucc.textContent = "0";
+        if (legSkip) legSkip.textContent = "0";
+        if (legFail) legFail.textContent = "0";
+        if (kpiMigrated) kpiMigrated.textContent = "0";
+        if (kpiSize) kpiSize.textContent = "0.0 MB";
+        if (kpiRate) kpiRate.textContent = "100%";
+        if (sparkContainer) {
+            sparkContainer.innerHTML = `
+                <div class="sparkline-empty-state">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Chưa có dữ liệu lưu lượng</span>
+                </div>
+            `;
+        }
+        if (sparkMinMax) sparkMinMax.textContent = "Sẵn sàng ghi nhận phiên mới";
         return;
     }
 
@@ -1867,54 +1960,60 @@ function renderSessionsAnalytics(sessions) {
     });
 
     const totalProcessed = totalMigrated + totalSkipped + totalFailed;
-    const donutTotal = document.getElementById("donutTotalCount");
     if (donutTotal) donutTotal.textContent = `${sessions.length} Phiên`;
 
     // 1. Donut Segments
     const C = 301.59; // 2 * PI * 48
-    const succSeg = document.getElementById("donutSuccessSeg");
-    const skipSeg = document.getElementById("donutSkippedSeg");
-    const failSeg = document.getElementById("donutFailedSeg");
-    const pctVal = document.getElementById("donutPctValue");
-
     if (totalProcessed > 0) {
         const succLen = (totalMigrated / totalProcessed) * C;
         const skipLen = (totalSkipped / totalProcessed) * C;
         const failLen = (totalFailed / totalProcessed) * C;
 
         if (succSeg) {
-            succSeg.style.strokeDasharray = `${succLen.toFixed(1)} ${C.toFixed(1)}`;
-            succSeg.style.strokeDashoffset = "0";
+            if (succLen > 0) {
+                succSeg.style.display = "block";
+                succSeg.style.strokeDasharray = `${succLen.toFixed(1)} ${C.toFixed(1)}`;
+                succSeg.style.strokeDashoffset = "0";
+            } else {
+                succSeg.style.display = "none";
+            }
         }
         if (skipSeg) {
-            skipSeg.style.strokeDasharray = `${skipLen.toFixed(1)} ${C.toFixed(1)}`;
-            skipSeg.style.strokeDashoffset = `${-succLen.toFixed(1)}`;
+            if (skipLen > 0) {
+                skipSeg.style.display = "block";
+                skipSeg.style.strokeDasharray = `${skipLen.toFixed(1)} ${C.toFixed(1)}`;
+                skipSeg.style.strokeDashoffset = `${-succLen.toFixed(1)}`;
+            } else {
+                skipSeg.style.display = "none";
+            }
         }
         if (failSeg) {
-            failSeg.style.strokeDasharray = `${failLen.toFixed(1)} ${C.toFixed(1)}`;
-            failSeg.style.strokeDashoffset = `${-(succLen + skipLen).toFixed(1)}`;
+            if (failLen > 0) {
+                failSeg.style.display = "block";
+                failSeg.style.strokeDasharray = `${failLen.toFixed(1)} ${C.toFixed(1)}`;
+                failSeg.style.strokeDashoffset = `${-(succLen + skipLen).toFixed(1)}`;
+            } else {
+                failSeg.style.display = "none";
+            }
         }
 
         const pct = Math.round((totalMigrated / (totalMigrated + totalFailed || 1)) * 100);
         if (pctVal) pctVal.textContent = `${pct}%`;
-        const kpiRate = document.getElementById("kpiSuccessRate");
         if (kpiRate) kpiRate.textContent = `${pct}%`;
     } else {
-        if (succSeg) succSeg.style.strokeDasharray = `0 ${C}`;
+        if (succSeg) succSeg.style.display = "none";
+        if (skipSeg) skipSeg.style.display = "none";
+        if (failSeg) failSeg.style.display = "none";
         if (pctVal) pctVal.textContent = "100%";
+        if (kpiRate) kpiRate.textContent = "100%";
     }
 
     // Legend
-    const legSucc = document.getElementById("legendSuccessCount");
-    const legSkip = document.getElementById("legendSkippedCount");
-    const legFail = document.getElementById("legendFailedCount");
     if (legSucc) legSucc.textContent = totalMigrated.toLocaleString();
     if (legSkip) legSkip.textContent = totalSkipped.toLocaleString();
     if (legFail) legFail.textContent = totalFailed.toLocaleString();
 
     // 2. KPI
-    const kpiMigrated = document.getElementById("kpiTotalMigrated");
-    const kpiSize = document.getElementById("kpiTotalSize");
     if (kpiMigrated) kpiMigrated.textContent = totalMigrated.toLocaleString();
     if (kpiSize) {
         const mb = (totalMigrated * 0.125).toFixed(1);
@@ -1922,8 +2021,6 @@ function renderSessionsAnalytics(sessions) {
     }
 
     // 3. Sparkline Bar Activity Stream
-    const sparkContainer = document.getElementById("sessionsSparklineContainer");
-    const sparkMinMax = document.getElementById("sparklineMinMax");
     if (sparkContainer) {
         const recent = sessions.slice(0, 8).reverse();
         const maxVal = Math.max(...recent.map(s => s.migrated_messages || 0), 10);
@@ -1931,11 +2028,11 @@ function renderSessionsAnalytics(sessions) {
         sparkContainer.innerHTML = recent.map((s, idx) => {
             const h = Math.max(12, Math.round(((s.migrated_messages || 0) / maxVal) * 100));
             const isLatest = idx === recent.length - 1;
-            const barColor = (s.failed_messages || 0) > 0 ? "rgba(239, 68, 68, 0.75)" : (isLatest ? "var(--primary-color)" : "rgba(56, 189, 248, 0.65)");
+            const barBg = (s.failed_messages || 0) > 0 ? "linear-gradient(180deg, #f87171, #ef4444)" : (isLatest ? "linear-gradient(180deg, #34d399, #10b981)" : "linear-gradient(180deg, #38bdf8, #6366f1)");
             return `
-                <div class="spark-bar-col" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative;" title="Phiên #${s.id}: ${(s.migrated_messages || 0).toLocaleString()} thư">
-                    <div style="width: 75%; height: ${h}%; background: ${barColor}; border-radius: 4px 4px 0 0; transition: height 0.4s ease;"></div>
-                    <span style="font-size: 9.5px; color: var(--text-dim); margin-top: 5px;">#${s.id}</span>
+                <div class="spark-bar-col" title="Phiên #${s.id}: ${(s.migrated_messages || 0).toLocaleString()} thư">
+                    <div class="spark-bar-fill" style="height: ${h}%; background: ${barBg};"></div>
+                    <span class="sparkline-bar-label">#${s.id}</span>
                 </div>
             `;
         }).join("");
