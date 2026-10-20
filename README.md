@@ -193,8 +193,8 @@ python3 -m uvicorn src.web.server:app --host 0.0.0.0 --port 8080 --reload
 | Dịch vụ | URL | Tài khoản mặc định | Mô tả |
 | :--- | :--- | :--- | :--- |
 | **Web Admin Control Panel** | `http://<SERVER_IP>:8080` | `admin` / `admin123` | Giao diện điều khiển di chuyển, kéo thả CSV, cấu hình di chuyển |
-| **Grafana Dashboard** | `http://<SERVER_IP>:3000` | `admin` / `admin` (hoặc ẩn danh) | Dashboard giám sát tốc độ MB/s, tiến độ %, logs Loki |
-| **Prometheus UI** | `http://<SERVER_IP>:9090` | Không yêu cầu | Truy vấn thô metrics, biểu đồ hệ thống |
+| **Grafana Dashboard** | `http://<SERVER_IP>:3000` | `admin` / `Admin@Migration2026!` | Dashboard giám sát tốc độ MB/s, tiến độ %, logs Loki (Bắt buộc đăng nhập) |
+| **Prometheus UI** | `http://localhost:9090` | Localhost only | Truy vấn thô metrics, biểu đồ hệ thống |
 | **App Metrics Exporter** | `http://<SERVER_IP>:8000/metrics` | Không yêu cầu | Endpoint scrape của Prometheus từ Python |
 
 ---
@@ -206,6 +206,8 @@ python3 -m uvicorn src.web.server:app --host 0.0.0.0 --port 8080 --reload
 | `ENABLE_WEB_AUTH` | `true` | Bật/tắt chế độ đăng nhập bảo vệ Web Admin |
 | `ADMIN_USERNAME` | `admin` | Tài khoản đăng nhập Web Admin |
 | `ADMIN_PASSWORD` | `admin123` | Mật khẩu quản trị viên Web Admin |
+| `GRAFANA_ADMIN_USER` | `admin` | Tài khoản quản trị viên Grafana |
+| `GRAFANA_ADMIN_PASSWORD` | `Admin@Migration2026!` | Mật khẩu quản trị viên Grafana (cần đổi sang mật khẩu mạnh) |
 | `ALLOWED_ORIGINS` | `*` | Danh sách CORS domain được phép truy cập API (cách nhau bởi dấu phẩy) |
 | `LOG_FORMAT` | `json` | Định dạng log ghi ra file (`json` cho Loki hoặc `console`) |
 
