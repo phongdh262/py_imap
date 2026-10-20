@@ -200,7 +200,16 @@ async def serve_index():
     index_file = TEMPLATES_DIR / "index.html"
     if not index_file.exists():
         raise HTTPException(status_code=404, detail="index.html not found")
-    return HTMLResponse(content=index_file.read_text(encoding="utf-8"))
+    content = index_file.read_text(encoding="utf-8")
+    grafana_url = os.environ.get("GRAFANA_URL", "").strip()
+    if grafana_url:
+        import re
+        content = re.sub(
+            r'href="[^"]*"\s+target="_blank"\s+class="btn btn-secondary btn-sm"\s+id="grafanaBtn"',
+            f'href="{grafana_url}" target="_blank" class="btn btn-secondary btn-sm" id="grafanaBtn" data-custom-url="true"',
+            content,
+        )
+    return HTMLResponse(content=content)
 
 
 @app.post("/api/check-password")

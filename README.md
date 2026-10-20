@@ -208,6 +208,7 @@ python3 -m uvicorn src.web.server:app --host 0.0.0.0 --port 8080 --reload
 | `ADMIN_PASSWORD` | `admin123` | Mật khẩu quản trị viên Web Admin |
 | `GRAFANA_ADMIN_USER` | `admin` | Tài khoản quản trị viên Grafana |
 | `GRAFANA_ADMIN_PASSWORD` | `Admin@Migration2026!` | Mật khẩu quản trị viên Grafana (cần đổi sang mật khẩu mạnh) |
+| `GRAFANA_URL` | `https://monitor.phongdinh.info.vn` | Địa chỉ URL của Grafana Dashboard khi người dùng click vào nút Grafana trên Web Admin |
 | `ALLOWED_ORIGINS` | `*` | Danh sách CORS domain được phép truy cập API (cách nhau bởi dấu phẩy) |
 | `LOG_FORMAT` | `json` | Định dạng log ghi ra file (`json` cho Loki hoặc `console`) |
 

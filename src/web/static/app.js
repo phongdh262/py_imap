@@ -52,12 +52,34 @@ function showToast(message, type = "info") {
     }, 3500);
 }
 
-// Adjust Grafana button URL to current host IP
+// Adjust Grafana button URL to current host IP or custom domain
 function updateGrafanaLink() {
     const btn = document.getElementById("grafanaBtn");
-    if (btn) {
-        const host = window.location.hostname || "localhost";
+    if (!btn) return;
+
+    // 1. If explicit custom URL flag is set, preserve existing href
+    if (btn.dataset.customUrl === "true") {
+        return;
+    }
+
+    const currentHref = btn.getAttribute("href") || "";
+
+    // 2. If href has already been configured to a custom domain (not default localhost:3000 and not empty/#)
+    if (currentHref && !currentHref.includes("localhost:3000") && currentHref !== "#") {
+        return;
+    }
+
+    const host = window.location.hostname || "localhost";
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+
+    // 3. If accessed via monitor domain directly (reverse-proxied on 80/443 without port 3000)
+    if (host.includes("monitor.")) {
+        btn.href = `${protocol}//${host}`;
+    } else if (host === "localhost" || host === "127.0.0.1") {
         btn.href = `http://${host}:3000`;
+    } else {
+        // Fallback: Default to production Grafana domain
+        btn.href = "https://monitor.phongdinh.info.vn";
     }
 }
 
