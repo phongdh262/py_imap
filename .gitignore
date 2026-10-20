@@ -53,6 +53,10 @@ loki_data/
 .idea/
 .DS_Store
 Thumbs.db
+.pytest_cache/
+scratch/
+.coverage
+htmlcov/
 
 # Sensitive credentials
 config/accounts.csv

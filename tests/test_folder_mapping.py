@@ -24,14 +24,14 @@ class TestFolderMappingAndNamespace(unittest.TestCase):
     def test_custom_email_folder_dots_escape(self):
         dest_canonical = {FolderRole.SENT: "INBOX.Sent"}
         target = self.mapper.map_folder_name(
-            source_folder="hotro@phongdinh.info.vn",
+            source_folder="hotro@company.com",
             source_role=FolderRole.CUSTOM,
             source_delim="/",
             dest_delim=".",
             dest_canonical_map=dest_canonical,
             dest_prefix="INBOX.",
         )
-        self.assertEqual(target, "INBOX.hotro@phongdinh_info_vn")
+        self.assertEqual(target, "INBOX.hotro@company_com")
 
     def test_canonical_role_mapping(self):
         dest_canonical = {FolderRole.SENT: "INBOX.Sent"}

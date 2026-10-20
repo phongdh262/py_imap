@@ -130,7 +130,6 @@ class TestSecurityFeatures(unittest.TestCase):
         res_root = client.get("/", cookies=res_good.cookies)
         self.assertEqual(res_root.status_code, 200)
         self.assertIn('id="grafanaBtn"', res_root.text)
-        self.assertIn("monitor.phongdinh.info.vn", res_root.text)
 
         # 5. Accessing /login with active session redirects to /
         res_already_logged = client.get("/login", cookies=res_good.cookies)
