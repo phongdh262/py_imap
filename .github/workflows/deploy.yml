@@ -48,31 +48,20 @@ jobs:
           script: |
             set -e
 
-            # Tự động tìm thư mục chứa dự án trên VPS (hỗ trợ cả chữ hoa PY_IMAP và chữ thường py_imap)
-            PROJECT_DIR=""
-            for p in "/root/py_imap" "/root/PY_IMAP" "/opt/py_imap" "/opt/PY_IMAP" "$HOME/py_imap" "$HOME/PY_IMAP" "/var/www/py_imap" "/var/www/PY_IMAP" "/data/py_imap" "/data/PY_IMAP"; do
-              if [ -d "$p" ]; then
-                PROJECT_DIR="$p"
-                break
-              fi
-            done
-
-            # Nếu chưa thấy, tự động quét tìm thư mục chứa docker-compose.yml của project
-            if [ -z "$PROJECT_DIR" ]; then
-              FOUND=$(find /root /opt /home /var/www /data -maxdepth 4 -name "docker-compose.yml" -exec grep -l "email_migrator" {} + 2>/dev/null | head -n 1)
-              if [ -n "$FOUND" ]; then
-                PROJECT_DIR=$(dirname "$FOUND")
-              fi
+            # Thư mục dự án trên VPS
+            PROJECT_DIR="/home/app/py_imap"
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "⚠️ Không tìm thấy $PROJECT_DIR, thử tìm các thư mục liên quan..."
+              for p in "/home/app/PY_IMAP" "/root/py_imap" "/opt/py_imap" "$HOME/py_imap"; do
+                if [ -d "$p" ]; then
+                  PROJECT_DIR="$p"
+                  break
+                fi
+              done
             fi
 
-            if [ -n "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR" ]; then
-              echo "📁 Đã tìm thấy thư mục dự án tại: $PROJECT_DIR"
-              cd "$PROJECT_DIR"
-            else
-              echo "⚠️ Không tìm thấy thư mục dự án. Danh sách thư mục hiện có trong /root:"
-              ls -la /root
-              exit 1
-            fi
+            echo "📁 Chuyển đến thư mục dự án: $PROJECT_DIR"
+            cd "$PROJECT_DIR"
 
             echo "📥 Đang kéo code mới từ nhánh main..."
             git fetch origin main
