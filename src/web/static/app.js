@@ -52,6 +52,125 @@ function showToast(message, type = "info") {
     }, 3500);
 }
 
+// Universal Custom Confirmation & Action Modal Helper (Replaces native browser window.confirm)
+window.showCustomConfirmModal = function({
+    title = "Xác nhận hành động",
+    desc = "",
+    contextHtml = "",
+    safetyNote = "",
+    confirmText = "Xác nhận",
+    cancelText = "Hủy bỏ",
+    type = "danger", // "danger" | "warning" | "info" | "primary"
+    icon = ""
+}) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById("universalConfirmModal");
+        if (!modal) {
+            resolve(confirm(`${title}\n\n${desc}`));
+            return;
+        }
+
+        const titleEl = document.getElementById("universalConfirmTitle");
+        const descEl = document.getElementById("universalConfirmDesc");
+        const contextEl = document.getElementById("universalConfirmContextCard");
+        const safetyBox = document.getElementById("universalConfirmSafetyBox");
+        const safetyText = document.getElementById("universalConfirmSafetyText");
+        const iconWrap = document.getElementById("universalConfirmIconWrap");
+        const iconEl = document.getElementById("universalConfirmIcon");
+        const glowHeader = modal.querySelector(".confirm-modal-glow-header");
+        const btnAction = document.getElementById("btnProceedUniversalConfirm");
+        const btnCancel = document.getElementById("btnCancelUniversalConfirm");
+        const btnDismiss = document.getElementById("btnDismissUniversalConfirm");
+        const actionLabel = document.getElementById("universalConfirmActionLabel");
+        const cancelLabel = document.getElementById("universalConfirmCancelLabel");
+
+        if (titleEl) titleEl.textContent = title;
+        if (descEl) descEl.innerHTML = desc;
+
+        if (contextEl) {
+            if (contextHtml) {
+                contextEl.innerHTML = contextHtml;
+                contextEl.style.display = "flex";
+            } else {
+                contextEl.style.display = "none";
+            }
+        }
+
+        if (safetyBox) {
+            if (safetyNote) {
+                safetyBox.style.display = "flex";
+                if (safetyText) {
+                    safetyText.innerHTML = `<strong>Bảo đảm an toàn dữ liệu:</strong><span>${safetyNote}</span>`;
+                }
+            } else {
+                safetyBox.style.display = "none";
+            }
+        }
+
+        if (actionLabel) actionLabel.textContent = confirmText;
+        if (cancelLabel) cancelLabel.textContent = cancelText;
+
+        const defaultIcons = {
+            danger: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>`,
+            warning: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+            info: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+            primary: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`
+        };
+
+        if (iconEl) iconEl.innerHTML = icon || defaultIcons[type] || defaultIcons.danger;
+
+        if (iconWrap) {
+            iconWrap.className = `confirm-icon-orb orb-${type}`;
+        }
+        if (glowHeader) {
+            glowHeader.className = `confirm-modal-glow-header glow-${type}`;
+        }
+
+        if (btnAction) {
+            btnAction.className = `btn btn-action-confirm btn-${type === 'warning' ? 'danger' : type}`;
+        }
+
+        function cleanup(result) {
+            modal.classList.remove("open");
+            document.removeEventListener("keydown", onKeyDown);
+            btnAction?.removeEventListener("click", onConfirmClick);
+            btnCancel?.removeEventListener("click", onCancelClick);
+            btnDismiss?.removeEventListener("click", onCancelClick);
+            modal.removeEventListener("click", onBackdropClick);
+            resolve(result);
+        }
+
+        function onConfirmClick() {
+            cleanup(true);
+        }
+
+        function onCancelClick() {
+            cleanup(false);
+        }
+
+        function onBackdropClick(e) {
+            if (e.target === modal) {
+                cleanup(false);
+            }
+        }
+
+        function onKeyDown(e) {
+            if (e.key === "Escape") {
+                cleanup(false);
+            }
+        }
+
+        btnAction?.addEventListener("click", onConfirmClick);
+        btnCancel?.addEventListener("click", onCancelClick);
+        btnDismiss?.addEventListener("click", onCancelClick);
+        modal.addEventListener("click", onBackdropClick);
+        document.addEventListener("keydown", onKeyDown);
+
+        modal.classList.add("open");
+        btnCancel?.focus();
+    });
+};
+
 // Adjust Grafana button URL to current host IP or custom domain
 function updateGrafanaLink() {
     const btn = document.getElementById("grafanaBtn");
@@ -1243,14 +1362,44 @@ function viewTaskLogs(taskId, source) {
 }
 
 async function stopActiveTask(taskId, source) {
-    const confirmed = confirm(`Xác nhận dừng tiến trình di chuyển cho ${source || taskId}?\n\nLưu ý: Thư đã chuyển sang máy chủ đích sẽ được giữ nguyên vẹn an toàn 100%.`);
+    const task = (cachedActiveTasks || []).find(t => t.task_id === taskId) || {};
+    const src = task.source || source || taskId;
+    const dst = task.dest || '';
+    const pct = (task.percent || 0).toFixed(1);
+
+    const confirmed = await showCustomConfirmModal({
+        title: "Xác Nhận Dừng Tiến Trình",
+        desc: "Bạn có chắc chắn muốn dừng tác vụ di chuyển email đang chạy này?",
+        type: "danger",
+        icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>`,
+        contextHtml: `
+            <div class="confirm-route-flow">
+                <div class="confirm-node">
+                    <span class="confirm-node-label">HỘP THƯ NGUỒN</span>
+                    <span class="confirm-node-email">${src}</span>
+                </div>
+                ${dst ? `<div class="confirm-arrow">➔</div>
+                <div class="confirm-node">
+                    <span class="confirm-node-label">HỘP THƯ ĐÍCH</span>
+                    <span class="confirm-node-email">${dst}</span>
+                </div>` : ''}
+            </div>
+            <div class="confirm-task-id-tag">
+                <span>Mã tác vụ: <code>${taskId}</code></span>
+                <span style="margin-left:auto; font-weight:600; color:var(--text-primary);">Tiến độ: ${pct}%</span>
+            </div>
+        `,
+        safetyNote: "Tất cả thư đã chuyển sang máy chủ đích được giữ nguyên vẹn an toàn 100%. Quá trình sẽ dừng lại ngay lập tức và bạn có thể kích hoạt lại bất kỳ lúc nào.",
+        confirmText: "Dừng Tiến Trình Ngay",
+        cancelText: "Tiếp Tục Chạy"
+    });
     if (!confirmed) return;
 
     try {
         const res = await fetch(`/api/tasks/stop/${encodeURIComponent(taskId)}`, { method: "POST" });
         if (res.ok) {
             showToast(`Đã gửi lệnh dừng tiến trình ${taskId}`, "warning");
-            appendTerminalLog(`[TASK STOPPED] Đã gửi lệnh dừng tác vụ ${taskId} (${source})`, "warning");
+            appendTerminalLog(`[TASK STOPPED] Đã gửi lệnh dừng tác vụ ${taskId} (${src})`, "warning");
             loadActiveTasks();
         } else {
             showToast("Không thể gửi lệnh dừng tiến trình", "error");
@@ -1695,19 +1844,19 @@ function renderActiveTasksCards(tasks) {
 
             <!-- 4-Pillar Count Metrics -->
             <div class="task-counts-grid">
-                <div class="task-count-item">
+                <div class="task-count-item count-item-success">
                     <span class="task-count-label">THÀNH CÔNG</span>
                     <span class="task-count-value text-success">${(t.success || 0).toLocaleString()}</span>
                 </div>
-                <div class="task-count-item">
+                <div class="task-count-item count-item-skipped">
                     <span class="task-count-label">BỎ QUA</span>
                     <span class="task-count-value text-info">${(t.skipped || 0).toLocaleString()}</span>
                 </div>
-                <div class="task-count-item">
-                    <span class="task-count-label">LỖI</span>
+                <div class="task-count-item count-item-failed">
+                    <span class="task-count-label">GẶP LỖI</span>
                     <span class="task-count-value ${t.failed > 0 ? 'text-danger' : 'text-muted'}">${(t.failed || 0).toLocaleString()}</span>
                 </div>
-                <div class="task-count-item">
+                <div class="task-count-item count-item-processed">
                     <span class="task-count-label">ĐÃ XỬ LÝ</span>
                     <span class="task-count-value text-primary">${totalItems.toLocaleString()}</span>
                 </div>
@@ -2110,29 +2259,61 @@ function openReports(sessionId) {
     window.open(`/api/reports/view/${sessionId}`, "_blank");
 }
 
-function retrySessionPrompt(sessionId) {
-    if (confirm(`Bạn có chắc muốn chạy lại (Retry) các thư bị lỗi của phiên #${sessionId}?`)) {
-        showToast(`Đang kích hoạt thử lại cho phiên #${sessionId}...`, "info");
-        appendTerminalLog(`[RETRY] Đang kích hoạt thử lại cho phiên ID #${sessionId}...`, "info");
-        fetch(`/api/retry/${sessionId}`, { method: "POST" })
-            .then(res => res.json())
-            .then(d => {
-                showToast(`Đã phục hồi: ${d.recovered} thư, còn lỗi: ${d.still_failed} thư`, "success");
-                appendTerminalLog(`[RETRY DONE] Phục hồi: ${d.recovered} thư, Còn lỗi: ${d.still_failed} thư`, "success");
-                loadSessions();
-            })
-            .catch(e => {
-                showToast(`Lỗi retry: ${e.message}`, "error");
-                appendTerminalLog(`[RETRY ERROR] ${e.message}`, "error");
-            });
-    }
+async function retrySessionPrompt(sessionId) {
+    const confirmed = await showCustomConfirmModal({
+        title: `Thử Lại Thư Lỗi (Phiên #${sessionId})`,
+        desc: "Hệ thống sẽ quét lại hộp thư và chỉ di chuyển các email gặp sự cố mạng hoặc lỗi gián đoạn.",
+        type: "primary",
+        icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>`,
+        safetyNote: "Cơ chế chống trùng lặp tự động bỏ qua toàn bộ các thư đã chuyển thành công trước đó, bảo đảm an toàn dữ liệu 100%.",
+        confirmText: "Bắt Đầu Thử Lại",
+        cancelText: "Đóng"
+    });
+    if (!confirmed) return;
+
+    showToast(`Đang kích hoạt thử lại cho phiên #${sessionId}...`, "info");
+    appendTerminalLog(`[RETRY] Đang kích hoạt thử lại cho phiên ID #${sessionId}...`, "info");
+    fetch(`/api/retry/${sessionId}`, { method: "POST" })
+        .then(res => res.json())
+        .then(d => {
+            showToast(`Đã phục hồi: ${d.recovered} thư, còn lỗi: ${d.still_failed} thư`, "success");
+            appendTerminalLog(`[RETRY DONE] Phục hồi: ${d.recovered} thư, Còn lỗi: ${d.still_failed} thư`, "success");
+            loadSessions();
+        })
+        .catch(e => {
+            showToast(`Lỗi retry: ${e.message}`, "error");
+            appendTerminalLog(`[RETRY ERROR] ${e.message}`, "error");
+        });
 }
 
 window.deleteSessionPrompt = async function(sessionId, srcAcc, dstAcc) {
-    const label = srcAcc ? `\nTài khoản: ${srcAcc} ➔ ${dstAcc || ''}` : '';
-    if (!confirm(`Bạn có chắc chắn muốn xóa lịch sử phiên di chuyển #${sessionId}?${label}\n\nDữ liệu thống kê của phiên này trên giao diện Web Admin sẽ bị xóa.\n(Lưu ý: Logs chi tiết trong Grafana vẫn được lưu trữ an toàn độc lập 3 tháng).`)) {
-        return;
-    }
+    const confirmed = await showCustomConfirmModal({
+        title: `Xóa Lịch Sử Phiên #${sessionId}`,
+        desc: "Bạn có chắc chắn muốn xóa bản ghi phiên di chuyển này khỏi danh sách lịch sử hiển thị trên Web Admin?",
+        type: "danger",
+        icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
+        contextHtml: srcAcc ? `
+            <div class="confirm-route-flow">
+                <div class="confirm-node">
+                    <span class="confirm-node-label">NGUỒN</span>
+                    <span class="confirm-node-email">${srcAcc}</span>
+                </div>
+                ${dstAcc ? `<div class="confirm-arrow">➔</div>
+                <div class="confirm-node">
+                    <span class="confirm-node-label">ĐÍCH</span>
+                    <span class="confirm-node-email">${dstAcc}</span>
+                </div>` : ''}
+            </div>
+            <div class="confirm-task-id-tag">
+                <span>Phiên ID: <code>#${sessionId}</code></span>
+            </div>
+        ` : '',
+        safetyNote: "Toàn bộ logs chi tiết và số liệu quan sát trong Grafana/Loki vẫn được lưu trữ an toàn độc lập trong 3 tháng.",
+        confirmText: "Xóa Phiên Này",
+        cancelText: "Giữ Lại"
+    });
+    if (!confirmed) return;
+
     try {
         const res = await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
         const data = await res.json();
@@ -2149,9 +2330,17 @@ window.deleteSessionPrompt = async function(sessionId, srcAcc, dstAcc) {
 };
 
 window.clearAllSessionsPrompt = async function() {
-    if (!confirm("⚠️ CẢNH BÁO XÓA TOÀN BỘ LỊCH SỬ:\n\nBạn có chắc chắn muốn xóa TOÀN BỘ danh sách lịch sử di chuyển và các báo cáo đã lưu trên Web Admin?\n\nThao tác này sẽ làm sạch database lịch sử trên Web Admin. Toàn bộ logs hệ thống và chi tiết lỗi trong Grafana/Loki vẫn được lưu trữ độc lập trong 3 tháng!")) {
-        return;
-    }
+    const confirmed = await showCustomConfirmModal({
+        title: "Xóa Toàn Bộ Lịch Sử Di Chuyển",
+        desc: "Bạn có chắc chắn muốn làm sạch toàn bộ danh sách phiên và các báo cáo HTML/CSV đã lưu trên Web Admin?",
+        type: "danger",
+        icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
+        safetyNote: "Yên tâm: Thao tác này chỉ làm sạch database hiển thị trên Web Admin. Toàn bộ logs hệ thống và chi tiết lỗi trong Grafana/Loki vẫn được bảo vệ lưu trữ 3 tháng!",
+        confirmText: "Xóa Sạch Lịch Sử",
+        cancelText: "Hủy Bỏ"
+    });
+    if (!confirmed) return;
+
     try {
         const res = await fetch("/api/sessions/clear", { method: "POST" });
         const data = await res.json();
@@ -2805,8 +2994,17 @@ function initSettingsTab() {
     // 3. Reset Settings Handler
     const btnReset = document.getElementById("btnResetSettings");
     if (btnReset) {
-        btnReset.addEventListener("click", () => {
-            if (!confirm("Bạn có chắc chắn muốn đặt lại tất cả cài đặt về mặc định của hệ thống?")) return;
+        btnReset.addEventListener("click", async () => {
+            const confirmed = await showCustomConfirmModal({
+                title: "Đặt Lại Cài Đặt Mặc Định",
+                desc: "Bạn có chắc chắn muốn khôi phục toàn bộ tham số di chuyển về giá trị ban đầu?",
+                type: "warning",
+                icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`,
+                safetyNote: "Các giá trị tùy chỉnh hiện tại sẽ được thay thế bằng thông số mặc định của hệ thống.",
+                confirmText: "Khôi Phục Mặc Định",
+                cancelText: "Hủy Bỏ"
+            });
+            if (!confirmed) return;
             localStorage.removeItem("setting_workers");
             localStorage.removeItem("setting_batch_delay");
             localStorage.removeItem("setting_batch_size");

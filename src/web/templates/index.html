@@ -50,25 +50,6 @@
                 <kbd class="kbd-badge">⌘K</kbd>
             </button>
 
-            <!-- Mini-Game Arcade Trigger Button -->
-            <button type="button" class="btn btn-secondary btn-sm game-trigger-btn" id="btnOpenMiniGame" title="Giải trí khi chờ di chuyển (Space Mail Defender)">
-                <span>🎮 Game</span>
-            </button>
-
-            <!-- Cyber Audio SFX Toggle Button -->
-            <button type="button" class="sfx-toggle-btn active" id="btnSfxToggle" title="Bật/Tắt hiệu ứng âm thanh công nghệ (Web Audio API)">
-                <svg class="sfx-icon-on" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                </svg>
-                <svg class="sfx-icon-off" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <line x1="23" y1="9" x2="17" y2="15"></line>
-                    <line x1="17" y1="9" x2="23" y2="15"></line>
-                </svg>
-                <span id="sfxStatusText">Âm thanh</span>
-            </button>
-
             <!-- Theme Switcher -->
             <div class="theme-switcher">
                 <button class="theme-btn active" data-theme="dark" title="Giao diện tối (Dark)">
@@ -86,12 +67,13 @@
                 </button>
             </div>
 
-            <div class="status-indicator">
+            <div class="status-indicator" title="Cụm giám sát Prometheus & Loki đang hoạt động">
                 <span class="status-dot"></span>
                 <span>Prometheus & Loki</span>
             </div>
 
-            <a href="https://monitor.phongdinh.info.vn" target="_blank" class="btn btn-secondary btn-sm" id="grafanaBtn" data-custom-url="true" title="Mở Grafana Dashboard giám sát chi tiết">
+            <!-- Grafana Dashboard Direct Link -->
+            <a href="https://monitor.phongdinh.info.vn" target="_blank" class="btn btn-secondary btn-sm grafana-nav-btn" id="grafanaBtn" data-custom-url="true" title="Mở Grafana Dashboard giám sát chi tiết">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="20" x2="18" y2="10"/>
                     <line x1="12" y1="20" x2="12" y2="4"/>
@@ -103,12 +85,30 @@
                 </svg>
             </a>
 
+            <!-- Utilities: SFX & Game -->
+            <button type="button" class="sfx-toggle-btn active" id="btnSfxToggle" title="Bật/Tắt hiệu ứng âm thanh">
+                <svg class="sfx-icon-on" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+                <svg class="sfx-icon-off" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                </svg>
+                <span id="sfxStatusText">Âm thanh</span>
+            </button>
+
+            <button type="button" class="btn btn-secondary btn-sm game-trigger-btn" id="btnOpenMiniGame" title="Giải trí khi chờ di chuyển (Space Mail Defender)">
+                <span>🎮 Game</span>
+            </button>
+
             <a href="/" target="_blank" class="btn btn-secondary btn-sm" id="btnNewBrowserTab" title="Mở một tab làm việc mới để tạo thêm tiến trình song song">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                <span>Mở Tab Mới</span>
+                <span>Mở Tab</span>
             </a>
 
             <a href="/logout" class="btn btn-secondary btn-sm" id="logoutBtn" title="Đăng xuất khỏi phiên quản trị">
@@ -2510,6 +2510,54 @@ user2@old-domain.com,SecretPass123!,user2@new-domain.com,NewPass456!</code></pre
             <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted);">
                 <span id="floatingTaskFolder">Đang xử lý...</span>
                 <span id="floatingTaskPercent" style="font-weight:600; color:var(--text-primary);">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Universal Action Confirmation Modal (Replaces browser confirm) -->
+    <div id="universalConfirmModal" class="modal-backdrop universal-confirm-backdrop">
+        <div class="modal-container universal-confirm-container" role="dialog" aria-modal="true" aria-labelledby="universalConfirmTitle">
+            <div class="confirm-modal-glow-header glow-danger"></div>
+            <div class="confirm-modal-top">
+                <div class="confirm-icon-orb orb-danger" id="universalConfirmIconWrap">
+                    <span id="universalConfirmIcon">⚠️</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnDismissUniversalConfirm" title="Đóng popup (ESC)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="confirm-modal-body-content">
+                <h3 class="confirm-title" id="universalConfirmTitle">Xác Nhận Hành Động</h3>
+                <p class="confirm-description" id="universalConfirmDesc">Mô tả xác nhận thao tác...</p>
+                
+                <div id="universalConfirmContextCard" class="confirm-context-card" style="display: none;"></div>
+
+                <div id="universalConfirmSafetyBox" class="confirm-safety-box">
+                    <div class="safety-box-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            <path d="m9 12 2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <div class="safety-box-text" id="universalConfirmSafetyText">
+                        <strong>Bảo đảm an toàn dữ liệu:</strong>
+                        <span>Thư đã chuyển sang máy chủ đích được giữ nguyên vẹn an toàn 100%.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="confirm-modal-actions">
+                <button type="button" class="btn btn-secondary btn-cancel-confirm" id="btnCancelUniversalConfirm">
+                    <span id="universalConfirmCancelLabel">Hủy Bỏ</span>
+                </button>
+                <button type="button" class="btn btn-danger btn-action-confirm" id="btnProceedUniversalConfirm">
+                    <span id="universalConfirmActionIcon"></span>
+                    <span id="universalConfirmActionLabel">Xác Nhận</span>
+                </button>
             </div>
         </div>
     </div>

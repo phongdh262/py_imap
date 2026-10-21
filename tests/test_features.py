@@ -246,6 +246,19 @@ class TestCoreFeatures(unittest.TestCase):
         self.assertEqual(res_sessions.status_code, 200)
         self.assertIsInstance(res_sessions.json(), list)
 
+    def test_universal_confirm_modal_presence(self):
+        """Verifies that the custom action confirmation modal is rendered in the UI."""
+        from fastapi.testclient import TestClient
+        from src.web.server import app
+        os.environ["ENABLE_WEB_AUTH"] = "false"
+        client = TestClient(app)
+        res = client.get("/")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('id="universalConfirmModal"', res.text)
+        self.assertIn('id="btnProceedUniversalConfirm"', res.text)
+        self.assertIn('id="btnCancelUniversalConfirm"', res.text)
+
 
 if __name__ == "__main__":
     unittest.main()
+
