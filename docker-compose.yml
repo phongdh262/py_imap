@@ -19,6 +19,8 @@ services:
       - ./config:/app/config:ro
       - ./reports:/app/reports
       - ./data:/app/data
+    networks:
+      - phongdh_network
 
   prometheus:
     image: prom/prometheus:v2.51.0
@@ -34,6 +36,8 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=90d"
       - "--web.enable-lifecycle"
+    networks:
+      - phongdh_network
 
   loki:
     image: grafana/loki:3.0.0
@@ -45,6 +49,8 @@ services:
       - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - phongdh_network
 
   promtail:
     image: grafana/promtail:3.0.0
@@ -56,6 +62,8 @@ services:
     command: -config.file=/etc/promtail/config.yml
     depends_on:
       - loki
+    networks:
+      - phongdh_network
 
   grafana:
     image: grafana/grafana:10.4.2
@@ -75,6 +83,12 @@ services:
     depends_on:
       - prometheus
       - loki
+    networks:
+      - phongdh_network
+
+networks:
+  phongdh_network:
+    external: true
 
 volumes:
   migrator_logs:
