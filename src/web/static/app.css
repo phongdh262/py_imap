@@ -3891,23 +3891,14 @@ select:focus {
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* 3D Holographic Card Tilt */
+/* Card Tilt & Glare (Disabled for clean flat UI) */
 .tilt-card {
-    transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.15s ease;
-    transform-style: preserve-3d;
-    perspective: 1000px;
     position: relative;
+    transform: none !important;
 }
 
 .card-glare {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    mix-blend-mode: overlay;
+    display: none !important;
 }
 
 /* ==========================================================================

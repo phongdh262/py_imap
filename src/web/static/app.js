@@ -5,7 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initHudBar();
     initCommandPalette();
     initMiniGame();
-    initCardTilt();
     initSpotlightGlow();
     initCrtMode();
     initMatrixEasterEgg();
@@ -1939,7 +1938,6 @@ function renderActiveTasksCards(tasks) {
 
         container.appendChild(card);
     });
-    initCardTilt();
 }
 
 // Sessions & Archive Tab Logic
@@ -4610,43 +4608,10 @@ function initMiniGame() {
 }
 
 // ==========================================
-// 4. 3D HOLOGRAPHIC CARD TILT ENGINE
+// 4. 3D HOLOGRAPHIC CARD TILT (DISABLED)
 // ==========================================
 function initCardTilt() {
-    const cards = document.querySelectorAll(".metric-card, .hero-metric-card, .task-card-pro, .stat-card");
-    cards.forEach(card => {
-        if (!card.querySelector(".card-glare")) {
-            const glare = document.createElement("div");
-            glare.className = "card-glare";
-            card.prepend(glare);
-        }
-        card.classList.add("tilt-card");
-
-        card.addEventListener("mousemove", (e) => {
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-
-            const rotateX = -((y - centerY) / centerY) * 6;
-            const rotateY = ((x - centerX) / centerX) * 6;
-
-            card.style.transform = `perspective(800px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-2px)`;
-
-            const glare = card.querySelector(".card-glare");
-            if (glare) {
-                glare.style.opacity = "0.75";
-                glare.style.background = `radial-gradient(circle at ${(x / rect.width * 100).toFixed(1)}% ${(y / rect.height * 100).toFixed(1)}%, rgba(255,255,255,0.2) 0%, transparent 60%)`;
-            }
-        });
-
-        card.addEventListener("mouseleave", () => {
-            card.style.transform = `perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0px)`;
-            const glare = card.querySelector(".card-glare");
-            if (glare) glare.style.opacity = "0";
-        });
-    });
+    // Disabled per user request (flat clean cards without 3D tilt/skew)
 }
 
 // ==========================================
