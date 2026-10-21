@@ -1395,7 +1395,7 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(email_account_auth_status, account)",
+        "definition": "label_values(source_account)",
         "hide": 0,
         "includeAll": true,
         "label": "Tên miền (Domain)",
@@ -1403,10 +1403,10 @@
         "name": "domain",
         "options": [],
         "query": {
-          "query": "label_values(email_account_auth_status, account)",
+          "query": "label_values(source_account)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "/.*@(?<text>[a-zA-Z0-9.-]+)/",
         "skipUrlSync": false,
         "sort": 1,
@@ -1423,7 +1423,7 @@
           "type": "prometheus",
           "uid": "Prometheus"
         },
-        "definition": "label_values(email_account_auth_status{account=~\".*@$domain\"}, account)",
+        "definition": "label_values({source_account=~\".*@$domain\"}, source_account)",
         "hide": 0,
         "includeAll": true,
         "label": "Tài khoản Email",
@@ -1431,10 +1431,10 @@
         "name": "account",
         "options": [],
         "query": {
-          "query": "label_values(email_account_auth_status{account=~\".*@$domain\"}, account)",
+          "query": "label_values({source_account=~\".*@$domain\"}, source_account)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
@@ -1541,16 +1541,28 @@
     ]
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {
+    "quick_options": [
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "7d",
+      "30d",
+      "90d"
+    ],
     "refresh_intervals": [
       "1s",
       "2s",
       "5s",
       "10s",
-      "30s"
+      "30s",
+      "1m",
+      "5m"
     ]
   },
   "timezone": "browser",

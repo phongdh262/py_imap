@@ -2130,7 +2130,7 @@ function retrySessionPrompt(sessionId) {
 
 window.deleteSessionPrompt = async function(sessionId, srcAcc, dstAcc) {
     const label = srcAcc ? `\nTài khoản: ${srcAcc} ➔ ${dstAcc || ''}` : '';
-    if (!confirm(`Bạn có chắc chắn muốn xóa lịch sử phiên di chuyển #${sessionId}?${label}\n\nDữ liệu thống kê và trạng thái thư của phiên này trong database sẽ bị xóa.`)) {
+    if (!confirm(`Bạn có chắc chắn muốn xóa lịch sử phiên di chuyển #${sessionId}?${label}\n\nDữ liệu thống kê của phiên này trên giao diện Web Admin sẽ bị xóa.\n(Lưu ý: Logs chi tiết trong Grafana vẫn được lưu trữ an toàn độc lập 3 tháng).`)) {
         return;
     }
     try {
@@ -2149,7 +2149,7 @@ window.deleteSessionPrompt = async function(sessionId, srcAcc, dstAcc) {
 };
 
 window.clearAllSessionsPrompt = async function() {
-    if (!confirm("⚠️ CẢNH BÁO XÓA TOÀN BỘ LỊCH SỬ:\n\nBạn có chắc chắn muốn xóa TOÀN BỘ danh sách lịch sử di chuyển và các báo cáo đã lưu?\n\nThao tác này sẽ làm sạch database lịch sử và không thể hoàn tác!")) {
+    if (!confirm("⚠️ CẢNH BÁO XÓA TOÀN BỘ LỊCH SỬ:\n\nBạn có chắc chắn muốn xóa TOÀN BỘ danh sách lịch sử di chuyển và các báo cáo đã lưu trên Web Admin?\n\nThao tác này sẽ làm sạch database lịch sử trên Web Admin. Toàn bộ logs hệ thống và chi tiết lỗi trong Grafana/Loki vẫn được lưu trữ độc lập trong 3 tháng!")) {
         return;
     }
     try {
@@ -2158,7 +2158,7 @@ window.clearAllSessionsPrompt = async function() {
         if (!res.ok) {
             throw new Error(data.detail || "Không thể xóa lịch sử");
         }
-        showToast(data.message || "Đã xóa toàn bộ lịch sử di chuyển!", "success");
+        showToast(data.message || "Đã xóa toàn bộ lịch sử di chuyển trên Web Admin!", "success");
         CyberAudio.playSuccess?.();
         loadSessions();
     } catch (err) {

@@ -35,3 +35,13 @@ schema_config:
 
 limits_config:
   allow_structured_metadata: true
+  retention_period: 2160h # 90 days (3 months)
+  max_query_length: 2160h # Cho phép truy vấn logs trong vòng 90 ngày
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
