@@ -258,7 +258,22 @@ class TestCoreFeatures(unittest.TestCase):
         self.assertIn('id="btnProceedUniversalConfirm"', res.text)
         self.assertIn('id="btnCancelUniversalConfirm"', res.text)
 
+    def test_vietnam_timezone_synchronization(self):
+        """Verifies that the timezone helper produces accurate Vietnam (GMT+7) timestamps."""
+        from src.core.timezone import get_vn_now, format_vn_datetime, VN_TZ
+        vn_now = get_vn_now()
+        self.assertIsNotNone(vn_now.tzinfo)
+        self.assertEqual(str(vn_now.tzinfo), "Asia/Ho_Chi_Minh")
+
+        formatted = format_vn_datetime(vn_now)
+        # Formatted string should match HH:MM:SS DD/MM/YYYY
+        self.assertRegex(formatted, r"^\d{2}:\d{2}:\d{2} \d{2}/\d{2}/\d{4}$")
+
+        db_ts = format_vn_datetime(vn_now, fmt="%Y-%m-%d %H:%M:%S")
+        self.assertRegex(db_ts, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

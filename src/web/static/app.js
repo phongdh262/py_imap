@@ -39,6 +39,20 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
+// Vietnam (Asia/Ho_Chi_Minh, GMT+7) DateTime formatting helper
+function formatVNDateTime(str) {
+    if (!str) return "-";
+    if (typeof str === "string" && str.includes("/") && str.includes(":")) return str;
+    try {
+        const cleanStr = str.includes("Z") || str.includes("+") ? str : (str.replace(" ", "T") + "+07:00");
+        const d = new Date(cleanStr);
+        if (isNaN(d.getTime())) return str.replace("T", " ").substring(0, 19);
+        return d.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
+    } catch (e) {
+        return String(str).replace("T", " ").substring(0, 19);
+    }
+}
+
 // Toast notification helper
 function showToast(message, type = "info") {
     const container = document.getElementById("toastContainer");
@@ -2057,7 +2071,7 @@ function renderFilteredSessionsTable() {
             <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight:600; color:#10b981;">${(s.migrated_messages || 0).toLocaleString()}</td>
             <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: #f59e0b;">${(s.skipped_messages || 0).toLocaleString()}</td>
             <td style="text-align: right; font-family: 'JetBrains Mono', monospace; color: var(--danger-text);">${(s.failed_messages || 0).toLocaleString()}</td>
-            <td style="font-size: 11.5px; color: var(--text-dim);">${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</td>
+            <td style="font-size: 11.5px; color: var(--text-dim);">${formatVNDateTime(s.started_at)}</td>
             <td style="text-align: center;">
                 <div style="display:inline-flex; gap:6px; align-items:center;">
                     <button class="btn btn-secondary btn-sm" onclick="showSessionDetail(${JSON.stringify(s).replace(/"/g, '&quot;')})">Chi tiết</button>
@@ -2404,7 +2418,7 @@ function appendTerminalLog(message, type = "info") {
     logCounter++;
     countBadge.textContent = `${logCounter} logs`;
 
-    const now = new Date().toTimeString().split(" ")[0];
+    const now = new Date().toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
     let typeClass = "log-msg";
     if (type === "success") typeClass = "log-success";
     else if (type === "error") typeClass = "log-error";
@@ -2500,7 +2514,7 @@ function showSessionDetail(s) {
             </div>
             <div class="modal-summary-row">
                 <span>Bắt đầu:</span>
-                <strong>${s.started_at ? s.started_at.replace('T', ' ').substring(0, 19) : '-'}</strong>
+                <strong>${formatVNDateTime(s.started_at)}</strong>
             </div>
         </div>
 
@@ -4125,7 +4139,7 @@ function initHudBar() {
     function updateClock() {
         if (!clockEl) return;
         const now = new Date();
-        clockEl.textContent = now.toLocaleTimeString("vi-VN", { hour12: false });
+        clockEl.textContent = now.toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
     }
     updateClock();
     setInterval(updateClock, 1000);

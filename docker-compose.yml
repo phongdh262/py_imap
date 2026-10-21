@@ -9,6 +9,7 @@ services:
       - "8000:8000"
       - "8080:8080"
     environment:
+      - TZ=Asia/Ho_Chi_Minh
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - ENABLE_WEB_AUTH=${ENABLE_WEB_AUTH:-true}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
@@ -26,6 +27,8 @@ services:
     image: prom/prometheus:v2.51.0
     container_name: email_migrator_prometheus
     restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
@@ -43,6 +46,8 @@ services:
     image: grafana/loki:3.0.0
     container_name: email_migrator_loki
     restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
@@ -56,6 +61,8 @@ services:
     image: grafana/promtail:3.0.0
     container_name: email_migrator_promtail
     restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
       - migrator_logs:/var/log/email_migrator:ro
@@ -72,6 +79,9 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - GF_DATE_FORMATS_DEFAULT_TIMEZONE=Asia/Ho_Chi_Minh
+      - GF_DATE_FORMATS_USE_BROWSER_LOCALE=true
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-Admin@Migration2026!}
       - GF_USERS_ALLOW_SIGN_UP=false

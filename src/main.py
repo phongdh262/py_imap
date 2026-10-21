@@ -2,6 +2,7 @@ import argparse
 import sys
 from rich.console import Console
 
+from src.core.timezone import init_timezone
 from src.cli.menu import run_interactive_menu, show_banner
 from src.core.models import AccountCredentials
 from src.core.service import MigrationService
@@ -12,6 +13,7 @@ console = Console()
 
 
 def main():
+    init_timezone()
     parser = argparse.ArgumentParser(description="Py-IMAP Email Migration Engine & Monitoring")
     parser.add_argument("--interactive", action="store_true", help="Launch interactive CLI menu")
     parser.add_argument("--simulate", action="store_true", help="Run simulated migration to test Prometheus & Grafana")

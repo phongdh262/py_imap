@@ -14,6 +14,7 @@ from src.core.imap_client import IMAPClientWrapper
 from src.core.inspector import MailboxInspector
 from src.core.migrator import EmailMigrator
 from src.core.models import AccountCredentials, FolderRole, MailboxSummary
+from src.core.timezone import format_vn_datetime
 from src.reports.reporter import MigrationReporter
 from src.storage.state_db import StateDatabase
 from src.telemetry.logger import setup_logging
@@ -164,7 +165,7 @@ class MigrationService:
             self.throttler.batch_delay = rec_throttle["batch_delay_ms"] / 1000.0
 
         start_time = time.time()
-        start_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        start_time_str = format_vn_datetime(fmt="%Y-%m-%d %H:%M:%S")
         hostname = socket.gethostname()
         pid = os.getpid()
 
@@ -305,7 +306,7 @@ class MigrationService:
 
                 # 7. Print summary panel & log imapsync ++++ Statistics
                 duration_sec = time.time() - start_time
-                end_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                end_time_str = format_vn_datetime(fmt="%Y-%m-%d %H:%M:%S")
                 missing_count = max(0, summary.total_messages - (total_success + total_skipped))
                 exit_code = 0 if total_failed == 0 else 111
                 exit_desc = "EX_OK: successful termination" if exit_code == 0 else "EX_ERRORS: termination with errors"

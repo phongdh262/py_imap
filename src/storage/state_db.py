@@ -4,6 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from src.core.timezone import format_vn_datetime
+
 
 class StateDatabase:
     """
@@ -86,13 +88,14 @@ class StateDatabase:
 
     def start_migration(self, source_account: str, dest_account: str, total_messages: int = 0) -> int:
         """Creates a new migration session and returns its ID."""
+        now_vn = format_vn_datetime(fmt="%Y-%m-%d %H:%M:%S")
         with self._get_connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO migrations (source_account, dest_account, status, total_messages)
-                VALUES (?, ?, 'IN_PROGRESS', ?)
+                INSERT INTO migrations (source_account, dest_account, status, total_messages, started_at)
+                VALUES (?, ?, 'IN_PROGRESS', ?, ?)
                 """,
-                (source_account, dest_account, total_messages),
+                (source_account, dest_account, total_messages, now_vn),
             )
             conn.commit()
             return cursor.lastrowid
@@ -200,14 +203,15 @@ class StateDatabase:
 
     def complete_migration(self, migration_id: int, status: str = "COMPLETED"):
         """Marks migration session as completed."""
+        now_vn = format_vn_datetime(fmt="%Y-%m-%d %H:%M:%S")
         with self._get_connection() as conn:
             conn.execute(
                 """
                 UPDATE migrations 
-                SET status = ?, completed_at = CURRENT_TIMESTAMP
+                SET status = ?, completed_at = ?
                 WHERE id = ?
                 """,
-                (status, migration_id),
+                (status, now_vn, migration_id),
             )
             conn.commit()
 

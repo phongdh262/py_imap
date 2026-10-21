@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional
 
+from src.core.timezone import format_vn_datetime
 from src.storage.state_db import StateDatabase
 
 
@@ -37,7 +38,7 @@ class MigrationReporter:
         folder_stats = self.state_db.get_folder_statistics(migration_id)
 
         clean_account = summary["source_account"].replace("@", "_at_").replace(".", "_")
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = format_vn_datetime(fmt="%Y%m%d_%H%M%S")
 
         # 1. Generate CSV if there are failed items
         csv_file = None
@@ -1106,7 +1107,7 @@ class MigrationReporter:
                 <strong>Báo Cáo Đối Chiếu Dữ Liệu Email</strong>
             </div>
             <div style="color: var(--text-dim); font-size: 11.5px;">
-                Thời gian tạo: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+                Thời gian tạo: {format_vn_datetime(fmt='%d/%m/%Y %H:%M')}
             </div>
         </div>
     </div>

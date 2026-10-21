@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 import structlog
+from src.core.timezone import init_timezone
 
 
 def domain_injector(logger, name, event_dict):
@@ -60,6 +61,7 @@ def setup_logging(log_dir: str = None, log_filename: str = "app.json.log"):
         file_handler.setFormatter(logging.Formatter("%(message)s"))
         root_logger.addHandler(file_handler)
 
+    init_timezone()
     # Configure structlog
     structlog.configure(
         processors=[
@@ -68,7 +70,7 @@ def setup_logging(log_dir: str = None, log_filename: str = "app.json.log"):
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.stdlib.PositionalArgumentsFormatter(),
-            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.TimeStamper(fmt="iso", utc=False),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),

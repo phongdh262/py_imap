@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from src.core.auth_checker import AuthChecker
 from src.core.models import AccountCredentials, MailboxSummary
 from src.core.service import MigrationService
+from src.core.timezone import init_timezone, format_vn_datetime
 from src.reports.reporter import MigrationReporter
 from src.security.auth import (
     AdminSecurity,
@@ -29,6 +30,8 @@ from src.security.auth import (
 from src.security.headers import SecurityHeadersMiddleware
 from src.security.path_guard import PathSecurity
 from src.storage.state_db import StateDatabase
+
+init_timezone()
 
 app = FastAPI(
     title="Py-IMAP Control Center",
@@ -437,7 +440,7 @@ def run_migration_worker(task_id: str, req: SingleMigrateRequest, loop: asyncio.
         "skipped": 0,
         "failed": 0,
         "total_messages": 0,
-        "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "started_at": format_vn_datetime(),
         "start_timestamp": start_ts,
         "duration_sec": 0,
         "msg_rate": 0.0,
@@ -620,7 +623,7 @@ def run_batch_migration_worker(batch_id: str, req: BatchMigrateRequest, loop: as
                 "success": 0,
                 "skipped": 0,
                 "failed": 0,
-                "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+                "started_at": format_vn_datetime(),
                 "html_report": None,
                 "csv_report": None,
                 "error_message": str(e),
@@ -716,7 +719,7 @@ async def seed_demo_tasks():
         "skipped": 85,
         "failed": 3,
         "total_messages": 2200,
-        "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "started_at": format_vn_datetime(),
         "start_timestamp": now - 145.0,
         "duration_sec": 145.2,
         "msg_rate": 10.4,
@@ -735,7 +738,7 @@ async def seed_demo_tasks():
         "skipped": 412,
         "failed": 0,
         "total_messages": 3972,
-        "started_at": datetime.now().strftime("%H:%M:%S %d/%m/%Y"),
+        "started_at": format_vn_datetime(),
         "start_timestamp": now - 320.0,
         "duration_sec": 320.0,
         "msg_rate": 12.4,

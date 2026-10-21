@@ -4,8 +4,15 @@ FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV LOG_FORMAT=json
+ENV TZ=Asia/Ho_Chi_Minh
 
 WORKDIR /app
+
+# Install system tzdata and set timezone to Vietnam (Asia/Ho_Chi_Minh, GMT+7)
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+    && ln -fs /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime \
+    && echo "Asia/Ho_Chi_Minh" > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create log directory
 RUN mkdir -p /var/log/email_migrator
