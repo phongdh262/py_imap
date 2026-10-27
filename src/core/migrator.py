@@ -224,7 +224,8 @@ class EmailMigrator:
                 size_str = f"{size / 1024:.1f} KB" if size < 1048576 else f"{size / 1048576:.2f} MB"
                 safe_subject = (subject[:60] + "...") if len(subject) > 60 else (subject or "(No Subject)")
                 safe_sender = (sender[:40] + "...") if len(sender) > 40 else (sender or "")
-                safe_msg_id = message_id or f"UID-{uid}"
+                display_msg_id = message_id if message_id else f"(Không có Message-ID / UID-{uid})"
+                safe_msg_id = display_msg_id
 
                 # DEDUPLICATION & RECONCILIATION LOGIC:
                 # 1. If message is PHYSICALLY ON DESTINATION right now:
@@ -242,7 +243,7 @@ class EmailMigrator:
                         folder=src_folder,
                         target_folder=dst_folder,
                         uid=uid,
-                        message_id=message_id or "",
+                        message_id=display_msg_id,
                         subject=subject,
                         sender=sender,
                         size_bytes=size,
@@ -250,9 +251,9 @@ class EmailMigrator:
                     )
                     continue
 
-                # 2. If destination check was empty/unavailable (e.g. brand new folder or server query failed),
+                # 2. If destination check was empty/unavailable, or this email lacks Message-ID:
                 # fallback to checking SQLite state database if force_remigrate is False:
-                if not existing_dest_message_ids and not force_remigrate:
+                if (not existing_dest_message_ids or not norm_message_id) and not force_remigrate:
                     if self.state_db and self.state_db.is_message_migrated(src_account, src_folder, msg_hash):
                         skipped_count += 1
                         if migration_id:
@@ -266,7 +267,7 @@ class EmailMigrator:
                             folder=src_folder,
                             target_folder=dst_folder,
                             uid=uid,
-                            message_id=message_id or "",
+                            message_id=display_msg_id,
                             subject=subject,
                             sender=sender,
                             size_bytes=size,
@@ -284,7 +285,7 @@ class EmailMigrator:
                     ).inc()
                     if self.state_db and migration_id:
                         self.state_db.record_failure(
-                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, err_code, err_detail
+                            migration_id, src_account, src_folder, uid, msg_hash, display_msg_id, subject, sender, date_str, size, err_code, err_detail
                         )
                     logger.error(
                         f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_code}: {err_detail})",
@@ -295,7 +296,7 @@ class EmailMigrator:
                         folder=src_folder,
                         target_folder=dst_folder,
                         uid=uid,
-                        message_id=message_id or "",
+                        message_id=display_msg_id,
                         subject=subject,
                         sender=sender,
                         size_bytes=size,
@@ -335,7 +336,7 @@ class EmailMigrator:
 
                     if self.state_db and migration_id:
                         self.state_db.record_success(
-                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size
+                            migration_id, src_account, src_folder, uid, msg_hash, display_msg_id, subject, sender, date_str, size
                         )
 
                     logger.info(
@@ -347,7 +348,7 @@ class EmailMigrator:
                         folder=src_folder,
                         target_folder=dst_folder,
                         uid=uid,
-                        message_id=message_id or "",
+                        message_id=display_msg_id,
                         subject=subject,
                         sender=sender,
                         size_bytes=size,
@@ -363,7 +364,7 @@ class EmailMigrator:
                     ).inc()
                     if self.state_db and migration_id:
                         self.state_db.record_failure(
-                            migration_id, src_account, src_folder, uid, msg_hash, message_id, subject, sender, date_str, size, "APPEND_FAILED", err_detail
+                            migration_id, src_account, src_folder, uid, msg_hash, display_msg_id, subject, sender, date_str, size, "APPEND_FAILED", err_detail
                         )
                     logger.error(
                         f"Err {failed_count}/50: could not append msg {src_folder}/{uid} {{{size}}} ({err_detail})",
@@ -374,7 +375,7 @@ class EmailMigrator:
                         folder=src_folder,
                         target_folder=dst_folder,
                         uid=uid,
-                        message_id=message_id or "",
+                        message_id=display_msg_id,
                         subject=subject,
                         sender=sender,
                         size_bytes=size,
