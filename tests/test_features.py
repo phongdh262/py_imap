@@ -272,6 +272,19 @@ class TestCoreFeatures(unittest.TestCase):
         db_ts = format_vn_datetime(vn_now, fmt="%Y-%m-%d %H:%M:%S")
         self.assertRegex(db_ts, r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
 
+    def test_message_id_normalization_and_deduplication(self):
+        """Verifies that Message-ID normalization handles angle brackets, folding, whitespace and case insensitivity."""
+        from src.core.migrator import EmailMigrator
+        norm = EmailMigrator.normalize_message_id
+        target = "db9pr01mb72769729581665005@domain.com"
+
+        self.assertEqual(norm("<DB9PR01MB72769729581665005@domain.com>"), target)
+        self.assertEqual(norm("  <db9pr01mb72769729581665005@domain.com>  "), target)
+        self.assertEqual(norm("DB9PR01MB72769729581665005@domain.COM"), target)
+        self.assertEqual(norm("<DB9PR01MB72769729581665005@domain.com>\r\n"), target)
+        self.assertIsNone(norm(None))
+        self.assertIsNone(norm(""))
+
 
 if __name__ == "__main__":
     unittest.main()

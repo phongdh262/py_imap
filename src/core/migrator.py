@@ -46,6 +46,16 @@ class EmailMigrator:
         self.state_db = state_db
         self.throttler = throttler or ProviderThrottler(batch_delay_seconds=0.05)
 
+    @staticmethod
+    def normalize_message_id(mid: Optional[object]) -> Optional[str]:
+        """Normalizes Message-ID for reliable deduplication comparison across different mail servers."""
+        if not mid:
+            return None
+        s = str(mid).strip()
+        if s.startswith("<") and s.endswith(">"):
+            s = s[1:-1].strip()
+        return s.lower() if s else None
+
     def migrate_folder(
         self,
         src_client: IMAPClient,
@@ -75,17 +85,43 @@ class EmailMigrator:
             dst_client.select_folder(dst_folder, readonly=True)
             dst_uids = dst_client.search(["ALL"])
             if dst_uids:
-                # Fast header fetch for Message-ID on destination
-                dst_headers = dst_client.fetch(dst_uids, ["BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)]"])
-                for d_uid, d_res in dst_headers.items():
-                    for k, v in d_res.items():
-                        if isinstance(v, (bytes, str)):
-                            v_str = v.decode("latin-1", errors="ignore") if isinstance(v, bytes) else str(v)
-                            for line in v_str.splitlines():
-                                if line.lower().startswith("message-id:"):
-                                    mid = line.split(":", 1)[1].strip()
-                                    if mid:
-                                        existing_dest_message_ids.add(mid)
+                # Batch fetch headers (chunks of 250 UIDs to prevent buffer overflow/timeouts)
+                scan_chunk_size = 250
+                for chunk_idx in range(0, len(dst_uids), scan_chunk_size):
+                    chunk = dst_uids[chunk_idx : chunk_idx + scan_chunk_size]
+                    dst_headers = None
+                    # Attempt fast BODY.PEEK, with fallback to RFC822.HEADER for strict IMAP servers
+                    for fetch_cmd in (["BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)]"], ["BODY.PEEK[HEADER.FIELDS (Message-ID)]"], ["RFC822.HEADER"]):
+                        try:
+                            dst_headers = dst_client.fetch(chunk, fetch_cmd)
+                            if dst_headers:
+                                break
+                        except Exception:
+                            continue
+
+                    if not dst_headers:
+                        continue
+
+                    for d_uid, d_res in dst_headers.items():
+                        for k, v in d_res.items():
+                            if isinstance(v, (bytes, str)):
+                                raw_bytes = v if isinstance(v, bytes) else str(v).encode("latin-1", errors="ignore")
+                                try:
+                                    parsed_h = header_parser.parsebytes(raw_bytes, headersonly=True)
+                                    d_mid = parsed_h.get("Message-ID")
+                                    norm_mid = self.normalize_message_id(d_mid)
+                                    if norm_mid:
+                                        existing_dest_message_ids.add(norm_mid)
+                                except Exception:
+                                    # Fallback manual scan in case parsebytes encounters unexpected tokens
+                                    v_str = raw_bytes.decode("latin-1", errors="ignore")
+                                    for line in v_str.splitlines():
+                                        if "message-id:" in line.lower():
+                                            cand = line.split(":", 1)[1].strip()
+                                            cand_norm = self.normalize_message_id(cand)
+                                            if cand_norm:
+                                                existing_dest_message_ids.add(cand_norm)
+
             logger.info(
                 "Destination live verification pre-scanned",
                 dest_folder=dst_folder,
@@ -173,12 +209,14 @@ class EmailMigrator:
                 # Parse header metadata for deduplication and reporting
                 try:
                     headers = header_parser.parsebytes(raw_body, headersonly=True)
-                    message_id = headers.get("Message-ID")
+                    raw_message_id = headers.get("Message-ID")
+                    norm_message_id = self.normalize_message_id(raw_message_id)
+                    message_id = str(raw_message_id).strip() if raw_message_id else None
                     subject = headers.get("Subject", "")
                     sender = headers.get("From", "")
                     date_str = headers.get("Date", "")
                 except Exception:
-                    message_id, subject, sender, date_str = None, "", "", ""
+                    raw_message_id, norm_message_id, message_id, subject, sender, date_str = None, None, None, "", "", ""
 
                 msg_hash = StateDatabase.compute_message_hash(message_id, date_str, subject, size)
 
@@ -191,7 +229,7 @@ class EmailMigrator:
                 # DEDUPLICATION & RECONCILIATION LOGIC:
                 # 1. If message is PHYSICALLY ON DESTINATION right now:
                 # Always SKIP it to guarantee 0% duplicates and keep destination intact.
-                if message_id and message_id in existing_dest_message_ids:
+                if norm_message_id and norm_message_id in existing_dest_message_ids:
                     skipped_count += 1
                     if migration_id:
                         self.state_db.record_skipped(migration_id)
@@ -290,8 +328,8 @@ class EmailMigrator:
                                 raise append_err
 
                     success_count += 1
-                    if message_id:
-                        existing_dest_message_ids.add(message_id)
+                    if norm_message_id:
+                        existing_dest_message_ids.add(norm_message_id)
                     MESSAGES_MIGRATED_TOTAL.labels(source_account=src_account, folder=src_folder).inc()
                     BYTES_TRANSFERRED_TOTAL.labels(source_account=src_account).inc(size)
 
