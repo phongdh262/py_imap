@@ -345,6 +345,13 @@
                                 </div>
                             </div>
                             <div class="form-group col-span-2">
+                                <label>Phương Thức Xác Thực</label>
+                                <select id="srcAuthType">
+                                    <option value="PLAIN" selected>Mật khẩu / App Password (PLAIN)</option>
+                                    <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID (XOAUTH2)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2" id="srcPasswordGroup">
                                 <label>Mật Khẩu / App Password</label>
                                 <div class="input-icon-group has-action">
                                     <span class="input-icon-left">
@@ -353,7 +360,7 @@
                                             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                                         </svg>
                                     </span>
-                                    <input type="password" id="srcPass" placeholder="Nhập App Password của Gmail/Yandex/Outlook">
+                                    <input type="password" id="srcPass" placeholder="Nhập App Password của Gmail/Yandex/cPanel">
                                     <button type="button" class="input-action-btn" id="toggleSrcPass" title="Hiện/ẩn mật khẩu">
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
@@ -361,6 +368,31 @@
                                         </svg>
                                     </button>
                                 </div>
+                            </div>
+                            <div class="form-group col-span-2" id="srcOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 10px;">
+                                    🔐 Microsoft 365 Entra ID (App-Only IMAP.AccessAsApp) hoặc Access Token
+                                </div>
+                                <div class="form-grid" style="gap: 10px;">
+                                    <div class="form-group col-span-2">
+                                        <label>Tenant ID (Directory ID)</label>
+                                        <input type="text" id="srcTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client ID (Application ID)</label>
+                                        <input type="text" id="srcClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client Secret (Value)</label>
+                                        <input type="password" id="srcClientSecret" placeholder="Nhập Client Secret Value từ Entra ID">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Hoặc Access Token trực tiếp (Tùy chọn nếu không dùng App-Only)</label>
+                                        <input type="password" id="srcOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2" style="margin-top: -6px;">
                                 <small id="srcHintText" class="helper-text"></small>
                             </div>
                         </div>
@@ -494,6 +526,13 @@
                                 </div>
                             </div>
                             <div class="form-group col-span-2">
+                                <label>Phương Thức Xác Thực</label>
+                                <select id="dstAuthType">
+                                    <option value="PLAIN" selected>Mật khẩu / App Password (PLAIN)</option>
+                                    <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID (XOAUTH2)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2" id="dstPasswordGroup">
                                 <label>Mật Khẩu</label>
                                 <div class="input-icon-group has-action">
                                     <span class="input-icon-left">
@@ -510,6 +549,31 @@
                                         </svg>
                                     </button>
                                 </div>
+                            </div>
+                            <div class="form-group col-span-2" id="dstOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 10px;">
+                                    🔐 Microsoft 365 Entra ID (App-Only IMAP.AccessAsApp) hoặc Access Token
+                                </div>
+                                <div class="form-grid" style="gap: 10px;">
+                                    <div class="form-group col-span-2">
+                                        <label>Tenant ID (Directory ID)</label>
+                                        <input type="text" id="dstTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client ID (Application ID)</label>
+                                        <input type="text" id="dstClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client Secret (Value)</label>
+                                        <input type="password" id="dstClientSecret" placeholder="Nhập Client Secret Value từ Entra ID">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Hoặc Access Token trực tiếp (Tùy chọn)</label>
+                                        <input type="password" id="dstOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2" style="margin-top: -6px;">
                                 <small id="dstHintText" class="helper-text"></small>
                             </div>
                         </div>
@@ -880,6 +944,36 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="form-group col-span-2">
+                                <label>Phương Thức Xác Thực Nguồn</label>
+                                <select id="batchSrcAuthType">
+                                    <option value="PLAIN" selected>Mật khẩu / App Password theo từng dòng CSV (PLAIN)</option>
+                                    <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID chung cho cả đoàn (XOAUTH2)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2" id="batchSrcOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 8px;">
+                                    🔐 Microsoft 365 App-Only (Không cần mật khẩu user trong CSV)
+                                </div>
+                                <div class="form-grid" style="gap: 10px;">
+                                    <div class="form-group col-span-2">
+                                        <label>Tenant ID</label>
+                                        <input type="text" id="batchSrcTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client ID</label>
+                                        <input type="text" id="batchSrcClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client Secret (Value)</label>
+                                        <input type="password" id="batchSrcClientSecret" placeholder="Nhập Client Secret Value">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Hoặc Access Token trực tiếp (Tùy chọn)</label>
+                                        <input type="password" id="batchSrcOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -972,6 +1066,36 @@
                                         <option value="true" selected>SSL / TLS (Bắt buộc)</option>
                                         <option value="false">STARTTLS / Plain</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Phương Thức Xác Thực Đích</label>
+                                <select id="batchDstAuthType">
+                                    <option value="PLAIN" selected>Mật khẩu / App Password theo từng dòng CSV (PLAIN)</option>
+                                    <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID chung cho cả đoàn (XOAUTH2)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2" id="batchDstOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 8px;">
+                                    🔐 Microsoft 365 App-Only (Không cần mật khẩu đích trong CSV)
+                                </div>
+                                <div class="form-grid" style="gap: 10px;">
+                                    <div class="form-group col-span-2">
+                                        <label>Tenant ID</label>
+                                        <input type="text" id="batchDstTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client ID</label>
+                                        <input type="text" id="batchDstClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client Secret (Value)</label>
+                                        <input type="password" id="batchDstClientSecret" placeholder="Nhập Client Secret Value">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Hoặc Access Token trực tiếp (Tùy chọn)</label>
+                                        <input type="password" id="batchDstOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1150,6 +1274,13 @@
                                 </div>
                             </div>
                             <div class="form-group col-span-2">
+                                <label>Phương Thức Xác Thực</label>
+                                <select id="singleAuthType">
+                                    <option value="PLAIN" selected>Mật khẩu / App Password (PLAIN)</option>
+                                    <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID (XOAUTH2)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2" id="singleAuthPassGroup">
                                 <label>Mật Khẩu / App Password</label>
                                 <div class="input-icon-group has-action">
                                     <span class="input-icon-left">
@@ -1160,6 +1291,31 @@
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                     </button>
                                 </div>
+                            </div>
+                            <div class="form-group col-span-2" id="singleAuthOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 8px;">
+                                    🔐 Microsoft 365 Entra ID (App-Only IMAP.AccessAsApp)
+                                </div>
+                                <div class="form-grid" style="gap: 10px;">
+                                    <div class="form-group col-span-2">
+                                        <label>Tenant ID</label>
+                                        <input type="text" id="singleAuthTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client ID</label>
+                                        <input type="text" id="singleAuthClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client Secret (Value)</label>
+                                        <input type="password" id="singleAuthClientSecret" placeholder="Nhập Client Secret Value">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Hoặc Access Token trực tiếp (Tùy chọn)</label>
+                                        <input type="password" id="singleAuthOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2" style="margin-top: -6px;">
                                 <small id="singleAuthHintText" class="helper-text"></small>
                             </div>
                         </div>
@@ -1210,6 +1366,36 @@
                                         <option value="true" selected>SSL / TLS (993)</option>
                                         <option value="false">STARTTLS / Plain (143)</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label>Phương Thức Xác Thực</label>
+                                <select id="batchAuthType">
+                                    <option value="PLAIN" selected>Mật khẩu / App Password (PLAIN)</option>
+                                    <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID (XOAUTH2)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-span-2" id="batchAuthOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 8px;">
+                                    🔐 Microsoft 365 App-Only (Kiểm tra hàng loạt không cần mật khẩu)
+                                </div>
+                                <div class="form-grid" style="gap: 10px;">
+                                    <div class="form-group col-span-2">
+                                        <label>Tenant ID</label>
+                                        <input type="text" id="batchAuthTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client ID</label>
+                                        <input type="text" id="batchAuthClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Client Secret (Value)</label>
+                                        <input type="password" id="batchAuthClientSecret" placeholder="Nhập Client Secret Value">
+                                    </div>
+                                    <div class="form-group col-span-2">
+                                        <label>Hoặc Access Token trực tiếp (Tùy chọn)</label>
+                                        <input type="password" id="batchAuthOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1342,6 +1528,13 @@
                                     <input type="email" id="scanSingleUser" required placeholder="user@domain.com">
                                 </div>
                                 <div class="form-group col-span-2">
+                                    <label for="scanSingleAuthType">Phương thức xác thực</label>
+                                    <select id="scanSingleAuthType">
+                                        <option value="PLAIN" selected>Mật khẩu / App Password (PLAIN)</option>
+                                        <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID (XOAUTH2)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-span-2" id="scanSinglePassGroup">
                                     <label for="scanSinglePass">Mật khẩu / App Password</label>
                                     <div class="input-icon-group has-action">
                                         <span class="input-icon-left">
@@ -1350,13 +1543,36 @@
                                                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                                             </svg>
                                         </span>
-                                        <input type="password" id="scanSinglePass" required placeholder="Nhập mật khẩu hoặc App Password">
+                                        <input type="password" id="scanSinglePass" placeholder="Nhập mật khẩu hoặc App Password">
                                         <button type="button" class="input-action-btn" id="toggleScanSinglePass" title="Hiện/ẩn mật khẩu">
                                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
                                                 <circle cx="12" cy="12" r="3"/>
                                             </svg>
                                         </button>
+                                    </div>
+                                </div>
+                                <div class="form-group col-span-2" id="scanSingleOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                    <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 8px;">
+                                        🔐 Microsoft 365 Entra ID (App-Only IMAP.AccessAsApp)
+                                    </div>
+                                    <div class="form-grid" style="gap: 10px;">
+                                        <div class="form-group col-span-2">
+                                            <label>Tenant ID</label>
+                                            <input type="text" id="scanSingleTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                        </div>
+                                        <div class="form-group col-span-2">
+                                            <label>Client ID</label>
+                                            <input type="text" id="scanSingleClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                        </div>
+                                        <div class="form-group col-span-2">
+                                            <label>Client Secret (Value)</label>
+                                            <input type="password" id="scanSingleClientSecret" placeholder="Nhập Client Secret Value">
+                                        </div>
+                                        <div class="form-group col-span-2">
+                                            <label>Hoặc Access Token trực tiếp (Tùy chọn)</label>
+                                            <input type="password" id="scanSingleOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1399,6 +1615,36 @@
                                         <input type="checkbox" id="scanBatchSsl" checked>
                                         <span>Sử dụng kết nối bảo mật SSL/TLS</span>
                                     </label>
+                                </div>
+                                <div class="form-group col-span-2">
+                                    <label for="scanBatchAuthType">Phương thức xác thực</label>
+                                    <select id="scanBatchAuthType">
+                                        <option value="PLAIN" selected>Mật khẩu / App Password (PLAIN)</option>
+                                        <option value="XOAUTH2">OAuth2 Microsoft 365 / Entra ID (XOAUTH2)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-span-2" id="scanBatchOAuth2Group" style="display: none; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.28); border-radius: 10px; padding: 12px;">
+                                    <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 8px;">
+                                        🔐 Microsoft 365 App-Only (Khảo sát hàng loạt không cần mật khẩu)
+                                    </div>
+                                    <div class="form-grid" style="gap: 10px;">
+                                        <div class="form-group col-span-2">
+                                            <label>Tenant ID</label>
+                                            <input type="text" id="scanBatchTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                        </div>
+                                        <div class="form-group col-span-2">
+                                            <label>Client ID</label>
+                                            <input type="text" id="scanBatchClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                                        </div>
+                                        <div class="form-group col-span-2">
+                                            <label>Client Secret (Value)</label>
+                                            <input type="password" id="scanBatchClientSecret" placeholder="Nhập Client Secret Value">
+                                        </div>
+                                        <div class="form-group col-span-2">
+                                            <label>Hoặc Access Token trực tiếp (Tùy chọn)</label>
+                                            <input type="password" id="scanBatchOauth2Token" placeholder="eyJ0eXAiOiJKV1QiLCJhbGci...">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

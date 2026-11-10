@@ -4,7 +4,7 @@ from rich.console import Console
 
 from src.core.timezone import init_timezone
 from src.cli.menu import run_interactive_menu, show_banner
-from src.core.models import AccountCredentials
+from src.core.models import AccountCredentials, AuthType
 from src.core.service import MigrationService
 from src.telemetry.logger import setup_logging
 from src.telemetry.metrics import start_metrics_server
@@ -22,7 +22,12 @@ def main():
     parser.add_argument("--host", type=str, help="IMAP Source Host for single inspection/migration")
     parser.add_argument("--user", type=str, help="IMAP Source Username")
     parser.add_argument("--password", type=str, help="IMAP Source Password / App Password")
-    parser.add_argument("--check-password", action="store_true", help="Quickly check app password for single account")
+    parser.add_argument("--auth-type", type=str, default="PLAIN", choices=["PLAIN", "XOAUTH2"], help="Authentication mechanism (PLAIN or XOAUTH2)")
+    parser.add_argument("--oauth2-token", type=str, help="OAuth2 Access Token for XOAUTH2")
+    parser.add_argument("--tenant-id", type=str, help="Microsoft 365 Entra ID Tenant ID")
+    parser.add_argument("--client-id", type=str, help="Microsoft 365 Entra ID Client ID")
+    parser.add_argument("--client-secret", type=str, help="Microsoft 365 Entra ID Client Secret")
+    parser.add_argument("--check-password", action="store_true", help="Quickly check app password or OAuth2 for single account")
     parser.add_argument("--check-csv", type=str, help="Check app passwords in batch from CSV")
     parser.add_argument("--web", action="store_true", help="Launch Web Admin Control Panel (FastAPI)")
     parser.add_argument("--web-port", type=int, default=8080, help="Web Admin Control Panel port")
@@ -46,14 +51,28 @@ def main():
         console.print(f"[bold green]🚀 Khởi chạy Py-IMAP Web Admin Panel tại: http://0.0.0.0:{args.web_port}[/bold green]")
         start_web_server(host="0.0.0.0", port=args.web_port)
 
-    # 1. Non-interactive CLI flag: Check single password
+    # 1. Non-interactive CLI flag: Check single password / OAuth2
     elif args.check_password:
-        if not (args.host and args.user and args.password):
-            console.print("[bold red]Lỗi: Cần cung cấp đầy đủ --host, --user và --password cho --check-password[/bold red]")
+        if not (args.host and args.user):
+            console.print("[bold red]Lỗi: Cần cung cấp --host và --user cho --check-password[/bold red]")
             sys.exit(1)
         from src.core.auth_checker import AuthChecker
         checker = AuthChecker()
-        creds = AccountCredentials(host=args.host, port=993, ssl=True, username=args.user, password=args.password)
+        creds = AccountCredentials(
+            host=args.host,
+            port=993,
+            ssl=True,
+            username=args.user,
+            password=args.password,
+            auth_type=AuthType.XOAUTH2 if args.auth_type == "XOAUTH2" else AuthType.PLAIN,
+            oauth2_token=args.oauth2_token,
+            tenant_id=args.tenant_id,
+            client_id=args.client_id,
+            client_secret=args.client_secret,
+        )
+        if not creds.has_valid_auth():
+            console.print("[bold red]Lỗi: Cần cung cấp --password hoặc bộ thông tin OAuth2 (--tenant-id, --client-id, --client-secret hoặc --oauth2-token)[/bold red]")
+            sys.exit(1)
         res = checker.check_single(creds)
         checker.render_results_table([res])
 
@@ -65,8 +84,8 @@ def main():
 
     # 3. Non-interactive CLI flag: Inspect Source
     elif args.inspect_source:
-        if not (args.host and args.user and args.password):
-            console.print("[bold red]Lỗi: Cần cung cấp đầy đủ --host, --user và --password cho --inspect-source[/bold red]")
+        if not (args.host and args.user):
+            console.print("[bold red]Lỗi: Cần cung cấp --host và --user cho --inspect-source[/bold red]")
             sys.exit(1)
 
         creds = AccountCredentials(
@@ -75,7 +94,15 @@ def main():
             ssl=True,
             username=args.user,
             password=args.password,
+            auth_type=AuthType.XOAUTH2 if args.auth_type == "XOAUTH2" else AuthType.PLAIN,
+            oauth2_token=args.oauth2_token,
+            tenant_id=args.tenant_id,
+            client_id=args.client_id,
+            client_secret=args.client_secret,
         )
+        if not creds.has_valid_auth():
+            console.print("[bold red]Lỗi: Cần cung cấp --password hoặc bộ thông tin OAuth2 (--tenant-id, --client-id, --client-secret hoặc --oauth2-token)[/bold red]")
+            sys.exit(1)
         service.inspect_source(creds)
 
     # 2. Non-interactive CLI flag: Batch CSV

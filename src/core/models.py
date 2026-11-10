@@ -17,7 +17,34 @@ class AccountCredentials(BaseModel):
     password: Optional[str] = None
     auth_type: AuthType = AuthType.PLAIN
     oauth2_token: Optional[str] = None
+    tenant_id: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    refresh_token: Optional[str] = None
     timeout: int = 60
+
+    @property
+    def is_oauth2(self) -> bool:
+        """Returns True if OAuth2 authentication should be used."""
+        if self.auth_type == AuthType.XOAUTH2:
+            return True
+        if self.oauth2_token:
+            return True
+        if self.tenant_id and self.client_id and self.client_secret:
+            return True
+        if self.client_id and self.refresh_token:
+            return True
+        return False
+
+    def has_valid_auth(self) -> bool:
+        """Returns True if sufficient credentials (password or OAuth2) are present."""
+        if self.is_oauth2:
+            return bool(
+                (self.oauth2_token and self.oauth2_token.strip())
+                or (self.tenant_id and self.client_id and self.client_secret)
+                or (self.client_id and self.refresh_token)
+            )
+        return bool(self.password and self.password.strip())
 
 
 class FolderRole(str, Enum):

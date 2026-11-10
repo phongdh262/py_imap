@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from src.core.imap_client import IMAPAuthenticationError, IMAPClientWrapper, IMAPConnectionError
-from src.core.models import AccountCredentials
+from src.core.models import AccountCredentials, AuthType
 from src.telemetry.logger import setup_logging
 from src.telemetry.metrics import ACCOUNT_AUTH_STATUS, AUTH_CHECKS_TOTAL
 
@@ -123,23 +123,37 @@ class AuthChecker:
             reader = csv.DictReader(f)
             for row in reader:
                 if check_target in ("source", "both") and row.get("source_user"):
+                    src_auth_raw = (row.get("source_auth_type") or "PLAIN").strip().upper()
+                    src_auth = AuthType.XOAUTH2 if src_auth_raw == "XOAUTH2" else AuthType.PLAIN
                     accounts_to_check.append(
                         AccountCredentials(
                             host=row["source_host"].strip(),
                             port=int(row.get("source_port", 993)),
                             ssl=str(row.get("source_ssl", "true")).lower() in ("true", "1"),
                             username=row["source_user"].strip(),
-                            password=row["source_password"].strip(),
+                            password=(row.get("source_password") or "").strip() or None,
+                            auth_type=src_auth,
+                            oauth2_token=(row.get("source_oauth2_token") or "").strip() or None,
+                            tenant_id=(row.get("source_tenant_id") or "").strip() or None,
+                            client_id=(row.get("source_client_id") or "").strip() or None,
+                            client_secret=(row.get("source_client_secret") or "").strip() or None,
                         )
                     )
                 if check_target in ("dest", "both") and row.get("dest_user"):
+                    dst_auth_raw = (row.get("dest_auth_type") or "PLAIN").strip().upper()
+                    dst_auth = AuthType.XOAUTH2 if dst_auth_raw == "XOAUTH2" else AuthType.PLAIN
                     accounts_to_check.append(
                         AccountCredentials(
                             host=row["dest_host"].strip(),
                             port=int(row.get("dest_port", 993)),
                             ssl=str(row.get("dest_ssl", "true")).lower() in ("true", "1"),
                             username=row["dest_user"].strip(),
-                            password=row["dest_password"].strip(),
+                            password=(row.get("dest_password") or "").strip() or None,
+                            auth_type=dst_auth,
+                            oauth2_token=(row.get("dest_oauth2_token") or "").strip() or None,
+                            tenant_id=(row.get("dest_tenant_id") or "").strip() or None,
+                            client_id=(row.get("dest_client_id") or "").strip() or None,
+                            client_secret=(row.get("dest_client_secret") or "").strip() or None,
                         )
                     )
 
@@ -202,7 +216,11 @@ class AuthChecker:
                 return "Cần tạo Mật khẩu ứng dụng tại Yandex ID > Security > App Passwords"
 
         if "office365.com" in lower_host or "outlook" in lower_host:
-            if "basic auth" in lower_err or "denied" in lower_err:
-                return "Microsoft 365 đã tắt Basic Auth. Cần cấp quyền OAuth2 hoặc bật IMAP trong Exchange Admin"
+            if "aadsts" in lower_err or "oauth2" in lower_err or "access token" in lower_err:
+                return "Kiểm tra lại Tenant ID, Client ID, Client Secret và quyền API Office 365 Exchange Online > IMAP.AccessAsApp (Admin Consent)"
+            if "authenticate failed" in lower_err:
+                return "Token OAuth2 hợp lệ nhưng chưa cấp quyền Service Principal cho mailbox (Add-MailboxPermission FullAccess) hoặc chưa bật IMAP cho user trong Exchange Admin"
+            if "basic auth" in lower_err or "denied" in lower_err or "login failed" in lower_err:
+                return "Microsoft 365 yêu cầu xác thực OAuth2 (XOAUTH2). Hãy chuyển Phương thức xác thực sang OAuth2 (Microsoft 365 Entra ID)"
 
         return "Sai thông tin đăng nhập hoặc IMAP chưa được bật trên máy chủ"

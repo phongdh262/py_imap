@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.core.auth_checker import AuthChecker
-from src.core.models import AccountCredentials, MailboxSummary
+from src.core.models import AccountCredentials, AuthType, MailboxSummary
 from src.core.service import MigrationService
 from src.core.timezone import init_timezone, format_vn_datetime
 from src.reports.reporter import MigrationReporter
@@ -122,9 +122,19 @@ class BatchCheckRequest(BaseModel):
     source_host: Optional[str] = None
     source_port: Optional[int] = 993
     source_ssl: Optional[bool] = True
+    source_auth_type: Optional[str] = "PLAIN"
+    source_oauth2_token: Optional[str] = None
+    source_tenant_id: Optional[str] = None
+    source_client_id: Optional[str] = None
+    source_client_secret: Optional[str] = None
     dest_host: Optional[str] = None
     dest_port: Optional[int] = 993
     dest_ssl: Optional[bool] = True
+    dest_auth_type: Optional[str] = "PLAIN"
+    dest_oauth2_token: Optional[str] = None
+    dest_tenant_id: Optional[str] = None
+    dest_client_id: Optional[str] = None
+    dest_client_secret: Optional[str] = None
     accounts: List[Dict[str, Any]]
 
 
@@ -132,13 +142,106 @@ class BatchMigrateRequest(BaseModel):
     source_host: Optional[str] = None
     source_port: Optional[int] = 993
     source_ssl: Optional[bool] = True
+    source_auth_type: Optional[str] = "PLAIN"
+    source_oauth2_token: Optional[str] = None
+    source_tenant_id: Optional[str] = None
+    source_client_id: Optional[str] = None
+    source_client_secret: Optional[str] = None
     dest_host: Optional[str] = None
     dest_port: Optional[int] = 993
     dest_ssl: Optional[bool] = True
+    dest_auth_type: Optional[str] = "PLAIN"
+    dest_oauth2_token: Optional[str] = None
+    dest_tenant_id: Optional[str] = None
+    dest_client_id: Optional[str] = None
+    dest_client_secret: Optional[str] = None
     accounts: List[Dict[str, Any]]
     sanitize_accents: bool = False
     batch_delay_ms: int = 50
     force_remigrate: bool = True
+
+
+def _build_credentials_from_row(row: Dict[str, Any], prefix: str, req: Any) -> AccountCredentials:
+    """Builds AccountCredentials for 'source' or 'dest' combining per-row CSV fields and batch request defaults."""
+    is_src = prefix == "source"
+    host = (row.get(f"{prefix}_host") or getattr(req, f"{prefix}_host", None) or "").strip()
+    port = int(row.get(f"{prefix}_port") or getattr(req, f"{prefix}_port", None) or 993)
+    ssl_val = row.get(f"{prefix}_ssl")
+    req_ssl = getattr(req, f"{prefix}_ssl", True)
+    ssl_flag = (
+        str(ssl_val).lower() in ("true", "1")
+        if ssl_val is not None
+        else (req_ssl if req_ssl is not None else True)
+    )
+
+    if is_src:
+        user = (
+            row.get("source_user")
+            or row.get("source_email")
+            or row.get("email")
+            or row.get("user")
+            or ""
+        ).strip()
+        pwd = (
+            row.get("source_password")
+            or row.get("source_pass")
+            or row.get("password")
+            or row.get("pass")
+            or ""
+        ).strip()
+    else:
+        user = (row.get("dest_user") or row.get("dest_email") or "").strip()
+        pwd = (row.get("dest_password") or row.get("dest_pass") or "").strip()
+
+    auth_raw = (
+        row.get(f"{prefix}_auth_type")
+        or (row.get("auth_type") if is_src else None)
+        or getattr(req, f"{prefix}_auth_type", None)
+        or "PLAIN"
+    ).strip().upper()
+
+    oauth2_token = (
+        row.get(f"{prefix}_oauth2_token")
+        or (row.get("oauth2_token") if is_src else None)
+        or getattr(req, f"{prefix}_oauth2_token", None)
+        or ""
+    ).strip() or None
+
+    tenant_id = (
+        row.get(f"{prefix}_tenant_id")
+        or (row.get("tenant_id") if is_src else None)
+        or getattr(req, f"{prefix}_tenant_id", None)
+        or ""
+    ).strip() or None
+
+    client_id = (
+        row.get(f"{prefix}_client_id")
+        or (row.get("client_id") if is_src else None)
+        or getattr(req, f"{prefix}_client_id", None)
+        or ""
+    ).strip() or None
+
+    client_secret = (
+        row.get(f"{prefix}_client_secret")
+        or (row.get("client_secret") if is_src else None)
+        or getattr(req, f"{prefix}_client_secret", None)
+        or ""
+    ).strip() or None
+
+    auth_type = AuthType.XOAUTH2 if (auth_raw == "XOAUTH2" or oauth2_token or (tenant_id and client_id and client_secret)) else AuthType.PLAIN
+
+    return AccountCredentials(
+        host=host,
+        port=port,
+        ssl=ssl_flag,
+        username=user,
+        password=pwd or None,
+        auth_type=auth_type,
+        oauth2_token=oauth2_token,
+        tenant_id=tenant_id,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
 
 
 # In-memory Task State for Background Migrations
@@ -234,27 +337,9 @@ async def check_csv_passwords(req: BatchCheckRequest):
     """Checks credentials for all accounts in CSV in parallel."""
     creds_list = []
     for row in req.accounts:
-        src_host = (row.get("source_host") or req.source_host or "").strip()
-        src_port = int(row.get("source_port") or req.source_port or 993)
-        src_ssl_val = row.get("source_ssl")
-        src_ssl = (
-            str(src_ssl_val).lower() in ("true", "1")
-            if src_ssl_val is not None
-            else (req.source_ssl if req.source_ssl is not None else True)
-        )
-        src_user = (row.get("source_user") or row.get("source_email") or row.get("email") or row.get("user") or "").strip()
-        src_pass = (row.get("source_password") or row.get("source_pass") or row.get("password") or row.get("pass") or "").strip()
-
-        if src_user and src_host:
-            creds_list.append(
-                AccountCredentials(
-                    host=src_host,
-                    port=src_port,
-                    ssl=src_ssl,
-                    username=src_user,
-                    password=src_pass,
-                )
-            )
+        creds = _build_credentials_from_row(row, "source", req)
+        if creds.username and creds.host:
+            creds_list.append(creds)
     results = auth_checker.check_multiple(creds_list, max_workers=8)
     return [
         {
@@ -273,16 +358,9 @@ async def check_csv_passwords(req: BatchCheckRequest):
 async def scan_batch_mailboxes(req: BatchCheckRequest):
     """Scans and inspects folders, size, message counts, and quota for multiple accounts in parallel."""
     def _inspect_one(row: Dict[str, Any]) -> Dict[str, Any]:
-        src_host = (row.get("source_host") or req.source_host or "").strip()
-        src_port = int(row.get("source_port") or req.source_port or 993)
-        src_ssl_val = row.get("source_ssl")
-        src_ssl = (
-            str(src_ssl_val).lower() in ("true", "1")
-            if src_ssl_val is not None
-            else (req.source_ssl if req.source_ssl is not None else True)
-        )
-        src_user = (row.get("source_user") or row.get("source_email") or row.get("email") or row.get("user") or "").strip()
-        src_pass = (row.get("source_password") or row.get("source_pass") or row.get("password") or row.get("pass") or "").strip()
+        creds = _build_credentials_from_row(row, "source", req)
+        src_user = creds.username
+        src_host = creds.host
 
         if not (src_user and src_host):
             return {
@@ -298,14 +376,6 @@ async def scan_batch_mailboxes(req: BatchCheckRequest):
                 "quota": None,
                 "folders": [],
             }
-
-        creds = AccountCredentials(
-            host=src_host,
-            port=src_port,
-            ssl=src_ssl,
-            username=src_user,
-            password=src_pass,
-        )
 
         try:
             summary = migration_service.inspect_source(creds)
@@ -354,7 +424,11 @@ async def inspect_mailbox(req: Dict[str, Any]):
     try:
         if "source" in req:
             src_creds = AccountCredentials(**req["source"])
-            dst_creds = AccountCredentials(**req["dest"]) if req.get("dest") and req["dest"].get("username") and req["dest"].get("password") else None
+            dst_creds = None
+            if req.get("dest") and req["dest"].get("username"):
+                candidate_dst = AccountCredentials(**req["dest"])
+                if candidate_dst.has_valid_auth():
+                    dst_creds = candidate_dst
         else:
             src_creds = AccountCredentials(**req)
             dst_creds = None
@@ -570,40 +644,8 @@ def run_batch_migration_worker(batch_id: str, req: BatchMigrateRequest, loop: as
         src_user = (row.get("source_user") or row.get("source_email") or "").strip()
         dst_user = (row.get("dest_user") or row.get("dest_email") or "").strip()
         try:
-            src_host = (row.get("source_host") or req.source_host or "").strip()
-            src_port = int(row.get("source_port") or req.source_port or 993)
-            src_ssl_val = row.get("source_ssl")
-            src_ssl = (
-                str(src_ssl_val).lower() in ("true", "1")
-                if src_ssl_val is not None
-                else (req.source_ssl if req.source_ssl is not None else True)
-            )
-            src_pass = (row.get("source_password") or row.get("source_pass") or "").strip()
-
-            dst_host = (row.get("dest_host") or req.dest_host or "").strip()
-            dst_port = int(row.get("dest_port") or req.dest_port or 993)
-            dst_ssl_val = row.get("dest_ssl")
-            dst_ssl = (
-                str(dst_ssl_val).lower() in ("true", "1")
-                if dst_ssl_val is not None
-                else (req.dest_ssl if req.dest_ssl is not None else True)
-            )
-            dst_pass = (row.get("dest_password") or row.get("dest_pass") or "").strip()
-
-            src = AccountCredentials(
-                host=src_host,
-                port=src_port,
-                ssl=src_ssl,
-                username=src_user,
-                password=src_pass,
-            )
-            dst = AccountCredentials(
-                host=dst_host,
-                port=dst_port,
-                ssl=dst_ssl,
-                username=dst_user,
-                password=dst_pass,
-            )
+            src = _build_credentials_from_row(row, "source", req)
+            dst = _build_credentials_from_row(row, "dest", req)
             single_req = SingleMigrateRequest(
                 source=src,
                 dest=dst,

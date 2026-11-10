@@ -4,6 +4,7 @@ from imapclient import IMAPClient
 from imapclient.exceptions import LoginError, ProtocolError
 
 from src.core.models import AccountCredentials, AuthType
+from src.core.oauth2 import M365OAuth2Provider, OAuth2TokenError
 
 
 class IMAPConnectionError(Exception):
@@ -50,11 +51,20 @@ class IMAPClientWrapper:
                 use_uid=True,
             )
 
-            # Authenticate based on auth type
-            if self.creds.auth_type == AuthType.XOAUTH2:
-                if not self.creds.oauth2_token:
-                    raise IMAPAuthenticationError("OAuth2 selected but no token provided.")
-                self.client.oauth2(self.creds.username, self.creds.oauth2_token)
+            # Authenticate based on auth type / OAuth2 configuration
+            if self.creds.is_oauth2:
+                token = M365OAuth2Provider.resolve_access_token(self.creds)
+                try:
+                    self.client.oauth2_login(self.creds.username, token)
+                except (LoginError, ProtocolError):
+                    # If dynamic OAuth2 credentials are used, force refresh once in case cached token expired
+                    if (self.creds.tenant_id and self.creds.client_id and self.creds.client_secret) or (
+                        self.creds.client_id and self.creds.refresh_token
+                    ):
+                        token = M365OAuth2Provider.resolve_access_token(self.creds, force_refresh=True)
+                        self.client.oauth2_login(self.creds.username, token)
+                    else:
+                        raise
             else:
                 if not self.creds.password:
                     raise IMAPAuthenticationError("Password/App-password is required.")
@@ -66,13 +76,28 @@ class IMAPClientWrapper:
 
             return self
 
+        except OAuth2TokenError as e:
+            clean_err = self._mask_sensitive(str(e))
+            raise IMAPAuthenticationError(f"OAuth2 failed for {self.creds.username} on {self.creds.host}: {clean_err}") from None
         except LoginError as e:
-            # Mask password in error message to prevent accidental leak
-            clean_err = str(e).replace(self.creds.password or "", "***") if self.creds.password else str(e)
+            clean_err = self._mask_sensitive(str(e))
             raise IMAPAuthenticationError(f"Login failed for {self.creds.username} on {self.creds.host}: {clean_err}") from None
         except (ProtocolError, ssl.SSLError, OSError) as e:
-            clean_err = str(e).replace(self.creds.password or "", "***") if self.creds.password else str(e)
+            clean_err = self._mask_sensitive(str(e))
             raise IMAPConnectionError(f"Cannot connect to IMAP host {self.creds.host}:{self.creds.port}: {clean_err}") from None
+
+    def _mask_sensitive(self, message: str) -> str:
+        """Masks passwords, client secrets, and tokens in error messages."""
+        clean = message
+        for secret in (
+            self.creds.password,
+            self.creds.client_secret,
+            self.creds.oauth2_token,
+            self.creds.refresh_token,
+        ):
+            if secret:
+                clean = clean.replace(secret, "***")
+        return clean
 
     def has_capability(self, capability: str) -> bool:
         """Checks if server announced a specific RFC capability."""

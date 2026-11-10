@@ -51,7 +51,7 @@
       "default_ssl": true,
       "folder_delimiter": "/",
       "namespace_prefix": "",
-      "security_note": "Yêu cầu bật IMAP trong Exchange Admin Center hoặc dùng App Password nếu có 2FA.",
+      "security_note": "Sử dụng OAuth2 (Microsoft Entra ID: Tenant ID, Client ID, Client Secret với quyền IMAP.AccessAsApp) và bật IMAP trong Exchange Admin Center.",
       "virtual_folders": [],
       "exclude_by_default": [
         "(?i).*junk email.*",

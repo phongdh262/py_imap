@@ -104,7 +104,7 @@ class MigrationService:
         src_summary = self.inspect_source(src_creds)
         dst_summary = None
 
-        if dst_creds and dst_creds.username and dst_creds.password:
+        if dst_creds and dst_creds.username and dst_creds.has_valid_auth():
             try:
                 dst_summary = self.inspect_destination(dst_creds)
             except Exception as e:

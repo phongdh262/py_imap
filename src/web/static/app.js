@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initCrtMode();
     initMatrixEasterEgg();
     initProviderChips();
+    initAuthTypeSwitchers();
     initSingleAccountTab();
     initDropZone();
     initAuthCheckTab();
@@ -317,16 +318,19 @@ function applyProviderPreset(target, provider) {
         hostInput.value = "imap.gmail.com";
         portInput.value = 993;
         setSslState(true);
+        setTargetAuthType(target, "PLAIN");
         if (hintText) hintText.textContent = "Lưu ý Gmail: Bật 2FA và tạo Mật khẩu ứng dụng (16 ký tự)";
     } else if (provider === "outlook") {
         hostInput.value = "outlook.office365.com";
         portInput.value = 993;
         setSslState(true);
-        if (hintText) hintText.textContent = "Lưu ý Microsoft 365: Dùng App Password hoặc bật IMAP trong Exchange";
+        setTargetAuthType(target, "XOAUTH2");
+        if (hintText) hintText.textContent = "Microsoft 365: Sử dụng OAuth2 (Entra ID: Tenant ID, Client ID, Client Secret với quyền IMAP.AccessAsApp)";
     } else if (provider === "yandex") {
         hostInput.value = "imap.yandex.com";
         portInput.value = 993;
         setSslState(true);
+        setTargetAuthType(target, "PLAIN");
         if (hintText) hintText.textContent = "Lưu ý Yandex: Tạo Mật khẩu ứng dụng tại Yandex ID > Security";
     } else if (provider === "cpanel") {
         let domain = "yourdomain.com";
@@ -336,6 +340,7 @@ function applyProviderPreset(target, provider) {
         hostInput.value = `mail.${domain}`;
         portInput.value = 993;
         setSslState(true);
+        setTargetAuthType(target, "PLAIN");
         if (hintText) hintText.textContent = `cPanel: Mặc định mail.${domain} (Port 993 SSL)`;
     } else if (provider === "custom") {
         if (hintText) hintText.textContent = "";
@@ -346,6 +351,89 @@ function applyProviderPreset(target, provider) {
     }
 }
 
+function initAuthTypeSwitchers() {
+    const configs = [
+        { selectId: "srcAuthType", passGroupId: "srcPasswordGroup", oauthGroupId: "srcOAuth2Group" },
+        { selectId: "dstAuthType", passGroupId: "dstPasswordGroup", oauthGroupId: "dstOAuth2Group" },
+        { selectId: "batchSrcAuthType", passGroupId: null, oauthGroupId: "batchSrcOAuth2Group" },
+        { selectId: "batchDstAuthType", passGroupId: null, oauthGroupId: "batchDstOAuth2Group" },
+        { selectId: "singleAuthType", passGroupId: "singleAuthPassGroup", oauthGroupId: "singleAuthOAuth2Group" },
+        { selectId: "batchAuthType", passGroupId: null, oauthGroupId: "batchAuthOAuth2Group" },
+        { selectId: "scanSingleAuthType", passGroupId: "scanSinglePassGroup", oauthGroupId: "scanSingleOAuth2Group" },
+        { selectId: "scanBatchAuthType", passGroupId: null, oauthGroupId: "scanBatchOAuth2Group" },
+    ];
+
+    configs.forEach(({ selectId, passGroupId, oauthGroupId }) => {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        const sync = () => {
+            const isOAuth = sel.value === "XOAUTH2";
+            const passEl = passGroupId ? document.getElementById(passGroupId) : null;
+            const oauthEl = oauthGroupId ? document.getElementById(oauthGroupId) : null;
+            if (passEl) passEl.style.display = isOAuth ? "none" : "";
+            if (oauthEl) oauthEl.style.display = isOAuth ? "block" : "none";
+        };
+        sel.addEventListener("change", sync);
+        sync();
+    });
+}
+
+function setTargetAuthType(target, authType) {
+    const map = {
+        src: "srcAuthType",
+        dst: "dstAuthType",
+        batchSrc: "batchSrcAuthType",
+        batchDst: "batchDstAuthType",
+        singleAuth: "singleAuthType",
+        batchAuth: "batchAuthType",
+        scanSingle: "scanSingleAuthType",
+        scanBatch: "scanBatchAuthType",
+    };
+    const selectId = map[target];
+    const sel = selectId ? document.getElementById(selectId) : null;
+    if (sel) {
+        sel.value = authType;
+        sel.dispatchEvent(new Event("change"));
+    }
+}
+
+function buildCredsFromPrefix(prefix, timeout = 60) {
+    const host = document.getElementById(`${prefix}Host`)?.value.trim() || "";
+    const port = parseInt(document.getElementById(`${prefix}Port`)?.value) || 993;
+    const sslVal = document.getElementById(`${prefix}Ssl`)?.value;
+    const ssl = sslVal === "true" || sslVal === "ssl";
+    const username = document.getElementById(`${prefix}User`)?.value.trim() || "";
+    const password = document.getElementById(`${prefix}Pass`)?.value.trim() || "";
+    const authSelectId = prefix === "singleAuth" ? "singleAuthType" : `${prefix}AuthType`;
+    const auth_type = document.getElementById(authSelectId)?.value || "PLAIN";
+    const tenant_id = document.getElementById(`${prefix}TenantId`)?.value.trim() || null;
+    const client_id = document.getElementById(`${prefix}ClientId`)?.value.trim() || null;
+    const client_secret = document.getElementById(`${prefix}ClientSecret`)?.value.trim() || null;
+    const oauth2_token = document.getElementById(`${prefix}Oauth2Token`)?.value.trim() || null;
+
+    return {
+        host,
+        port,
+        ssl,
+        username,
+        password: password || null,
+        auth_type,
+        tenant_id,
+        client_id,
+        client_secret,
+        oauth2_token,
+        timeout,
+    };
+}
+
+function hasValidAuthPayload(creds) {
+    if (!creds || !creds.username) return false;
+    if (creds.auth_type === "XOAUTH2") {
+        return !!(creds.oauth2_token || (creds.tenant_id && creds.client_id && creds.client_secret));
+    }
+    return !!creds.password;
+}
+
 // Single Account Tab Logic
 function initSingleAccountTab() {
     // 1. Test Source Password
@@ -353,19 +441,13 @@ function initSingleAccountTab() {
         const btn = document.getElementById("btnTestSrcPass");
         const hint = document.getElementById("srcHintText");
 
-        const payload = {
-            host: document.getElementById("srcHost").value.trim(),
-            port: parseInt(document.getElementById("srcPort").value) || 993,
-            ssl: document.getElementById("srcSsl").value === "true",
-            username: document.getElementById("srcUser").value.trim(),
-            password: document.getElementById("srcPass").value.trim(),
-        };
+        const payload = buildCredsFromPrefix("src");
 
-        if (!payload.username || !payload.password) {
+        if (!hasValidAuthPayload(payload)) {
             if (hint) {
-                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">Vui lòng nhập Email và Mật khẩu nguồn!</span>`;
+                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">Vui lòng nhập đầy đủ Email và thông tin xác thực (Mật khẩu hoặc OAuth2 M365)!</span>`;
             }
-            showToast("Vui lòng nhập Email và Mật khẩu nguồn!", "error");
+            showToast("Vui lòng nhập đầy đủ Email và thông tin xác thực nguồn!", "error");
             return;
         }
 
@@ -423,19 +505,13 @@ function initSingleAccountTab() {
         const btn = document.getElementById("btnTestDstPass");
         const hint = document.getElementById("dstHintText");
 
-        const payload = {
-            host: document.getElementById("dstHost").value.trim(),
-            port: parseInt(document.getElementById("dstPort").value) || 993,
-            ssl: document.getElementById("dstSsl").value === "true",
-            username: document.getElementById("dstUser").value.trim(),
-            password: document.getElementById("dstPass").value.trim(),
-        };
+        const payload = buildCredsFromPrefix("dst");
 
-        if (!payload.username || !payload.password) {
+        if (!hasValidAuthPayload(payload)) {
             if (hint) {
-                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">Vui lòng nhập Email và Mật khẩu đích!</span>`;
+                hint.innerHTML = `<span style="color:var(--danger-text); font-weight:600;">Vui lòng nhập đầy đủ Email và thông tin xác thực đích!</span>`;
             }
-            showToast("Vui lòng nhập Email và Mật khẩu đích!", "error");
+            showToast("Vui lòng nhập đầy đủ Email và thông tin xác thực đích!", "error");
             return;
         }
 
@@ -495,30 +571,18 @@ function initSingleAccountTab() {
         btn.textContent = "Đang quét...";
 
         const payload = {
-            source: {
-                host: document.getElementById("srcHost").value.trim(),
-                port: parseInt(document.getElementById("srcPort").value) || 993,
-                ssl: document.getElementById("srcSsl").value === "true",
-                username: document.getElementById("srcUser").value.trim(),
-                password: document.getElementById("srcPass").value.trim(),
-            },
-            dest: {
-                host: document.getElementById("dstHost").value.trim(),
-                port: parseInt(document.getElementById("dstPort").value) || 993,
-                ssl: document.getElementById("dstSsl").value === "true",
-                username: document.getElementById("dstUser").value.trim(),
-                password: document.getElementById("dstPass").value.trim(),
-            }
+            source: buildCredsFromPrefix("src"),
+            dest: buildCredsFromPrefix("dst"),
         };
 
-        if (!payload.source.username || !payload.source.password) {
-            showToast("Vui lòng nhập Email và Mật khẩu nguồn để quét!", "error");
+        if (!hasValidAuthPayload(payload.source)) {
+            showToast("Vui lòng nhập đầy đủ Email và thông tin xác thực nguồn để quét!", "error");
             btn.disabled = false;
             btn.textContent = "Quét Dung Lượng & Cây Thư Mục";
             return;
         }
 
-        const isDual = !!(payload.dest.username && payload.dest.password);
+        const isDual = hasValidAuthPayload(payload.dest);
         appendTerminalLog(
             isDual
                 ? `[INSPECT] Quét và đối chiếu cả 2 đầu: ${payload.source.username} ➔ ${payload.dest.username}...`
@@ -563,30 +627,16 @@ function initSingleAccountTab() {
     document.getElementById("btnStartSingleMigrate").addEventListener("click", () => {
         const socketTimeout = parseInt(localStorage.getItem("setting_socket_timeout") || document.getElementById("settingSocketTimeout")?.value) || 60;
         const payload = {
-            source: {
-                host: document.getElementById("srcHost").value.trim(),
-                port: parseInt(document.getElementById("srcPort").value) || 993,
-                ssl: document.getElementById("srcSsl").value === "true",
-                username: document.getElementById("srcUser").value.trim(),
-                password: document.getElementById("srcPass").value.trim(),
-                timeout: socketTimeout,
-            },
-            dest: {
-                host: document.getElementById("dstHost").value.trim(),
-                port: parseInt(document.getElementById("dstPort").value) || 993,
-                ssl: document.getElementById("dstSsl").value === "true",
-                username: document.getElementById("dstUser").value.trim(),
-                password: document.getElementById("dstPass").value.trim(),
-                timeout: socketTimeout,
-            },
+            source: buildCredsFromPrefix("src", socketTimeout),
+            dest: buildCredsFromPrefix("dst", socketTimeout),
             batch_size: parseInt(localStorage.getItem("setting_batch_size") || document.getElementById("settingBatchSize")?.value) || 50,
             batch_delay_ms: parseInt(localStorage.getItem("setting_batch_delay") || document.getElementById("settingBatchDelay")?.value) || 50,
             sanitize_accents: document.getElementById("settingSanitizeAccents") ? document.getElementById("settingSanitizeAccents").checked : false,
             force_remigrate: document.getElementById("forceRemigrateSingle") ? document.getElementById("forceRemigrateSingle").checked : true,
         };
 
-        if (!payload.source.username || !payload.source.password || !payload.dest.username || !payload.dest.password) {
-            showToast("Vui lòng điền đầy đủ tài khoản và mật khẩu cả 2 đầu!", "error");
+        if (!hasValidAuthPayload(payload.source) || !hasValidAuthPayload(payload.dest)) {
+            showToast("Vui lòng điền đầy đủ tài khoản và xác thực (Mật khẩu hoặc OAuth2) cả 2 đầu!", "error");
             return;
         }
 
@@ -1146,6 +1196,11 @@ function initDropZone() {
                         source_host: srcHost,
                         source_port: srcPort,
                         source_ssl: srcSsl,
+                        source_auth_type: document.getElementById("batchSrcAuthType")?.value || "PLAIN",
+                        source_tenant_id: document.getElementById("batchSrcTenantId")?.value.trim() || null,
+                        source_client_id: document.getElementById("batchSrcClientId")?.value.trim() || null,
+                        source_client_secret: document.getElementById("batchSrcClientSecret")?.value.trim() || null,
+                        source_oauth2_token: document.getElementById("batchSrcOauth2Token")?.value.trim() || null,
                         accounts: parsedCsvData,
                     }),
                 });
@@ -1213,9 +1268,19 @@ function initDropZone() {
                         source_host: srcHost,
                         source_port: srcPort,
                         source_ssl: srcSsl,
+                        source_auth_type: document.getElementById("batchSrcAuthType")?.value || "PLAIN",
+                        source_tenant_id: document.getElementById("batchSrcTenantId")?.value.trim() || null,
+                        source_client_id: document.getElementById("batchSrcClientId")?.value.trim() || null,
+                        source_client_secret: document.getElementById("batchSrcClientSecret")?.value.trim() || null,
+                        source_oauth2_token: document.getElementById("batchSrcOauth2Token")?.value.trim() || null,
                         dest_host: dstHost,
                         dest_port: dstPort,
                         dest_ssl: dstSsl,
+                        dest_auth_type: document.getElementById("batchDstAuthType")?.value || "PLAIN",
+                        dest_tenant_id: document.getElementById("batchDstTenantId")?.value.trim() || null,
+                        dest_client_id: document.getElementById("batchDstClientId")?.value.trim() || null,
+                        dest_client_secret: document.getElementById("batchDstClientSecret")?.value.trim() || null,
+                        dest_oauth2_token: document.getElementById("batchDstOauth2Token")?.value.trim() || null,
                         accounts: parsedCsvData,
                         sanitize_accents: sanitizeAccents,
                         batch_delay_ms: 50,
@@ -2607,15 +2672,11 @@ function initAuthCheckTab() {
     const btnTestSingle = document.getElementById("btnTestSingleAuth");
     if (btnTestSingle) {
         btnTestSingle.addEventListener("click", async () => {
-            const host = document.getElementById("singleAuthHost")?.value.trim();
-            const port = parseInt(document.getElementById("singleAuthPort")?.value) || 993;
-            const ssl = document.getElementById("singleAuthSsl")?.value === "true";
-            const user = document.getElementById("singleAuthUser")?.value.trim();
-            const pass = document.getElementById("singleAuthPass")?.value;
+            const payload = buildCredsFromPrefix("singleAuth");
             const resBox = document.getElementById("singleAuthResultBox");
 
-            if (!host || !user || !pass) {
-                showToast("Vui lòng nhập đầy đủ Host, Email và Mật khẩu", "error");
+            if (!payload.host || !hasValidAuthPayload(payload)) {
+                showToast("Vui lòng nhập đầy đủ Host, Email và thông tin xác thực (Mật khẩu hoặc OAuth2)", "error");
                 return;
             }
 
@@ -2635,7 +2696,7 @@ function initAuthCheckTab() {
                 const resp = await fetch("/api/check-password", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ host, port, ssl, username: user, password: pass })
+                    body: JSON.stringify(payload)
                 });
                 const elapsed = Math.round(performance.now() - t0);
                 const data = await resp.json();
@@ -2753,7 +2814,7 @@ function parseAuthCsvFile(file) {
 
         for (let i = startIndex; i < lines.length; i++) {
             const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ''));
-            if (cols.length >= 2 && cols[0]) {
+            if (cols.length >= 1 && cols[0] && cols[0].includes("@")) {
                 parsedAuthCsvData.push({
                     email: cols[0],
                     password: cols[1] || "",
@@ -2846,6 +2907,11 @@ async function runBatchAuthCheck() {
             source_host: host,
             source_port: port,
             source_ssl: ssl,
+            source_auth_type: document.getElementById("batchAuthType")?.value || "PLAIN",
+            source_tenant_id: document.getElementById("batchAuthTenantId")?.value.trim() || null,
+            source_client_id: document.getElementById("batchAuthClientId")?.value.trim() || null,
+            source_client_secret: document.getElementById("batchAuthClientSecret")?.value.trim() || null,
+            source_oauth2_token: document.getElementById("batchAuthOauth2Token")?.value.trim() || null,
             accounts: parsedAuthCsvData.map(r => ({
                 email: r.email,
                 password: r.password
@@ -3080,15 +3146,11 @@ function initScanStorageTab() {
     if (scanSingleForm) {
         scanSingleForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const host = document.getElementById("scanSingleHost")?.value.trim();
-            const port = parseInt(document.getElementById("scanSinglePort")?.value) || 993;
-            const sslVal = document.getElementById("scanSingleSsl")?.value;
-            const ssl = (sslVal === "ssl" || sslVal === "true");
-            const username = document.getElementById("scanSingleUser")?.value.trim();
-            const password = document.getElementById("scanSinglePass")?.value;
+            const scanPayload = buildCredsFromPrefix("scanSingle");
+            const { host, port, ssl, username } = scanPayload;
 
-            if (!host || !username || !password) {
-                showToast("Vui lòng điền đầy đủ máy chủ IMAP, tài khoản và mật khẩu", "error");
+            if (!host || !hasValidAuthPayload(scanPayload)) {
+                showToast("Vui lòng điền đầy đủ máy chủ IMAP, tài khoản và thông tin xác thực (Mật khẩu hoặc OAuth2)", "error");
                 return;
             }
 
@@ -3106,7 +3168,7 @@ function initScanStorageTab() {
                 const resp = await fetch("/api/inspect", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ host, port, ssl, username, password })
+                    body: JSON.stringify(scanPayload)
                 });
 
                 if (!resp.ok) {
@@ -3115,7 +3177,7 @@ function initScanStorageTab() {
                 }
 
                 const data = await resp.json();
-                currentSingleScannedCreds = { host, port, ssl, username, password };
+                currentSingleScannedCreds = scanPayload;
                 lastSingleScanFolders = data.folders || [];
 
                 // Title and sub
@@ -3210,12 +3272,25 @@ function initScanStorageTab() {
             const srcSsl = document.getElementById("srcSsl");
             const srcUser = document.getElementById("srcUser");
             const srcPass = document.getElementById("srcPass");
+            const srcAuthType = document.getElementById("srcAuthType");
+            const srcTenantId = document.getElementById("srcTenantId");
+            const srcClientId = document.getElementById("srcClientId");
+            const srcClientSecret = document.getElementById("srcClientSecret");
+            const srcOauth2Token = document.getElementById("srcOauth2Token");
 
             if (srcHost) srcHost.value = currentSingleScannedCreds.host;
             if (srcPort) srcPort.value = currentSingleScannedCreds.port;
             if (srcSsl) srcSsl.value = currentSingleScannedCreds.ssl ? "true" : "false";
             if (srcUser) srcUser.value = currentSingleScannedCreds.username;
-            if (srcPass) srcPass.value = currentSingleScannedCreds.password;
+            if (srcPass) srcPass.value = currentSingleScannedCreds.password || "";
+            if (srcAuthType) {
+                srcAuthType.value = currentSingleScannedCreds.auth_type || "PLAIN";
+                srcAuthType.dispatchEvent(new Event("change"));
+            }
+            if (srcTenantId) srcTenantId.value = currentSingleScannedCreds.tenant_id || "";
+            if (srcClientId) srcClientId.value = currentSingleScannedCreds.client_id || "";
+            if (srcClientSecret) srcClientSecret.value = currentSingleScannedCreds.client_secret || "";
+            if (srcOauth2Token) srcOauth2Token.value = currentSingleScannedCreds.oauth2_token || "";
 
             switchToTab("singleTab");
             showToast("Đã chuyển tài khoản nguồn sang Cấu hình Di chuyển!", "success");
@@ -3400,6 +3475,11 @@ function initScanStorageTab() {
                         source_host: host,
                         source_port: port,
                         source_ssl: ssl,
+                        source_auth_type: document.getElementById("scanBatchAuthType")?.value || "PLAIN",
+                        source_tenant_id: document.getElementById("scanBatchTenantId")?.value.trim() || null,
+                        source_client_id: document.getElementById("scanBatchClientId")?.value.trim() || null,
+                        source_client_secret: document.getElementById("scanBatchClientSecret")?.value.trim() || null,
+                        source_oauth2_token: document.getElementById("scanBatchOauth2Token")?.value.trim() || null,
                         accounts: accounts
                     })
                 });
@@ -3503,10 +3583,25 @@ function initScanStorageTab() {
             const host = document.getElementById("scanBatchHost")?.value.trim();
             const port = document.getElementById("scanBatchPort")?.value.trim();
             const ssl = document.getElementById("scanBatchSsl")?.checked;
+            const authType = document.getElementById("scanBatchAuthType")?.value || "PLAIN";
+            const tenantId = document.getElementById("scanBatchTenantId")?.value.trim() || "";
+            const clientId = document.getElementById("scanBatchClientId")?.value.trim() || "";
+            const clientSecret = document.getElementById("scanBatchClientSecret")?.value.trim() || "";
+            const oauth2Token = document.getElementById("scanBatchOauth2Token")?.value.trim() || "";
 
             if (host && document.getElementById("batchSrcHost")) document.getElementById("batchSrcHost").value = host;
             if (port && document.getElementById("batchSrcPort")) document.getElementById("batchSrcPort").value = port;
             if (document.getElementById("batchSrcSsl")) document.getElementById("batchSrcSsl").value = ssl ? "true" : "false";
+
+            const batchSrcAuthType = document.getElementById("batchSrcAuthType");
+            if (batchSrcAuthType) {
+                batchSrcAuthType.value = authType;
+                batchSrcAuthType.dispatchEvent(new Event("change"));
+            }
+            if (document.getElementById("batchSrcTenantId")) document.getElementById("batchSrcTenantId").value = tenantId;
+            if (document.getElementById("batchSrcClientId")) document.getElementById("batchSrcClientId").value = clientId;
+            if (document.getElementById("batchSrcClientSecret")) document.getElementById("batchSrcClientSecret").value = clientSecret;
+            if (document.getElementById("batchSrcOauth2Token")) document.getElementById("batchSrcOauth2Token").value = oauth2Token;
 
             switchToTab("batchTab");
             showToast("Đã chuyển cấu hình máy chủ sang Di Chuyển CSV! Vui lòng tải file CSV đích để bắt đầu.", "info");
@@ -3547,10 +3642,10 @@ function parseAccountsFromCsvText(rawText) {
     const accounts = [];
     for (let i = startIndex; i < lines.length; i++) {
         const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ''));
-        if (cols.length >= 2 && cols[0]) {
+        if (cols.length >= 1 && cols[0] && cols[0].includes("@")) {
             accounts.push({
                 email: cols[0],
-                password: cols[1]
+                password: cols[1] || ""
             });
         }
     }

@@ -285,6 +285,104 @@ class TestCoreFeatures(unittest.TestCase):
         self.assertIsNone(norm(None))
         self.assertIsNone(norm(""))
 
+    # -------------------------------------------------------------
+    # 6. Microsoft 365 OAuth2 (XOAUTH2) & Entra ID Token Tests
+    # -------------------------------------------------------------
+    def test_m365_oauth2_client_credentials_and_caching(self):
+        """Kiểm tra lấy Access Token tự động qua Entra ID Client Credentials và bộ nhớ đệm TTL."""
+        from src.core.models import AccountCredentials
+        from src.core.oauth2 import M365OAuth2Provider, OAuth2TokenError
+
+        M365OAuth2Provider.clear_cache()
+        creds = AccountCredentials(
+            host="outlook.office365.com",
+            port=993,
+            username="user@tenant.onmicrosoft.com",
+            auth_type="XOAUTH2",
+            tenant_id="11111111-2222-3333-4444-555555555555",
+            client_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            client_secret="super-secret-value",
+        )
+        self.assertTrue(creds.is_oauth2)
+        self.assertTrue(creds.has_valid_auth())
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.mocktoken",
+            "expires_in": 3599,
+        }
+
+        with patch("src.core.oauth2.httpx.Client") as mock_client_cls:
+            mock_http = MagicMock()
+            mock_http.post.return_value = mock_resp
+            mock_client_cls.return_value.__enter__.return_value = mock_http
+
+            # Lần 1: Gọi HTTP lấy token từ Entra ID
+            token1 = M365OAuth2Provider.resolve_access_token(creds)
+            self.assertEqual(token1, "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.mocktoken")
+            self.assertEqual(mock_http.post.call_count, 1)
+
+            # Lần 2: Trả về từ bộ nhớ đệm mà không gọi lại HTTP
+            token2 = M365OAuth2Provider.resolve_access_token(creds)
+            self.assertEqual(token2, token1)
+            self.assertEqual(mock_http.post.call_count, 1)
+
+            # Lần 3: force_refresh=True buộc lấy lại token mới
+            token3 = M365OAuth2Provider.resolve_access_token(creds, force_refresh=True)
+            self.assertEqual(token3, token1)
+            self.assertEqual(mock_http.post.call_count, 2)
+
+        # Kiểm tra xử lý lỗi Entra ID AADSTS7000215 (sai Client Secret)
+        mock_err_resp = MagicMock()
+        mock_err_resp.status_code = 401
+        mock_err_resp.json.return_value = {
+            "error": "invalid_client",
+            "error_description": "AADSTS7000215: Invalid client secret provided.",
+        }
+        with patch("src.core.oauth2.httpx.Client") as mock_client_cls:
+            mock_http = MagicMock()
+            mock_http.post.return_value = mock_err_resp
+            mock_client_cls.return_value.__enter__.return_value = mock_http
+
+            with self.assertRaises(OAuth2TokenError) as ctx:
+                M365OAuth2Provider.resolve_access_token(creds, force_refresh=True)
+            self.assertIn("Client Secret", str(ctx.exception))
+
+    def test_imap_client_wrapper_xoauth2_login_and_retry(self):
+        """Kiểm tra IMAPClientWrapper gọi oauth2_login và tự động làm mới token nếu token cache hết hạn."""
+        from imapclient.exceptions import LoginError
+        from src.core.imap_client import IMAPClientWrapper
+        from src.core.models import AccountCredentials
+
+        creds = AccountCredentials(
+            host="outlook.office365.com",
+            port=993,
+            username="ceo@company.com",
+            auth_type="XOAUTH2",
+            tenant_id="tenant-123",
+            client_id="client-456",
+            client_secret="secret-789",
+        )
+
+        with patch("src.core.imap_client.IMAPClient") as mock_imap_cls, patch(
+            "src.core.imap_client.M365OAuth2Provider.resolve_access_token"
+        ) as mock_resolve:
+            mock_imap = MagicMock()
+            # Giả lập lần đầu oauth2_login thất bại do token cũ, lần 2 thành công
+            mock_imap.oauth2_login.side_effect = [LoginError("NO AUTHENTICATE failed"), None]
+            mock_imap.capabilities.return_value = [b"IMAP4REV1", b"AUTH=XOAUTH2"]
+            mock_imap.namespace.return_value = (((b"", b"/"),), (), ())
+            mock_imap_cls.return_value = mock_imap
+            mock_resolve.side_effect = ["cached-expired-token", "fresh-new-token"]
+
+            wrapper = IMAPClientWrapper(creds)
+            wrapper.connect()
+
+            self.assertEqual(mock_resolve.call_count, 2)
+            mock_imap.oauth2_login.assert_any_call("ceo@company.com", "cached-expired-token")
+            mock_imap.oauth2_login.assert_called_with("ceo@company.com", "fresh-new-token")
+
 
 if __name__ == "__main__":
     unittest.main()

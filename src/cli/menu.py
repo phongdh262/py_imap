@@ -9,7 +9,7 @@ from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
 
 from src.core.imap_client import IMAPAuthenticationError, IMAPClientWrapper, IMAPConnectionError
-from src.core.models import AccountCredentials
+from src.core.models import AccountCredentials, AuthType
 from src.core.service import MigrationService
 
 console = Console()
@@ -29,20 +29,59 @@ def show_banner(metrics_port: int = 8000):
 
 
 def prompt_account_credentials(title: str = "Account Credentials", default_host: str = "imap.gmail.com") -> AccountCredentials:
-    """Interactively prompts user for IMAP credentials with password masking."""
+    """Interactively prompts user for IMAP credentials with Password or Microsoft 365 OAuth2."""
     console.print(f"\n[bold yellow]─── {title} ───[/bold yellow]")
     host = Prompt.ask("Host IMAP (ví dụ: imap.gmail.com, imap.yandex.com, outlook.office365.com)", default=default_host)
     port = IntPrompt.ask("Port IMAP", default=993)
     use_ssl = Confirm.ask("Sử dụng SSL/TLS?", default=True)
     username = Prompt.ask("Email / Tên đăng nhập")
-    password = Prompt.ask("Mật khẩu / App Password", password=True)
 
+    default_auth = "2" if ("office365" in host.lower() or "outlook" in host.lower()) else "1"
+    auth_choice = Prompt.ask(
+        "Phương thức xác thực ([1]=Mật khẩu / App Password, [2]=OAuth2 Microsoft 365 / XOAUTH2)",
+        choices=["1", "2"],
+        default=default_auth,
+    )
+
+    if auth_choice == "2":
+        mode_choice = Prompt.ask(
+            "Chế độ OAuth2 ([1]=Microsoft 365 Entra ID: Tenant + Client ID + Secret, [2]=Access Token trực tiếp)",
+            choices=["1", "2"],
+            default="1",
+        )
+        if mode_choice == "1":
+            tenant_id = Prompt.ask("Microsoft 365 Tenant ID (Directory ID)")
+            client_id = Prompt.ask("Microsoft 365 Client ID (Application ID)")
+            client_secret = Prompt.ask("Microsoft 365 Client Secret (Value)", password=True)
+            return AccountCredentials(
+                host=host.strip(),
+                port=port,
+                ssl=use_ssl,
+                username=username.strip(),
+                auth_type=AuthType.XOAUTH2,
+                tenant_id=tenant_id.strip(),
+                client_id=client_id.strip(),
+                client_secret=client_secret.strip(),
+            )
+        else:
+            oauth2_token = Prompt.ask("OAuth2 Access Token", password=True)
+            return AccountCredentials(
+                host=host.strip(),
+                port=port,
+                ssl=use_ssl,
+                username=username.strip(),
+                auth_type=AuthType.XOAUTH2,
+                oauth2_token=oauth2_token.strip(),
+            )
+
+    password = Prompt.ask("Mật khẩu / App Password", password=True)
     return AccountCredentials(
         host=host.strip(),
         port=port,
         ssl=use_ssl,
         username=username.strip(),
         password=password.strip(),
+        auth_type=AuthType.PLAIN,
     )
 
 
@@ -110,19 +149,31 @@ def handle_migrate_csv(service: MigrationService):
 
     for idx, row in enumerate(accounts, 1):
         console.print(f"\n[bold yellow]══════ Đang xử lý Tài khoản [{idx}/{len(accounts)}] ══════[/bold yellow]")
+        src_auth_raw = (row.get("source_auth_type") or "PLAIN").strip().upper()
+        dst_auth_raw = (row.get("dest_auth_type") or "PLAIN").strip().upper()
         src_creds = AccountCredentials(
             host=row["source_host"].strip(),
             port=int(row.get("source_port", 993)),
             ssl=str(row.get("source_ssl", "true")).lower() in ("true", "1"),
             username=row["source_user"].strip(),
-            password=row["source_password"].strip(),
+            password=(row.get("source_password") or "").strip() or None,
+            auth_type=AuthType.XOAUTH2 if src_auth_raw == "XOAUTH2" else AuthType.PLAIN,
+            oauth2_token=(row.get("source_oauth2_token") or "").strip() or None,
+            tenant_id=(row.get("source_tenant_id") or "").strip() or None,
+            client_id=(row.get("source_client_id") or "").strip() or None,
+            client_secret=(row.get("source_client_secret") or "").strip() or None,
         )
         dst_creds = AccountCredentials(
             host=row["dest_host"].strip(),
             port=int(row.get("dest_port", 993)),
             ssl=str(row.get("dest_ssl", "true")).lower() in ("true", "1"),
             username=row["dest_user"].strip(),
-            password=row["dest_password"].strip(),
+            password=(row.get("dest_password") or "").strip() or None,
+            auth_type=AuthType.XOAUTH2 if dst_auth_raw == "XOAUTH2" else AuthType.PLAIN,
+            oauth2_token=(row.get("dest_oauth2_token") or "").strip() or None,
+            tenant_id=(row.get("dest_tenant_id") or "").strip() or None,
+            client_id=(row.get("dest_client_id") or "").strip() or None,
+            client_secret=(row.get("dest_client_secret") or "").strip() or None,
         )
         try:
             service.migrate_account(src_creds, dst_creds)
